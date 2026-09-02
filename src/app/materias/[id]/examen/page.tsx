@@ -97,7 +97,7 @@ export default function CrearExamenPage() {
 
         <h1 className="font-serif text-3xl mb-8">Crear examen objetivo</h1>
 
-        <form onSubmit={handleSubmit}>
+        <form action="#" method="dialog" onSubmit={handleSubmit}>
           <div className="grid grid-cols-[1fr_320px] gap-12">
             <div>
               <h2 className="font-serif text-2xl mb-6">¿Qué examen vas a preparar?</h2>

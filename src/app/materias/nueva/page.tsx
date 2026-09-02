@@ -68,7 +68,7 @@ export default function CrearMateriaPage() {
               Cargá tus apuntes, prepará exámenes e invitá a otras personas cuando quieras.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form action="#" method="dialog" onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                   Nombre de la materia
@@ -78,6 +78,7 @@ export default function CrearMateriaPage() {
                   type="text"
                   required
                   placeholder="Análisis Matemático II"
+                  autoComplete="off"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                 />
               </div>
@@ -91,6 +92,7 @@ export default function CrearMateriaPage() {
                     name="faculty"
                     type="text"
                     placeholder="UTN La Plata"
+                    autoComplete="off"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
@@ -102,6 +104,7 @@ export default function CrearMateriaPage() {
                     name="carrera"
                     type="text"
                     placeholder="Ingeniería"
+                    autoComplete="off"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
@@ -115,6 +118,7 @@ export default function CrearMateriaPage() {
                   name="catedra"
                   type="text"
                   placeholder="Agregar cátedra"
+                  autoComplete="off"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                 />
               </div>
