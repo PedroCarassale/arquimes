@@ -55,8 +55,7 @@ export default function CrearExamenPage() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCreate() {
     if (!date) return;
 
     setLoading(true);
@@ -97,7 +96,7 @@ export default function CrearExamenPage() {
 
         <h1 className="font-serif text-3xl mb-8">Crear examen objetivo</h1>
 
-        <form action="#" method="dialog" onSubmit={handleSubmit}>
+        <div>
           <div className="grid grid-cols-[1fr_320px] gap-12">
             <div>
               <h2 className="font-serif text-2xl mb-6">¿Qué examen vas a preparar?</h2>
@@ -284,14 +283,15 @@ export default function CrearExamenPage() {
               ← Volver a la materia
             </Link>
             <button
-              type="submit"
+              type="button"
+              onClick={handleCreate}
               disabled={!date || loading}
               className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Guardando..." : "Continuar →"}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </AppShell>
   );

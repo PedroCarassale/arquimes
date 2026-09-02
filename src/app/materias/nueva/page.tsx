@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
@@ -9,22 +9,28 @@ export default function CrearMateriaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [faculty, setFaculty] = useState("");
+  const [catedra, setCatedra] = useState("");
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleCreate() {
+    if (!name.trim()) {
+      setError("El nombre es requerido");
+      return;
+    }
+
     setLoading(true);
     setError(null);
-
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
-    const faculty = formData.get("faculty") as string;
-    const catedra = formData.get("catedra") as string;
 
     try {
       const res = await fetch("/api/materias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, faculty, catedra }),
+        body: JSON.stringify({
+          name: name.trim(),
+          faculty: faculty.trim(),
+          catedra: catedra.trim(),
+        }),
       });
 
       if (!res.ok) {
@@ -68,15 +74,15 @@ export default function CrearMateriaPage() {
               Cargá tus apuntes, prepará exámenes e invitá a otras personas cuando quieras.
             </p>
 
-            <form action="#" method="dialog" onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
               <div>
                 <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                   Nombre de la materia
                 </label>
                 <input
-                  name="name"
                   type="text"
-                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Análisis Matemático II"
                   autoComplete="off"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
@@ -89,8 +95,9 @@ export default function CrearMateriaPage() {
                     Universidad
                   </label>
                   <input
-                    name="faculty"
                     type="text"
+                    value={faculty}
+                    onChange={(e) => setFaculty(e.target.value)}
                     placeholder="UTN La Plata"
                     autoComplete="off"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
@@ -101,7 +108,6 @@ export default function CrearMateriaPage() {
                     Carrera
                   </label>
                   <input
-                    name="carrera"
                     type="text"
                     placeholder="Ingeniería"
                     autoComplete="off"
@@ -115,8 +121,9 @@ export default function CrearMateriaPage() {
                   Cátedra · Opcional
                 </label>
                 <input
-                  name="catedra"
                   type="text"
+                  value={catedra}
+                  onChange={(e) => setCatedra(e.target.value)}
                   placeholder="Agregar cátedra"
                   autoComplete="off"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
@@ -128,13 +135,14 @@ export default function CrearMateriaPage() {
               )}
 
               <button
-                type="submit"
+                type="button"
+                onClick={handleCreate}
                 disabled={loading}
                 className="w-full h-12 bg-accent text-background font-mono text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {loading ? "Creando..." : "Crear materia →"}
               </button>
-            </form>
+            </div>
           </div>
 
           <div className="border border-border-subtle p-8 opacity-40">
