@@ -25,7 +25,7 @@ Abrí `http://127.0.0.1:43131`. Un puerto distinto es una sesión vacía.
 ```bash
 .cursor/skills/verify-arquimes/bin/launch
 .cursor/skills/verify-arquimes/bin/doctor
-.cursor/skills/verify-arquimes/bin/drive-cargar-examen
+.cursor/skills/verify-arquimes/bin/drive-chat-estudio
 .cursor/skills/verify-arquimes/bin/cleanup
 ```
 
@@ -38,3 +38,4 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
 3. Cargar un examen con nombre, tipo, fecha, objetivo y temas que vos agregás
 4. Listar, editar y borrar exámenes en `/materias/[id]/examenes`
 5. Resumen honesto: si no hay examen, temas o práctica, lo dice
+6. Chat de estudio anclado a la materia: responde con apuntes y archivos de examen; si no hay material, lo dice

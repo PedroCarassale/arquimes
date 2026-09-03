@@ -24,6 +24,8 @@ export interface Material {
   storageKey: string;
   addedAt: string;
   contentBase64?: string;
+  kind?: "apunte" | "examen";
+  examId?: string;
 }
 
 export interface ExamenEnPreparacion {
@@ -35,6 +37,11 @@ export interface ExamenEnPreparacion {
   objective?: string;
   modality?: string;
   createdAt: string;
+  note?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  fileContentBase64?: string;
 }
 
 export interface ChatMessage {
@@ -43,7 +50,27 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   materiaId?: string;
+  citations?: string[];
 }
+
+export type StudySourceKind = "apunte" | "examen";
+
+export type StudyExamSummary = {
+  name: string;
+  typeLabel: string;
+  date: string;
+  objective?: string;
+  temas: string[];
+};
+
+export type GroundingPayload = {
+  materiaId: string;
+  materiaName: string;
+  sourceCount: number;
+  readableCount: number;
+  sources: { name: string; kind: StudySourceKind; readable: boolean }[];
+  exams: StudyExamSummary[];
+};
 
 export interface Tema {
   id: string;
