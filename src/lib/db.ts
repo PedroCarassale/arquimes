@@ -7,7 +7,6 @@ import {
   Tema,
   ChatMessage,
   MasteryState,
-  ExamType,
 } from "./types";
 
 const COOKIE_PREFIX = "aqs";
@@ -258,69 +257,6 @@ export async function updateExamenNote(
   });
 }
 
-export async function updateExamenWithTemas(
-  id: string,
-  data: {
-    name: string;
-    type: ExamType;
-    date: string;
-    modality?: string;
-    objective?: string;
-    temaNames: string[];
-  }
-): Promise<ExamenEnPreparacion | undefined> {
-  return mutate((store) => {
-    const examen = store.examenes.find((e) => e.id === id);
-    if (!examen) return undefined;
-    examen.name = data.name;
-    examen.type = data.type;
-    examen.date = data.date;
-    examen.modality = data.modality;
-    examen.objective = data.objective;
-    const previous = store.temas.filter((t) => t.examenId === id);
-    store.temas = store.temas.filter((t) => t.examenId !== id);
-    for (const temaName of data.temaNames) {
-      const kept = previous.find((t) => t.name === temaName);
-      store.temas.push(
-        kept ?? {
-          id: uuid(),
-          examenId: id,
-          name: temaName,
-          masteryState: "no_estudiado",
-          createdAt: new Date().toISOString(),
-        }
-      );
-    }
-    return examen;
-  });
-}
-
-export async function createExamen(
-  id: string,
-  materiaId: string,
-  type: ExamType,
-  date: string,
-  modality?: string,
-  name?: string,
-  objective?: string
-): Promise<ExamenEnPreparacion> {
-  return mutate((store) => {
-    const createdAt = new Date().toISOString();
-    const examen: ExamenEnPreparacion = {
-      id,
-      materiaId,
-      type,
-      date,
-      name,
-      objective,
-      modality,
-      createdAt,
-    };
-    store.examenes.push(examen);
-    return examen;
-  });
-}
-
 export async function deleteExamen(id: string): Promise<void> {
   await mutate((store) => {
     const examen = store.examenes.find((e) => e.id === id);
@@ -354,42 +290,6 @@ export async function createTema(
     const tema: Tema = { id, examenId, name, masteryState, createdAt };
     store.temas.push(tema);
     return tema;
-  });
-}
-
-export async function createExamenWithTemas(
-  id: string,
-  materiaId: string,
-  type: ExamType,
-  date: string,
-  modality: string | undefined,
-  temaNames: string[],
-  name?: string,
-  objective?: string
-): Promise<ExamenEnPreparacion> {
-  return mutate((store) => {
-    const createdAt = new Date().toISOString();
-    const examen: ExamenEnPreparacion = {
-      id,
-      materiaId,
-      type,
-      date,
-      name,
-      objective,
-      modality,
-      createdAt,
-    };
-    store.examenes.push(examen);
-    for (const temaName of temaNames) {
-      store.temas.push({
-        id: uuid(),
-        examenId: id,
-        name: temaName,
-        masteryState: "no_estudiado",
-        createdAt: new Date().toISOString(),
-      });
-    }
-    return examen;
   });
 }
 
