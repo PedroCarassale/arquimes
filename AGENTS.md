@@ -19,7 +19,7 @@ Arquimes is NOT a PDF library, flashcard app, generic chatbot, or study calendar
 
 1. Student can create a personal materia. Spanish product copy. Empty state should invite creating one, not browsing a catalog.
 2. Inside a materia they can upload files (at least PDF, common video types, images, and generic files). Files belong to that materia and list back. Do not OCR, transcribe, or RAG yet — ingest + belonging is enough.
-3. They can declare they are preparing an exam (parcial or final) with a date and optional topic list.
+3. They can declare they are preparing an exam by uploading the exam file (PDF/image/doc) with an optional one-line note.
 4. The materia home answers the north-star question honestly for this depth: if there is no exam, no topics, or no practice yet, say so in plain Spanish and point at the next action (subir material, cargar examen, agregar temas). If topics exist, show per-topic states starting at "no estudiado" (no estudiado / empezado / estudiado / necesita práctica / dominado). Do not fake a high readiness score.
 5. Skip a marketing landing. First useful screen is "tus materias" / crear materia.
 
@@ -41,7 +41,7 @@ Dark, editorial, technological.
 
 - **Materia**: private, owned by this student. Name, optional faculty/cátedra fields that stay personal (not a global catalog).
 - **Material**: file belonging to one materia (name, type, size, addedAt, storage key).
-- **ExamenEnPreparacion**: parcial | final, **name**, date, optional personal objective, optional topics included, optional modality.
+- **ExamenEnPreparacion**: the exam file the student uploaded (bytes in session store), optional one-line note (`Parcial 2023`), optional date/type leftovers from older records.
 
 - **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Manual for now; future practice will move it.
 

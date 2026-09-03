@@ -11,13 +11,19 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function examTypeLabel(type: ExamenEnPreparacion["type"]): string {
-  return type === "parcial" ? "Parcial" : "Final";
+export function examTypeLabel(
+  type: ExamenEnPreparacion["type"] | undefined
+): string {
+  if (type === "final") return "Final";
+  if (type === "parcial") return "Parcial";
+  return "Examen";
 }
 
 export function examDisplayName(exam: ExamenEnPreparacion): string {
   const name = exam.name?.trim();
-  return name || examTypeLabel(exam.type);
+  if (name) return name;
+  if (exam.fileName?.trim()) return exam.fileName.trim();
+  return examTypeLabel(exam.type);
 }
 
 export function formatExamDate(dateStr: string): string {

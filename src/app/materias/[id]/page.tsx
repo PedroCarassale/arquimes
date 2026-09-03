@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { getMateria, getMateriales, getExamenes, getTemas } from "@/lib/db";
-import { examDisplayName, examTypeLabel } from "@/lib/format";
+import { examDisplayName } from "@/lib/format";
 import { MASTERY_LABELS, type MasteryState, type Tema } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -88,10 +88,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
 
   const materiales = await getMateriales(id);
   const examenes = await getExamenes(id);
-
-  const nextExamen = examenes
-    .filter((e) => daysUntil(e.date) >= 0)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+  const nextExamen = examenes[0];
 
   const temas = nextExamen ? await getTemas(nextExamen.id) : [];
   const preparation = calculatePreparation(temas);
@@ -154,22 +151,30 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                     {examDisplayName(nextExamen)}
                   </div>
                   <div className="text-sm text-foreground-muted">
-                    {examTypeLabel(nextExamen.type)} · {formatDate(nextExamen.date)}
+                    {nextExamen.fileName ||
+                      (nextExamen.date
+                        ? formatDate(nextExamen.date)
+                        : "Archivo de examen")}
                   </div>
-                  {nextExamen.modality && (
-                    <div className="text-xs text-foreground-subtle mt-1">
-                      {nextExamen.modality}
-                    </div>
-                  )}
-                  {nextExamen.objective && (
-                    <div className="text-xs text-foreground-muted mt-1">
-                      {nextExamen.objective}
-                    </div>
-                  )}
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-serif">{daysUntil(nextExamen.date)}</div>
-                  <div className="text-xs font-mono text-foreground-muted">días</div>
+                  {nextExamen.date ? (
+                    <>
+                      <div className="text-3xl font-serif">
+                        {daysUntil(nextExamen.date)}
+                      </div>
+                      <div className="text-xs font-mono text-foreground-muted">
+                        días
+                      </div>
+                    </>
+                  ) : (
+                    <Link
+                      href={`/materias/${id}/examenes/${nextExamen.id}`}
+                      className="text-accent text-sm hover:underline"
+                    >
+                      Ver archivo →
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -187,13 +192,13 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                 Siguiente paso
               </div>
               <p className="text-sm text-foreground-muted mb-4">
-                Agregá los temas que entran en el examen para hacer seguimiento.
+                El archivo ya está guardado. Abrilo cuando quieras estudiarlo.
               </p>
               <Link
                 href={`/materias/${id}/examenes/${nextExamen.id}`}
                 className="text-accent text-sm hover:underline"
               >
-                Agregar temas →
+                Ver examen →
               </Link>
             </div>
           </div>
@@ -213,22 +218,30 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                     {examDisplayName(nextExamen)}
                   </div>
                   <div className="text-sm text-foreground-muted">
-                    {examTypeLabel(nextExamen.type)} · {formatDate(nextExamen.date)}
+                    {nextExamen.fileName ||
+                      (nextExamen.date
+                        ? formatDate(nextExamen.date)
+                        : "Archivo de examen")}
                   </div>
-                  {nextExamen.modality && (
-                    <div className="text-xs text-foreground-subtle mt-1">
-                      {nextExamen.modality}
-                    </div>
-                  )}
-                  {nextExamen.objective && (
-                    <div className="text-xs text-foreground-muted mt-1">
-                      {nextExamen.objective}
-                    </div>
-                  )}
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-serif">{daysUntil(nextExamen.date)}</div>
-                  <div className="text-xs font-mono text-foreground-muted">días</div>
+                  {nextExamen.date ? (
+                    <>
+                      <div className="text-3xl font-serif">
+                        {daysUntil(nextExamen.date)}
+                      </div>
+                      <div className="text-xs font-mono text-foreground-muted">
+                        días
+                      </div>
+                    </>
+                  ) : (
+                    <Link
+                      href={`/materias/${id}/examenes/${nextExamen.id}`}
+                      className="text-accent text-sm hover:underline"
+                    >
+                      Ver archivo →
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

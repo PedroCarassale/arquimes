@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
+import { createExamenWithFile, getExamenes, getMateria } from "@/lib/db";
 import {
-  createExamenWithTemas,
-  findDuplicateExamen,
-  getExamenes,
-  getMateria,
-} from "@/lib/db";
-import { ExamType } from "@/lib/types";
+  MAX_SESSION_FILE_BYTES,
+  sessionFileTooBigMessage,
+} from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 
@@ -34,62 +32,56 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const { type, date, modality, temas, name, objective } = body;
-
-    if (!name || typeof name !== "string" || !name.trim()) {
+    const contentType = request.headers.get("content-type") || "";
+    if (!contentType.includes("multipart/form-data")) {
       return NextResponse.json(
-        { error: "Indicá el nombre del examen." },
+        { error: "Adjuntá el archivo del examen." },
         { status: 400 }
       );
     }
 
-    if (!type || !["parcial", "final"].includes(type)) {
+    const formData = await request.formData();
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "Tipo de examen inválido" },
+        { error: "Adjuntá el archivo del examen." },
         { status: 400 }
       );
     }
 
-    if (!date) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (buffer.length === 0) {
       return NextResponse.json(
-        { error: "La fecha es requerida" },
+        { error: "El archivo está vacío." },
         { status: 400 }
       );
     }
 
-    const trimmedName = name.trim();
-    const duplicate = await findDuplicateExamen(materiaId, trimmedName, date);
-    if (duplicate) {
+    if (buffer.length > MAX_SESSION_FILE_BYTES) {
       return NextResponse.json(
-        { error: "Ya existe un examen con ese nombre y esa fecha." },
-        { status: 409 }
+        { error: sessionFileTooBigMessage(file.name) },
+        { status: 413 }
       );
     }
 
-    const temaNames = Array.isArray(temas)
-      ? temas
-          .filter((t: unknown) => typeof t === "string" && t.trim())
-          .map((t: string) => t.trim())
-      : [];
+    const noteRaw = formData.get("note");
+    const note =
+      typeof noteRaw === "string" && noteRaw.trim()
+        ? noteRaw.trim()
+        : undefined;
 
-    const examen = await createExamenWithTemas(
-      uuid(),
-      materiaId,
-      type as ExamType,
-      date,
-      modality?.trim() || undefined,
-      temaNames,
-      trimmedName,
-      typeof objective === "string" && objective.trim()
-        ? objective.trim()
-        : undefined
-    );
+    const examen = await createExamenWithFile(uuid(), materiaId, {
+      name: note,
+      fileName: file.name,
+      fileType: file.type || "application/octet-stream",
+      fileSize: buffer.length,
+      contentBase64: buffer.toString("base64"),
+    });
 
     return NextResponse.json(examen, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Error al crear el examen";
+      error instanceof Error ? error.message : "No pude guardar el examen.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { examDisplayName } from "@/lib/format";
 import { getMaterias, getExamenes, getTemas } from "@/lib/db";
 import { type MasteryState } from "@/lib/types";
 
@@ -66,9 +67,7 @@ export default async function HomePage() {
   const materiasWithData = await Promise.all(
     materias.map(async (materia) => {
       const examenes = await getExamenes(materia.id);
-      const nextExamen = examenes
-        .filter((e) => daysUntil(e.date) >= 0)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+      const nextExamen = examenes[0];
 
       const temas = nextExamen ? await getTemas(nextExamen.id) : [];
       const preparation = calculatePreparation(temas);
@@ -138,13 +137,13 @@ export default async function HomePage() {
                       {materia.nextExamen ? (
                         <>
                           <div className="text-accent text-sm">
-                            {materia.nextExamen.name ||
-                              (materia.nextExamen.type === "parcial"
-                                ? "Parcial"
-                                : "Final")}
+                            {examDisplayName(materia.nextExamen)}
                           </div>
                           <div className="text-sm text-foreground-muted">
-                            {formatDate(materia.nextExamen.date)}
+                            {materia.nextExamen.fileName ||
+                              (materia.nextExamen.date
+                                ? formatDate(materia.nextExamen.date)
+                                : "Sin fecha")}
                           </div>
                         </>
                       ) : (
@@ -153,7 +152,7 @@ export default async function HomePage() {
                     </div>
 
                     <div className="text-center">
-                      {materia.nextExamen ? (
+                      {materia.nextExamen?.date ? (
                         <>
                           <div className="text-2xl font-serif">
                             {daysUntil(materia.nextExamen.date)}
@@ -179,8 +178,6 @@ export default async function HomePage() {
                     <div className="text-right">
                       {!materia.nextExamen ? (
                         <span className="text-accent text-sm">Cargar examen →</span>
-                      ) : materia.temas.length === 0 ? (
-                        <span className="text-accent text-sm">Agregar temas →</span>
                       ) : materia.preparation < 100 ? (
                         <span className="text-accent text-sm">Continuar preparación →</span>
                       ) : (

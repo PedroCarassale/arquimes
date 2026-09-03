@@ -148,7 +148,7 @@ export async function deleteMateria(id: string): Promise<void> {
 export async function getMateriales(materiaId: string): Promise<Material[]> {
   const store = await loadStore();
   return store.materiales
-    .filter((m) => m.materiaId === materiaId)
+    .filter((m) => m.materiaId === materiaId && m.kind !== "examen")
     .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
 }
 
@@ -164,7 +164,8 @@ export async function createMaterial(
   type: string,
   size: number,
   storageKey: string,
-  contentBase64?: string
+  contentBase64?: string,
+  kind: Material["kind"] = "apuntes"
 ): Promise<Material> {
   return mutate((store) => {
     const addedAt = new Date().toISOString();
@@ -177,6 +178,7 @@ export async function createMaterial(
       storageKey,
       addedAt,
       contentBase64,
+      kind,
     };
     store.materiales.push(material);
     return material;
@@ -193,7 +195,10 @@ export async function getExamenes(materiaId: string): Promise<ExamenEnPreparacio
   const store = await loadStore();
   return store.examenes
     .filter((e) => e.materiaId === materiaId)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 }
 
 export async function getExamen(id: string): Promise<ExamenEnPreparacion | undefined> {
@@ -201,21 +206,56 @@ export async function getExamen(id: string): Promise<ExamenEnPreparacion | undef
   return store.examenes.find((e) => e.id === id);
 }
 
-export async function findDuplicateExamen(
+export async function createExamenWithFile(
+  id: string,
   materiaId: string,
-  name: string,
-  date: string,
-  excludeId?: string
+  data: {
+    name?: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    contentBase64: string;
+  }
+): Promise<ExamenEnPreparacion> {
+  return mutate((store) => {
+    const createdAt = new Date().toISOString();
+    const materialId = uuid();
+    store.materiales.push({
+      id: materialId,
+      materiaId,
+      name: data.fileName,
+      type: data.fileType,
+      size: data.fileSize,
+      storageKey: `session:${materialId}`,
+      addedAt: createdAt,
+      contentBase64: data.contentBase64,
+      kind: "examen",
+    });
+    const examen: ExamenEnPreparacion = {
+      id,
+      materiaId,
+      name: data.name,
+      createdAt,
+      materialId,
+      fileName: data.fileName,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
+    };
+    store.examenes.push(examen);
+    return examen;
+  });
+}
+
+export async function updateExamenNote(
+  id: string,
+  name: string | undefined
 ): Promise<ExamenEnPreparacion | undefined> {
-  const store = await loadStore();
-  const normalized = name.trim().toLowerCase();
-  return store.examenes.find(
-    (e) =>
-      e.materiaId === materiaId &&
-      (e.name ?? "").trim().toLowerCase() === normalized &&
-      e.date === date &&
-      e.id !== excludeId
-  );
+  return mutate((store) => {
+    const examen = store.examenes.find((e) => e.id === id);
+    if (!examen) return undefined;
+    examen.name = name;
+    return examen;
+  });
 }
 
 export async function updateExamenWithTemas(
@@ -283,8 +323,14 @@ export async function createExamen(
 
 export async function deleteExamen(id: string): Promise<void> {
   await mutate((store) => {
+    const examen = store.examenes.find((e) => e.id === id);
     store.examenes = store.examenes.filter((e) => e.id !== id);
     store.temas = store.temas.filter((t) => t.examenId !== id);
+    if (examen?.materialId) {
+      store.materiales = store.materiales.filter(
+        (m) => m.id !== examen.materialId
+      );
+    }
   });
 }
 

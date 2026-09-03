@@ -68,12 +68,12 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | materia name heading | route `/materias/[id]` Resumen |
 | `Apuntes` | tab, route `/materias/[id]/apuntes` |
 | `Seleccionar archivos` | heading, route `/materias/[id]/cargar` |
-| `Crear examen objetivo` | heading, route `/materias/[id]/examen` |
-| `Nombre del examen`, `Fecha del examen`, `Objetivo personal`, `Materia` | form fields; materia is filled from the server |
-| `Guardar examen →` | exam submit (enabled with zero temas) |
+| `Cargar examen` | heading, route `/materias/[id]/examen` |
+| `Archivo del examen`, `De qué trata` | file input + optional one-line note |
+| `Guardar examen →` | exam submit (multipart file + note) |
 | `Exámenes` | tab, route `/materias/[id]/examenes` |
-| `Editar examen` | heading on `/materias/[id]/examenes/[examId]` |
-| `Guardar archivos →` | upload submit |
+| `Descargar archivo →` | exam file bytes on `/materias/[id]/examenes/[examId]` |
+| `Guardar archivos →` | apuntes upload submit |
 | `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen) |
 
 One mapped feature per drive unless the task names more. Start from `/` unless the feature file says otherwise. A toast or `Creando...` is not proof: reopen from **Tus materias** (or Apuntes list) after refresh.
@@ -95,7 +95,7 @@ Proof standards:
 - Exercise the real UI path (click, type, submit). Do not POST `/api/*` as a substitute for the button, inject DOM, or call test-only endpoints.
 - Capture the action and the resulting state (HTML or screenshot **before** and **after**).
 - Screenshots must show Arquimes chrome (wordmark or `Tus materias` / create heading).
-- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open Resumen and refresh. After upload, open Apuntes and see the filename; optionally `GET /api/materiales/:id` in **this** browser session only as a side-effect check, not as the create path.
+- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open **Exámenes**, reload, and see the note plus filename; then open the row and download the file. After upload, open Apuntes and see the filename.
 - File upload: a real file on disk, then the name on Apuntes after reload.
 
 ## Cleanup
@@ -119,7 +119,7 @@ All executable from repo root:
 | `.cursor/skills/verify-arquimes/bin/launch` | Start isolated `npm run dev` |
 | `.cursor/skills/verify-arquimes/bin/doctor` | Read-only health of this run |
 | `.cursor/skills/verify-arquimes/bin/drive-crear-materia` | Browser path: empty home → create → list |
-| `.cursor/skills/verify-arquimes/bin/drive-cargar-examen` | Browser path: create materia → exam → resumen after reload |
+| `.cursor/skills/verify-arquimes/bin/drive-cargar-examen` | Browser path: create materia → attach tiny PDF + note → Exámenes list + download after reload |
 | `.cursor/skills/verify-arquimes/bin/cleanup` | Tear down this run only |
 
 Feature recipes: `.cursor/skills/verify-arquimes/features/`.

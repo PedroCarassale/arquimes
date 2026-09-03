@@ -5,7 +5,7 @@ Resumen answers ¿qué tan preparado estoy? for one materia: próximo examen, pr
 ## Sub-features
 
 - `resumen-empty-exam` says there is no exam and points to cargar examen / subir material.
-- `resumen-exam` shows the saved exam name or tipo, date, and days remaining.
+- `resumen-exam` shows the saved exam name (or filename) after [cargar-examen](./cargar-examen.md). Reload. Same exam still shows.
 - `resumen-temas` lists per-tema states starting at no estudiado.
 - `resumen-tabs` reaches Apuntes without leaving the materia.
 
@@ -25,7 +25,7 @@ Preconditions:
 
 - **Open resumen.** From `/` choose the materia name. Route `/materias/<id>`. Heading is the materia name.
 - **No exam.** If none, copy includes `No tenés ningún examen cargado` and a control to `Cargar examen`. Capture that state.
-- **With exam.** After [cargar-examen](./cargar-examen.md), Resumen shows the exam **name** (not only Parcial/Final) and at least one tema. Reload. Same exam still shows.
+- **With exam.** After [cargar-examen](./cargar-examen.md), Resumen shows the exam **name** (the note) and/or the filename. Reload. Same exam still shows.
 - **Proof.** Artifact in `artifacts/verify-arquimes/resumen.html` includes materia heading plus exam name or the empty-exam sentence.
 
 ## Gotchas

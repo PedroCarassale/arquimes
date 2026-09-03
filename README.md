@@ -35,6 +35,6 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
 
 1. Crear una materia personal
 2. Subir archivos chicos (hasta 12 KB en esta sesión) y ver el tamaño real
-3. Cargar un examen con nombre, tipo, fecha, objetivo y temas que vos agregás
+3. Cargar un examen: archivo + una línea opcional de qué se trata
 4. Listar, editar y borrar exámenes en `/materias/[id]/examenes`
 5. Resumen honesto: si no hay examen, temas o práctica, lo dice

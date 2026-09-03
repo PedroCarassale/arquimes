@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createMaterial, getMateriales, getMateria } from "@/lib/db";
+import {
+  MAX_SESSION_FILE_BYTES,
+  sessionFileTooBigMessage,
+} from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
-
-const MAX_FILE_BYTES = 12_000;
 
 export async function GET(
   request: Request,
@@ -53,11 +55,9 @@ export async function POST(
       );
     }
 
-    if (buffer.length > MAX_FILE_BYTES) {
+    if (buffer.length > MAX_SESSION_FILE_BYTES) {
       return NextResponse.json(
-        {
-          error: `No pude guardar “${file.name}”: en esta versión el archivo tiene que ser menor a 12 KB para persistir en tu sesión.`,
-        },
+        { error: sessionFileTooBigMessage(file.name) },
         { status: 413 }
       );
     }

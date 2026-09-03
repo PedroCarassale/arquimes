@@ -24,17 +24,22 @@ export interface Material {
   storageKey: string;
   addedAt: string;
   contentBase64?: string;
+  kind?: "apuntes" | "examen";
 }
 
 export interface ExamenEnPreparacion {
   id: string;
   materiaId: string;
-  type: ExamType;
-  date: string;
+  type?: ExamType;
+  date?: string;
   name?: string;
   objective?: string;
   modality?: string;
   createdAt: string;
+  materialId?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
 }
 
 export interface ChatMessage {

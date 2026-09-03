@@ -13,5 +13,5 @@ export default async function CrearExamenPage({ params }: PageProps) {
   const materia = await getMateria(id);
   if (!materia) notFound();
 
-  return <ExamenForm materia={materia} mode="create" />;
+  return <ExamenForm materia={materia} />;
 }
