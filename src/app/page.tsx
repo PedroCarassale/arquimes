@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { getMaterias, getExamenes, getTemas } from "@/lib/db";
-import { MASTERY_LABELS, type MasteryState } from "@/lib/types";
+import { type MasteryState } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -55,7 +56,14 @@ function getMasteryDots(temas: { masteryState: MasteryState }[]): React.ReactNod
 }
 
 export default function HomePage() {
-  const materias = getMaterias();
+  let materias: ReturnType<typeof getMaterias> = [];
+  
+  try {
+    materias = getMaterias();
+  } catch (e) {
+    console.error("Error loading materias:", e);
+  }
+
   const today = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
