@@ -13,6 +13,13 @@ fi
 source "$CURRENT"
 
 if [[ -n "${PID:-}" ]] && kill -0 "$PID" 2>/dev/null; then
+  # npm run dev leaves a child `next`; kill the tree, not only the recorded PID.
+  for child in $(pgrep -P "$PID" 2>/dev/null || true); do
+    for grandchild in $(pgrep -P "$child" 2>/dev/null || true); do
+      kill "$grandchild" 2>/dev/null || true
+    done
+    kill "$child" 2>/dev/null || true
+  done
   kill "$PID" 2>/dev/null || true
   sleep 1
   if kill -0 "$PID" 2>/dev/null; then

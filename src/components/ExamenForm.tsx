@@ -105,10 +105,11 @@ export function ExamenForm({
 
       if (mode === "create") {
         router.push(`/materias/${materia.id}`);
+        router.refresh();
       } else {
-        router.push(`/materias/${materia.id}/examenes/${initialExam!.id}`);
+        router.refresh();
+        setLoading(false);
       }
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pude guardar el examen");
       setLoading(false);

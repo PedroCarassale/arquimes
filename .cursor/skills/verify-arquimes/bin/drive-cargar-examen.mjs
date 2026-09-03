@@ -33,10 +33,22 @@ const objective = "Resolver sin ayuda";
 const editedObjective = "Llegar pudiendo rendir sin apuntes.";
 const date = "2026-10-15";
 
+function formAlert(page) {
+  return page.locator("p[role='alert']");
+}
+
 function assertNo(html, pattern, label) {
   if (pattern.test(html)) {
     throw new Error(`unexpected ${label}`);
   }
+}
+
+async function clickAndWaitSave(page, name = "Guardar examen") {
+  const btn = page.getByRole("button", { name });
+  await btn.click();
+  const saving = page.getByText("Guardando...");
+  await saving.waitFor({ timeout: 5000 }).catch(() => {});
+  await saving.waitFor({ state: "hidden", timeout: 20000 }).catch(() => {});
 }
 
 const context = await chromium.launchPersistentContext(userDataDir, {
@@ -82,16 +94,16 @@ if (await saveBtn.isDisabled()) {
 }
 
 await saveBtn.click();
-await page.getByRole("alert").waitFor();
-const missingName = await page.getByRole("alert").innerText();
+await formAlert(page).waitFor();
+const missingName = await formAlert(page).innerText();
 if (!missingName.includes("nombre")) {
   throw new Error(`expected name alert, got: ${missingName}`);
 }
 
 await page.getByLabel("Nombre del examen").fill(examName);
 await saveBtn.click();
-await page.getByRole("alert").waitFor();
-const missingDate = await page.getByRole("alert").innerText();
+await formAlert(page).waitFor();
+const missingDate = await formAlert(page).innerText();
 if (!missingDate.includes("fecha")) {
   throw new Error(`expected date alert, got: ${missingDate}`);
 }
@@ -137,8 +149,7 @@ if (
 }
 
 await page.getByLabel("Objetivo personal").fill(editedObjective);
-await page.getByRole("button", { name: "Guardar examen" }).click();
-await page.waitForURL(/\/examenes\/[0-9a-f-]+$/i);
+await clickAndWaitSave(page);
 await page.reload({ waitUntil: "networkidle" });
 if ((await page.getByLabel("Objetivo personal").inputValue()) !== editedObjective) {
   throw new Error("edited objective did not persist");
@@ -160,8 +171,8 @@ if (recreateHtml.includes("Cargando")) {
 await page.getByLabel("Nombre del examen").fill(examName);
 await page.getByLabel("Fecha del examen").fill(date);
 await page.getByRole("button", { name: "Guardar examen" }).click();
-await page.getByRole("alert").waitFor();
-const dup = await page.getByRole("alert").innerText();
+await formAlert(page).waitFor();
+const dup = await formAlert(page).innerText();
 if (!dup.includes("Ya existe")) {
   throw new Error(`expected duplicate alert, got: ${dup}`);
 }
