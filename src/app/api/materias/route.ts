@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const materias = getMaterias();
+    const materias = await getMaterias();
     return NextResponse.json(materias);
   } catch (error) {
     console.error("GET /api/materias error:", error);
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const id = uuid();
-    const materia = createMateria(
+    const materia = await createMateria(
       id,
       name.trim(),
       faculty?.trim() || undefined,

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { updateTemaMastery, deleteTema } from "@/lib/db";
 import { MasteryState, MASTERY_ORDER } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -18,7 +20,7 @@ export async function PATCH(
       );
     }
 
-    updateTemaMastery(id, masteryState as MasteryState);
+    await updateTemaMastery(id, masteryState as MasteryState);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
@@ -34,7 +36,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    deleteTema(id);
+    await deleteTema(id);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(

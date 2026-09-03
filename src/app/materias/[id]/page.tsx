@@ -79,20 +79,20 @@ function getProgressBar(temas: Tema[], state: MasteryState): number {
 
 export default async function MateriaResumenPage({ params }: PageProps) {
   const { id } = await params;
-  const materia = getMateria(id);
+  const materia = await getMateria(id);
 
   if (!materia) {
     notFound();
   }
 
-  const materiales = getMateriales(id);
-  const examenes = getExamenes(id);
+  const materiales = await getMateriales(id);
+  const examenes = await getExamenes(id);
 
   const nextExamen = examenes
     .filter((e) => daysUntil(e.date) >= 0)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
-  const temas = nextExamen ? getTemas(nextExamen.id) : [];
+  const temas = nextExamen ? await getTemas(nextExamen.id) : [];
   const preparation = calculatePreparation(temas);
   const temasCount = temas.length;
   const temasCubiertos = temas.filter(

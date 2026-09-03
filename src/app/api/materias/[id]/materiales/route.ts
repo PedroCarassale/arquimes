@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createMaterial, getMateriales, getMateria } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const materiales = getMateriales(id);
+  const materiales = await getMateriales(id);
   return NextResponse.json(materiales);
 }
 
@@ -18,7 +20,7 @@ export async function POST(
   try {
     const { id: materiaId } = await params;
 
-    const materia = getMateria(materiaId);
+    const materia = await getMateria(materiaId);
     if (!materia) {
       return NextResponse.json(
         { error: "Materia no encontrada" },
@@ -39,7 +41,7 @@ export async function POST(
     const fileId = uuid();
     const storageKey = `demo-${fileId}`;
 
-    const material = createMaterial(
+    const material = await createMaterial(
       fileId,
       materiaId,
       file.name,

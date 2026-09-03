@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { createExamen, getExamenes, getMateria, createTema } from "@/lib/db";
+import { createExamenWithTemas, getExamenes, getMateria } from "@/lib/db";
 import { ExamType } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const examenes = getExamenes(id);
+  const examenes = await getExamenes(id);
   return NextResponse.json(examenes);
 }
 
@@ -19,7 +21,7 @@ export async function POST(
   try {
     const { id: materiaId } = await params;
 
-    const materia = getMateria(materiaId);
+    const materia = await getMateria(materiaId);
     if (!materia) {
       return NextResponse.json(
         { error: "Materia no encontrada" },
@@ -44,22 +46,18 @@ export async function POST(
       );
     }
 
-    const examenId = uuid();
-    const examen = createExamen(
-      examenId,
+    const temaNames = Array.isArray(temas)
+      ? temas.filter((t: unknown) => typeof t === "string" && t.trim()).map((t: string) => t.trim())
+      : [];
+
+    const examen = await createExamenWithTemas(
+      uuid(),
       materiaId,
       type as ExamType,
       date,
-      modality?.trim() || undefined
+      modality?.trim() || undefined,
+      temaNames
     );
-
-    if (Array.isArray(temas)) {
-      for (const temaName of temas) {
-        if (typeof temaName === "string" && temaName.trim()) {
-          createTema(uuid(), examenId, temaName.trim());
-        }
-      }
-    }
 
     return NextResponse.json(examen, { status: 201 });
   } catch {

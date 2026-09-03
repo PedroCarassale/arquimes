@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createTema, getTemas, getExamen } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const temas = getTemas(id);
+  const temas = await getTemas(id);
   return NextResponse.json(temas);
 }
 
@@ -18,7 +20,7 @@ export async function POST(
   try {
     const { id: examenId } = await params;
 
-    const examen = getExamen(examenId);
+    const examen = await getExamen(examenId);
     if (!examen) {
       return NextResponse.json(
         { error: "Examen no encontrado" },
@@ -36,7 +38,7 @@ export async function POST(
       );
     }
 
-    const tema = createTema(uuid(), examenId, name.trim());
+    const tema = await createTema(uuid(), examenId, name.trim());
 
     return NextResponse.json(tema, { status: 201 });
   } catch {
