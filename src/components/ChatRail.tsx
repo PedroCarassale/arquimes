@@ -53,12 +53,13 @@ export function ChatRail() {
   }, [materiaId]);
 
   useEffect(() => {
-    if (!materiaId) return;
+    const id = materiaId ?? "";
+    if (!id) return;
     let cancelled = false;
 
     async function refreshGrounding() {
       const res = await apiFetch(
-        `/api/chat?materiaId=${encodeURIComponent(materiaId)}`
+        `/api/chat?materiaId=${encodeURIComponent(id)}`
       );
       if (!res.ok || cancelled) return;
       const data = (await res.json()) as {
