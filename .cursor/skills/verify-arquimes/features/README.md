@@ -43,3 +43,4 @@ Each file starts with an H1 and one paragraph, then exactly these H2s:
 - [Resumen](./resumen.md) — north-star exam readiness.
 - [Apuntes / upload](./apuntes-upload.md) — files belonging to a materia.
 - [Cargar examen](./cargar-examen.md) — parcial/final with date, name, temas.
+- [Práctica](./practica.md) — short question from temas; answering updates mastery.

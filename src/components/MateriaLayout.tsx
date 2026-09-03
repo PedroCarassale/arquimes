@@ -16,7 +16,7 @@ const tabs: { href: string; label: string; disabled?: boolean }[] = [
   { href: "/programa", label: "Programa y temas", disabled: true },
   { href: "/apuntes", label: "Apuntes" },
   { href: "/examenes", label: "Exámenes" },
-  { href: "/practica", label: "Práctica", disabled: true },
+  { href: "/practica", label: "Práctica" },
   { href: "/chat", label: "Chat", disabled: true },
   { href: "/miembros", label: "Miembros", disabled: true },
 ];

@@ -1,6 +1,6 @@
 ---
 name: verify-arquimes
-description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen) or after changing those screens. Never use this skill against the Vercel production deploy.
+description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen, práctica) or after changing those screens. Never use this skill against the Vercel production deploy.
 ---
 
 # verify-arquimes
@@ -72,6 +72,10 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Nombre del examen`, `Fecha del examen`, `Objetivo personal`, `Materia` | form fields; materia is filled from the server |
 | `Guardar examen →` | exam submit (enabled with zero temas) |
 | `Exámenes` | tab, route `/materias/[id]/examenes` |
+| `Práctica` | tab, route `/materias/[id]/practica` |
+| `Tu respuesta` | practice textarea |
+| `Así lo explicaría` / `Todavía no` | practice submit |
+| `Practicar ahora →` | Resumen link into práctica |
 | `Editar examen` | heading on `/materias/[id]/examenes/[examId]` |
 | `Guardar archivos →` | upload submit |
 | `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen) |
@@ -84,6 +88,12 @@ One mapped feature per drive unless the task names more. Start from `/` unless t
 
 That helper is the scripted path for `crear-materia`. Other features: follow `features/*.md` in a browser pointed at `$BASE_URL` with `USER_DATA_DIR`.
 
+```bash
+.cursor/skills/verify-arquimes/bin/drive-practica
+```
+
+Scripted path for `practica`: empty tab → exam with a tema → answer one item → Resumen mastery/preparado after reload.
+
 ## Evidence
 
 Directory (Cleanup must not delete this):
@@ -95,7 +105,7 @@ Proof standards:
 - Exercise the real UI path (click, type, submit). Do not POST `/api/*` as a substitute for the button, inject DOM, or call test-only endpoints.
 - Capture the action and the resulting state (HTML or screenshot **before** and **after**).
 - Screenshots must show Arquimes chrome (wordmark or `Tus materias` / create heading).
-- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open Resumen and refresh. After upload, open Apuntes and see the filename; optionally `GET /api/materiales/:id` in **this** browser session only as a side-effect check, not as the create path.
+- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open Resumen and refresh. After práctica, answer one item then open Resumen and refresh: mastery and preparación estimada must change. After upload, open Apuntes and see the filename; optionally `GET /api/materiales/:id` in **this** browser session only as a side-effect check, not as the create path.
 - File upload: a real file on disk, then the name on Apuntes after reload.
 
 ## Cleanup
@@ -120,6 +130,7 @@ All executable from repo root:
 | `.cursor/skills/verify-arquimes/bin/doctor` | Read-only health of this run |
 | `.cursor/skills/verify-arquimes/bin/drive-crear-materia` | Browser path: empty home → create → list |
 | `.cursor/skills/verify-arquimes/bin/drive-cargar-examen` | Browser path: create materia → exam → resumen after reload |
+| `.cursor/skills/verify-arquimes/bin/drive-practica` | Browser path: empty práctica → tema → answer → resumen mastery |
 | `.cursor/skills/verify-arquimes/bin/cleanup` | Tear down this run only |
 
 Feature recipes: `.cursor/skills/verify-arquimes/features/`.

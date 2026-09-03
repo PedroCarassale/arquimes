@@ -53,6 +53,8 @@ export interface Tema {
   createdAt: string;
 }
 
+export type PracticeOutcome = "lo_tengo" | "todavia_no";
+
 export const MASTERY_LABELS: Record<MasteryState, string> = {
   no_estudiado: "No estudiado",
   empezado: "Empezado",
