@@ -1,10 +1,9 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { getMaterias, getExamenes, getTemas } from "@/lib/db";
-import { type MasteryState } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+import { Materia, ExamenEnPreparacion, Tema, MasteryState } from "@/lib/types";
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -55,37 +54,63 @@ function getMasteryDots(temas: { masteryState: MasteryState }[]): React.ReactNod
   );
 }
 
+interface MateriaWithData extends Materia {
+  nextExamen?: ExamenEnPreparacion;
+  temas: Tema[];
+  preparation: number;
+}
+
 export default function HomePage() {
-  let materias: ReturnType<typeof getMaterias> = [];
-  
-  try {
-    materias = getMaterias();
-  } catch (e) {
-    console.error("Error loading materias:", e);
-  }
+  const [materias, setMaterias] = useState<MateriaWithData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch("/api/materias");
+        if (res.ok) {
+          const data: Materia[] = await res.json();
+          
+          const withData = await Promise.all(
+            data.map(async (materia) => {
+              const examenesRes = await fetch(`/api/materias/${materia.id}/examenes`);
+              const examenes: ExamenEnPreparacion[] = examenesRes.ok ? await examenesRes.json() : [];
+              
+              const nextExamen = examenes
+                .filter((e) => daysUntil(e.date) >= 0)
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+              
+              let temas: Tema[] = [];
+              if (nextExamen) {
+                const temasRes = await fetch(`/api/examenes/${nextExamen.id}/temas`);
+                temas = temasRes.ok ? await temasRes.json() : [];
+              }
+              
+              return {
+                ...materia,
+                nextExamen,
+                temas,
+                preparation: calculatePreparation(temas),
+              };
+            })
+          );
+          
+          setMaterias(withData);
+        }
+      } catch (e) {
+        console.error("Error loading data:", e);
+      }
+      setLoading(false);
+    }
+    
+    loadData();
+  }, []);
 
   const today = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
-  });
-
-  const materiasWithData = materias.map((materia) => {
-    const examenes = getExamenes(materia.id);
-    const nextExamen = examenes
-      .filter((e) => daysUntil(e.date) >= 0)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-    
-    const temas = nextExamen ? getTemas(nextExamen.id) : [];
-    const preparation = calculatePreparation(temas);
-
-    return {
-      ...materia,
-      nextExamen,
-      temas,
-      preparation,
-    };
   });
 
   return (
@@ -96,7 +121,9 @@ export default function HomePage() {
           <div className="text-sm text-foreground-muted capitalize">{today}</div>
         </div>
 
-        {materias.length === 0 ? (
+        {loading ? (
+          <div className="text-foreground-muted">Cargando...</div>
+        ) : materias.length === 0 ? (
           <div className="border border-border p-12 text-center">
             <p className="text-foreground-muted mb-6">
               No tenés materias todavía.
@@ -125,7 +152,7 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-0">
-              {materiasWithData.map((materia) => (
+              {materias.map((materia) => (
                 <Link
                   key={materia.id}
                   href={`/materias/${materia.id}`}
