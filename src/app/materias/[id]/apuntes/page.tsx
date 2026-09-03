@@ -234,7 +234,7 @@ export default function ApuntesPage() {
 
           {materiales.length === 0 ? (
             <div className="text-center py-12 text-foreground-muted">
-              No hay archivos todavía. Arrastrá archivos o hacé clic en "Cargar apuntes".
+              No hay archivos todavía. Arrastrá archivos o hacé clic en &quot;Cargar apuntes&quot;.
             </div>
           ) : (
             <div className="border border-border-subtle">
