@@ -2,9 +2,19 @@ import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createMateria, getMaterias } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const materias = getMaterias();
-  return NextResponse.json(materias);
+  try {
+    const materias = getMaterias();
+    return NextResponse.json(materias);
+  } catch (error) {
+    console.error("GET /api/materias error:", error);
+    return NextResponse.json(
+      { error: "Error interno", details: String(error) },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -28,9 +38,10 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(materia, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("POST /api/materias error:", error);
     return NextResponse.json(
-      { error: "Error al crear la materia" },
+      { error: "Error al crear la materia", details: String(error) },
       { status: 500 }
     );
   }
