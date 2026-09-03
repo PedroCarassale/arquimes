@@ -1,39 +1,42 @@
 # Cargar examen
 
-Cargar examen declares the exam the student is preparing: parcial or final, a date, a name, optional objective, and at least one tema. Resumen must show that exam after a reload.
+Cargar examen declares the exam the student is preparing: nombre, parcial or final, a date, optional objective, optional temas the student types. Resumen, the Exámenes list, and the exam detail must show that exam after a reload. Re-opening `/examen` is always a blank create form.
 
 ## Sub-features
 
-- `examen-open` opens `Crear examen objetivo`.
-- `examen-fields` sends nombre, fecha, objetivo, tipo, and temas (not discarded UI).
-- `examen-error` shows Spanish `role=alert` text if fecha or temas are missing, or if save fails.
-- `examen-resumen` shows the exam name and temas on Resumen after refresh.
+- `examen-open` opens `Crear examen objetivo` with the materia name already on screen (never `Cargando...`).
+- `examen-honesty` does not claim `Paso 1 de 3`. Submit is `Guardar examen →`. Suggested temas are not a hardcoded calculus list.
+- `examen-fields` stores nombre, fecha, objetivo, tipo, modalidad, and any temas the student added.
+- `examen-error` shows Spanish `role=alert` if nombre or fecha is missing, if save fails, or if the same nombre+fecha already exists.
+- `examen-resumen` shows the exam **name**, tipo, objetivo, and temas on Resumen after refresh.
+- `examen-list` reaches `/materias/[id]/examenes` from the Exámenes tab: view, edit, delete. Creating the same nombre+fecha again is refused.
 
 ## How to get to it (user POV)
 
 - On Resumen empty state, choose `Cargar examen →`.
 - On a materia, open `/materias/[id]/examen`.
-- From F2-style next step `Preparar un examen` if that card is shown.
+- From the Exámenes tab, choose `Cargar examen →`.
 
 ## Driving it with verify-arquimes
 
 Preconditions:
 
-- A materia exists in this profile.
 - Doctor is green.
+- Use a materia that is **not** calculus (e.g. `Álgebra lineal`) so a leaked Derivadas list cannot hide.
 
-- **Open form.** From Resumen choose `Cargar examen`. Route `/materias/<id>/examen`. Heading `Crear examen objetivo`.
-- **Tipo.** Choose `Parcial` (pressed) or `Final`.
-- **Nombre.** In `Nombre del examen` type `Parcial Verify`.
-- **Fecha.** In `Fecha del examen` set a future date.
-- **Objetivo.** In `Objetivo personal` type a short sentence (must persist, not an uncontrolled throwaway).
-- **Temas.** Do not rely on calculus defaults. Type a tema in `Agregar otro tema` (e.g. `Cinemática`) and choose `Agregar tema` / `+`. At least one tema must be selected.
-- **Submit.** Choose `Continuar →` (enabled even before fecha; missing fecha shows `Indicá la fecha del examen.`). Wait for Resumen.
-- **Second view.** Reload `/materias/<id>`. Exam name `Parcial Verify` and tema `Cinemática` are visible. Capture `artifacts/verify-arquimes/cargar-examen-resumen.html`.
-- **Failure path.** Submit without fecha; alert is visible and you stay on the form.
+- **Open form.** From Resumen choose `Cargar examen`. Route `/materias/<id>/examen`. Heading `Crear examen objetivo`. Materia field shows the materia name immediately. Nombre is empty (not `Primer parcial`). No `Paso 1 de 3`. No `Derivadas` / `Integrales`. `Guardar examen →` is enabled with zero temas.
+- **Nombre / fecha.** Submit empty → `Indicá el nombre del examen.` Fill nombre, submit without fecha → `Indicá la fecha del examen.` Stay on the form.
+- **Temas.** Type a tema for this materia (e.g. `Espacios vectoriales`) in `Agregar otro tema` and choose `Agregar tema`. Temas are optional; do not require a checkbox from a suggested list.
+- **Submit.** Choose `Guardar examen →`. Wait for Resumen.
+- **Second view.** Reload `/materias/<id>`. Exam name (`Parcial 1`), tipo Parcial, objetivo, and tema are visible. Capture `artifacts/verify-arquimes/cargar-examen-resumen.html`.
+- **List / detail.** Choose `Exámenes`. The exam is a real link. Open it (`Editar examen`). Name and objective are filled. Change objective, save, reload: still there.
+- **No silent duplicate.** Re-open `/examen`: blank form. Submit the same nombre+fecha → `Ya existe un examen con ese nombre y esa fecha.` URL stays on create.
+- **Upload honesty (same drive).** `/cargar` has no `Paso 1 de 5`. A 69-byte PDF shows `69 B`, not `0 KB`. After `Guardar archivos →`, Apuntes lists the file and `69 B`.
+- **Delete.** From exam detail, `Eliminar este examen` → confirm. Exámenes empty copy: `Todavía no cargaste un examen`.
 
 ## Gotchas
 
-- Suggested temas are previous temas of **this** materia, not a global calculus list.
+- Do not invent a programa. The student types temas. Previous temas of **this** materia are not offered as a fake syllabus for another subject.
 - `if (!res.ok)` must not fail silently. No navigation on error.
 - Cookie credentials stay on this origin; a new port is a new empty store.
+- `/api/materias/[id]/examenes` is the JSON API. The student list is the page `/materias/[id]/examenes`.

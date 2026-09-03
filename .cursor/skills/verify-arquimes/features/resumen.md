@@ -32,4 +32,4 @@ Preconditions:
 
 - `inicio` redirects to Resumen when the materia exists; a 404 means the cookie session is wrong.
 - Do not treat a hardcoded 78% as success.
-- Tabs `Programa y temas`, `Práctica`, `Chat` (tab), `Miembros` may be disabled; the shell chat rail is separate.
+- Tabs `Programa y temas`, `Práctica`, `Chat` (tab), `Miembros` may be disabled. `Exámenes` and `Apuntes` are real. The shell chat rail is separate.

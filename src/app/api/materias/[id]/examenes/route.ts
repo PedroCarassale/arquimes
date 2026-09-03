@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { createExamenWithTemas, getExamenes, getMateria } from "@/lib/db";
+import {
+  createExamenWithTemas,
+  findDuplicateExamen,
+  getExamenes,
+  getMateria,
+} from "@/lib/db";
 import { ExamType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -32,6 +37,13 @@ export async function POST(
     const body = await request.json();
     const { type, date, modality, temas, name, objective } = body;
 
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return NextResponse.json(
+        { error: "Indicá el nombre del examen." },
+        { status: 400 }
+      );
+    }
+
     if (!type || !["parcial", "final"].includes(type)) {
       return NextResponse.json(
         { error: "Tipo de examen inválido" },
@@ -43,6 +55,15 @@ export async function POST(
       return NextResponse.json(
         { error: "La fecha es requerida" },
         { status: 400 }
+      );
+    }
+
+    const trimmedName = name.trim();
+    const duplicate = await findDuplicateExamen(materiaId, trimmedName, date);
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "Ya existe un examen con ese nombre y esa fecha." },
+        { status: 409 }
       );
     }
 
@@ -59,7 +80,7 @@ export async function POST(
       date,
       modality?.trim() || undefined,
       temaNames,
-      typeof name === "string" && name.trim() ? name.trim() : undefined,
+      trimmedName,
       typeof objective === "string" && objective.trim()
         ? objective.trim()
         : undefined

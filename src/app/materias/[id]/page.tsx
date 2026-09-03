@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { getMateria, getMateriales, getExamenes, getTemas } from "@/lib/db";
+import { examDisplayName, examTypeLabel } from "@/lib/format";
 import { MASTERY_LABELS, type MasteryState, type Tema } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -142,7 +143,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
 
       {noTopics && (
         <>
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="border border-accent p-6">
               <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
                 Próximo examen
@@ -150,12 +151,21 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="font-serif text-xl">
-                    {nextExamen.name ||
-                      (nextExamen.type === "parcial" ? "Parcial" : "Final")}
+                    {examDisplayName(nextExamen)}
                   </div>
                   <div className="text-sm text-foreground-muted">
-                    {formatDate(nextExamen.date)}
+                    {examTypeLabel(nextExamen.type)} · {formatDate(nextExamen.date)}
                   </div>
+                  {nextExamen.modality && (
+                    <div className="text-xs text-foreground-subtle mt-1">
+                      {nextExamen.modality}
+                    </div>
+                  )}
+                  {nextExamen.objective && (
+                    <div className="text-xs text-foreground-muted mt-1">
+                      {nextExamen.objective}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-3xl font-serif">{daysUntil(nextExamen.date)}</div>
@@ -180,7 +190,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                 Agregá los temas que entran en el examen para hacer seguimiento.
               </p>
               <Link
-                href={`/materias/${id}/examen?edit=${nextExamen.id}`}
+                href={`/materias/${id}/examenes/${nextExamen.id}`}
                 className="text-accent text-sm hover:underline"
               >
                 Agregar temas →
@@ -192,7 +202,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
 
       {hasData && (
         <>
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="border border-accent p-6">
               <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
                 Próximo examen
@@ -200,11 +210,10 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="font-serif text-xl">
-                    {nextExamen.name ||
-                      (nextExamen.type === "parcial" ? "Parcial" : "Final")}
+                    {examDisplayName(nextExamen)}
                   </div>
                   <div className="text-sm text-foreground-muted">
-                    {formatDate(nextExamen.date)}
+                    {examTypeLabel(nextExamen.type)} · {formatDate(nextExamen.date)}
                   </div>
                   {nextExamen.modality && (
                     <div className="text-xs text-foreground-subtle mt-1">
@@ -272,13 +281,16 @@ export default async function MateriaResumenPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-[1fr_320px] gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-serif text-xl">Programa y temas</h2>
-                <span className="text-xs font-mono text-foreground-muted">
-                  Ver {temasCount} temas →
-                </span>
+                <Link
+                  href={`/materias/${id}/examenes/${nextExamen.id}`}
+                  className="text-xs font-mono text-accent uppercase tracking-wider hover:underline"
+                >
+                  Ver examen →
+                </Link>
               </div>
               <p className="text-sm text-foreground-muted mb-4">
                 {temasCubiertos} cubiertos · {temas.filter((t) => t.masteryState === "necesita_practica").length} necesitan práctica · {temas.filter((t) => t.masteryState === "no_estudiado").length} sin empezar

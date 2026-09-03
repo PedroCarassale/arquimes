@@ -6,7 +6,8 @@ Apuntes is the private file library for one materia. The student selects real fi
 
 - `apuntes-open` opens the library from the Apuntes tab.
 - `apuntes-cargar` opens `Seleccionar archivos` (`/materias/[id]/cargar`).
-- `apuntes-save` stores a small file and lists its name on Apuntes.
+- `apuntes-save` stores a small file and lists its name **and honest size** on Apuntes (`69 B` for a 69-byte file, never `0 KB`).
+- `apuntes-honesty` does not claim `Paso 1 de 5`. Submit is `Guardar archivos →`.
 - `apuntes-error` surfaces a Spanish error if the file cannot be stored (too large, empty, or session overflow).
 
 ## How to get to it (user POV)
@@ -26,7 +27,8 @@ Preconditions:
 
 - **Open library.** From Resumen choose `Apuntes`. Heading `Apuntes y material`.
 - **Select files.** Choose `Cargar apuntes` or go to `/cargar`. Heading `Seleccionar archivos`. Choose `Explorar archivos` and pick the real file, or drop it on `Arrastrá los archivos acá`.
-- **Submit.** Choose `Continuar →`. If the response is an error, the alert text is Spanish and the URL stays on cargar. Do not continue.
+- **Submit.** Choose `Guardar archivos →`. If the response is an error, the alert text is Spanish and the URL stays on cargar. Do not continue.
+- **Size.** A file under 1 KB must show bytes (`69 B`), not `0 KB`. There is no remaining-step badge.
 - **Second view.** On Apuntes the filename is visible. Reload. Still visible. Optional side-effect: `Abrir →` downloads bytes for that file in this session.
 - **Proof.** `artifacts/verify-arquimes/apuntes.html` contains the filename.
 

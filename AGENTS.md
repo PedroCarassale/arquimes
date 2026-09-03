@@ -41,7 +41,8 @@ Dark, editorial, technological.
 
 - **Materia**: private, owned by this student. Name, optional faculty/cátedra fields that stay personal (not a global catalog).
 - **Material**: file belonging to one materia (name, type, size, addedAt, storage key).
-- **ExamenEnPreparacion**: parcial | final, date, topics included, optional modality.
+- **ExamenEnPreparacion**: parcial | final, **name**, date, optional personal objective, optional topics included, optional modality.
+
 - **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Manual for now; future practice will move it.
 
 Single-user persistence. No auth/multi-tenant unless it is the smallest way to keep data. No fake community seed data.

@@ -11,11 +11,11 @@ interface MateriaLayoutProps {
   children: React.ReactNode;
 }
 
-const tabs = [
+const tabs: { href: string; label: string; disabled?: boolean }[] = [
   { href: "", label: "Resumen" },
   { href: "/programa", label: "Programa y temas", disabled: true },
   { href: "/apuntes", label: "Apuntes" },
-  { href: "/examenes", label: "Exámenes", disabled: true },
+  { href: "/examenes", label: "Exámenes" },
   { href: "/practica", label: "Práctica", disabled: true },
   { href: "/chat", label: "Chat", disabled: true },
   { href: "/miembros", label: "Miembros", disabled: true },

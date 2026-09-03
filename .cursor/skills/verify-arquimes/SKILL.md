@@ -69,8 +69,11 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Apuntes` | tab, route `/materias/[id]/apuntes` |
 | `Seleccionar archivos` | heading, route `/materias/[id]/cargar` |
 | `Crear examen objetivo` | heading, route `/materias/[id]/examen` |
-| `Nombre del examen`, `Fecha del examen` | textboxes |
-| `Continuar →` | exam/upload submit |
+| `Nombre del examen`, `Fecha del examen`, `Objetivo personal`, `Materia` | form fields; materia is filled from the server |
+| `Guardar examen →` | exam submit (enabled with zero temas) |
+| `Exámenes` | tab, route `/materias/[id]/examenes` |
+| `Editar examen` | heading on `/materias/[id]/examenes/[examId]` |
+| `Guardar archivos →` | upload submit |
 | `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen) |
 
 One mapped feature per drive unless the task names more. Start from `/` unless the feature file says otherwise. A toast or `Creando...` is not proof: reopen from **Tus materias** (or Apuntes list) after refresh.

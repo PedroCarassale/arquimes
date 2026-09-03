@@ -201,6 +201,60 @@ export async function getExamen(id: string): Promise<ExamenEnPreparacion | undef
   return store.examenes.find((e) => e.id === id);
 }
 
+export async function findDuplicateExamen(
+  materiaId: string,
+  name: string,
+  date: string,
+  excludeId?: string
+): Promise<ExamenEnPreparacion | undefined> {
+  const store = await loadStore();
+  const normalized = name.trim().toLowerCase();
+  return store.examenes.find(
+    (e) =>
+      e.materiaId === materiaId &&
+      (e.name ?? "").trim().toLowerCase() === normalized &&
+      e.date === date &&
+      e.id !== excludeId
+  );
+}
+
+export async function updateExamenWithTemas(
+  id: string,
+  data: {
+    name: string;
+    type: ExamType;
+    date: string;
+    modality?: string;
+    objective?: string;
+    temaNames: string[];
+  }
+): Promise<ExamenEnPreparacion | undefined> {
+  return mutate((store) => {
+    const examen = store.examenes.find((e) => e.id === id);
+    if (!examen) return undefined;
+    examen.name = data.name;
+    examen.type = data.type;
+    examen.date = data.date;
+    examen.modality = data.modality;
+    examen.objective = data.objective;
+    const previous = store.temas.filter((t) => t.examenId === id);
+    store.temas = store.temas.filter((t) => t.examenId !== id);
+    for (const temaName of data.temaNames) {
+      const kept = previous.find((t) => t.name === temaName);
+      store.temas.push(
+        kept ?? {
+          id: uuid(),
+          examenId: id,
+          name: temaName,
+          masteryState: "no_estudiado",
+          createdAt: new Date().toISOString(),
+        }
+      );
+    }
+    return examen;
+  });
+}
+
 export async function createExamen(
   id: string,
   materiaId: string,
