@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+CURRENT="$ROOT/.cursor/skills/verify-arquimes/run/current"
+
+if [[ ! -f "$CURRENT" ]]; then
+  echo "cleanup: nothing to tear down"
+  exit 0
+fi
+
+# shellcheck disable=SC1090
+source "$CURRENT"
+
+if [[ -n "${PID:-}" ]] && kill -0 "$PID" 2>/dev/null; then
+  kill "$PID" 2>/dev/null || true
+  sleep 1
+  if kill -0 "$PID" 2>/dev/null; then
+    kill -9 "$PID" 2>/dev/null || true
+  fi
+fi
+
+# child next processes listening on PORT, only if they are children of PID
+if [[ -n "${PORT:-}" ]] && command -v lsof >/dev/null 2>&1; then
+  for child in $(lsof -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do
+    if [[ "$child" != "${PID:-}" ]]; then
+      kill "$child" 2>/dev/null || true
+    fi
+  done
+fi
+
+rm -rf "${TMP:-/tmp/arquimes-verify-none}"
+rm -f "$CURRENT"
+
+echo "cleanup done (evidence kept in artifacts/verify-arquimes/)"

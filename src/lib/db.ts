@@ -5,6 +5,7 @@ import {
   Material,
   ExamenEnPreparacion,
   Tema,
+  ChatMessage,
   MasteryState,
   ExamType,
 } from "./types";
@@ -26,10 +27,17 @@ type Store = {
   materiales: Material[];
   examenes: ExamenEnPreparacion[];
   temas: Tema[];
+  messages: ChatMessage[];
 };
 
 function emptyStore(): Store {
-  return { materias: [], materiales: [], examenes: [], temas: [] };
+  return {
+    materias: [],
+    materiales: [],
+    examenes: [],
+    temas: [],
+    messages: [],
+  };
 }
 
 async function loadStore(): Promise<Store> {
@@ -61,6 +69,7 @@ async function loadStore(): Promise<Store> {
       materiales: parsed.materiales || [],
       examenes: parsed.examenes || [],
       temas: parsed.temas || [],
+      messages: parsed.messages || [],
     };
   } catch {
     return emptyStore();
@@ -154,7 +163,8 @@ export async function createMaterial(
   name: string,
   type: string,
   size: number,
-  storageKey: string
+  storageKey: string,
+  contentBase64?: string
 ): Promise<Material> {
   return mutate((store) => {
     const addedAt = new Date().toISOString();
@@ -166,6 +176,7 @@ export async function createMaterial(
       size,
       storageKey,
       addedAt,
+      contentBase64,
     };
     store.materiales.push(material);
     return material;
@@ -195,7 +206,9 @@ export async function createExamen(
   materiaId: string,
   type: ExamType,
   date: string,
-  modality?: string
+  modality?: string,
+  name?: string,
+  objective?: string
 ): Promise<ExamenEnPreparacion> {
   return mutate((store) => {
     const createdAt = new Date().toISOString();
@@ -204,6 +217,8 @@ export async function createExamen(
       materiaId,
       type,
       date,
+      name,
+      objective,
       modality,
       createdAt,
     };
@@ -248,7 +263,9 @@ export async function createExamenWithTemas(
   type: ExamType,
   date: string,
   modality: string | undefined,
-  temaNames: string[]
+  temaNames: string[],
+  name?: string,
+  objective?: string
 ): Promise<ExamenEnPreparacion> {
   return mutate((store) => {
     const createdAt = new Date().toISOString();
@@ -257,20 +274,66 @@ export async function createExamenWithTemas(
       materiaId,
       type,
       date,
+      name,
+      objective,
       modality,
       createdAt,
     };
     store.examenes.push(examen);
-    for (const name of temaNames) {
+    for (const temaName of temaNames) {
       store.temas.push({
         id: uuid(),
         examenId: id,
-        name,
+        name: temaName,
         masteryState: "no_estudiado",
         createdAt: new Date().toISOString(),
       });
     }
     return examen;
+  });
+}
+
+export async function getTemaNamesForMateria(materiaId: string): Promise<string[]> {
+  const store = await loadStore();
+  const examIds = new Set(
+    store.examenes.filter((e) => e.materiaId === materiaId).map((e) => e.id)
+  );
+  const names = store.temas
+    .filter((t) => examIds.has(t.examenId))
+    .map((t) => t.name);
+  return [...new Set(names)];
+}
+
+export async function getMessages(): Promise<ChatMessage[]> {
+  const store = await loadStore();
+  return [...store.messages].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
+export async function addChatTurn(
+  userContent: string,
+  assistantContent: string,
+  materiaId?: string
+): Promise<ChatMessage[]> {
+  return mutate((store) => {
+    const now = new Date().toISOString();
+    const user: ChatMessage = {
+      id: uuid(),
+      role: "user",
+      content: userContent,
+      createdAt: now,
+      materiaId,
+    };
+    const assistant: ChatMessage = {
+      id: uuid(),
+      role: "assistant",
+      content: assistantContent,
+      createdAt: now,
+      materiaId,
+    };
+    store.messages.push(user, assistant);
+    return [user, assistant];
   });
 }
 

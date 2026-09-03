@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
+import { useParams } from "next/navigation";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { Material, Materia } from "@/lib/types";
+import { apiFetch } from "@/lib/api";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -34,7 +34,6 @@ function getFileIcon(type: string): string {
 }
 
 export default function ApuntesPage() {
-  const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
@@ -43,12 +42,13 @@ export default function ApuntesPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
       const [materiaRes, materialesRes] = await Promise.all([
-        fetch(`/api/materias/${id}`),
-        fetch(`/api/materias/${id}/materiales`),
+        apiFetch(`/api/materias/${id}`),
+        apiFetch(`/api/materias/${id}/materiales`),
       ]);
       
       if (materiaRes.ok) {
@@ -68,23 +68,30 @@ export default function ApuntesPage() {
 
   async function handleUpload(files: FileList) {
     setUploading(true);
+    setError(null);
 
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append("file", file);
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
 
-      try {
-        await fetch(`/api/materias/${id}/materiales`, {
+        const res = await apiFetch(`/api/materias/${id}/materiales`, {
           method: "POST",
           body: formData,
         });
-      } catch (err) {
-        console.error("Error uploading file:", err);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            (data as { error?: string }).error || `No pude subir ${file.name}`
+          );
+        }
       }
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pude subir el archivo");
+    } finally {
+      setUploading(false);
     }
-
-    setUploading(false);
-    loadData();
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -107,7 +114,7 @@ export default function ApuntesPage() {
 
   async function handleDelete(materialId: string) {
     try {
-      await fetch(`/api/materiales/${materialId}`, { method: "DELETE" });
+      await apiFetch(`/api/materiales/${materialId}`, { method: "DELETE" });
       loadData();
     } catch (err) {
       console.error("Error deleting file:", err);
@@ -211,18 +218,25 @@ export default function ApuntesPage() {
               {uploading ? "Subiendo..." : "Soltá archivos para cargarlos"}
             </h3>
             <p className="text-sm text-foreground-muted mb-4">
-              PDF, DOCX, imágenes o audio · Hasta 100 MB
+              PDF, texto o imágenes chicas · Hasta 12 KB por archivo en esta sesión
             </p>
             <label className="text-accent text-sm cursor-pointer hover:underline">
               Elegir archivos →
               <input
                 type="file"
                 multiple
+                aria-label="Elegir archivos"
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
                 onChange={(e) => e.target.files && handleUpload(e.target.files)}
               />
             </label>
           </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-500 mb-4">
+              {error}
+            </p>
+          )}
 
           <div className="mb-4">
             <input
@@ -264,7 +278,13 @@ export default function ApuntesPage() {
                   <div className="text-sm text-foreground-muted">
                     {formatDate(material.addedAt)}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex items-center justify-end gap-3">
+                    <a
+                      href={`/api/materiales/${material.id}`}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Abrir →
+                    </a>
                     <button
                       onClick={() => handleDelete(material.id)}
                       className="text-xs text-foreground-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"

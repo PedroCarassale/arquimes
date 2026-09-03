@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+CURRENT="$ROOT/.cursor/skills/verify-arquimes/run/current"
+
+if [[ ! -f "$CURRENT" ]]; then
+  echo "doctor: no run/current — launch first" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$CURRENT"
+
+if [[ "${BASE_URL:-}" == *"vercel.app"* ]]; then
+  echo "doctor: refuse production URL $BASE_URL" >&2
+  exit 1
+fi
+
+if [[ "${BASE_URL:-}" != http://127.0.0.1:* && "${BASE_URL:-}" != http://localhost:* ]]; then
+  echo "doctor: BASE_URL must be loopback, got ${BASE_URL:-empty}" >&2
+  exit 1
+fi
+
+if [[ -z "${PID:-}" ]] || ! kill -0 "$PID" 2>/dev/null; then
+  echo "doctor: pid ${PID:-unset} is not running" >&2
+  exit 1
+fi
+
+if command -v lsof >/dev/null 2>&1; then
+  owner="$(lsof -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+  if [[ -n "$owner" && "$owner" != "$PID" ]]; then
+    # next may spawn a child; accept if the listener is a descendant
+    if ! ps -o pid=,ppid= -ax | awk -v p="$PID" -v o="$owner" '
+      { parent[$1]=$2 }
+      END {
+        cur=o
+        while (cur != "" && cur != 0 && cur != p) cur=parent[cur]
+        exit !(cur==p)
+      }'; then
+      echo "doctor: port $PORT is not owned by this run (pid=$PID listener=$owner)" >&2
+      exit 1
+    fi
+  fi
+fi
+
+body="$(curl -sf "$BASE_URL/" || true)"
+if [[ "$body" != *"Arquimes"* ]]; then
+  echo "doctor: $BASE_URL did not return Arquimes chrome" >&2
+  exit 1
+fi
+
+if [[ "$body" == *"vercel"* && "$body" == *"This page could"* ]]; then
+  echo "doctor: looks like a Vercel error page" >&2
+  exit 1
+fi
+
+echo "doctor ok pid=$PID url=$BASE_URL"

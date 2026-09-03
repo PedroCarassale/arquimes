@@ -4,13 +4,20 @@ import { createMaterial, getMateriales, getMateria } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const MAX_FILE_BYTES = 12_000;
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const materiales = await getMateriales(id);
-  return NextResponse.json(materiales);
+  return NextResponse.json(
+    materiales.map(({ contentBase64, ...rest }) => ({
+      ...rest,
+      hasContent: Boolean(contentBase64),
+    }))
+  );
 }
 
 export async function POST(
@@ -38,24 +45,41 @@ export async function POST(
       );
     }
 
-    const fileId = uuid();
-    const storageKey = `demo-${fileId}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (buffer.length === 0) {
+      return NextResponse.json(
+        { error: "El archivo está vacío" },
+        { status: 400 }
+      );
+    }
 
+    if (buffer.length > MAX_FILE_BYTES) {
+      return NextResponse.json(
+        {
+          error: `No pude guardar “${file.name}”: en esta versión el archivo tiene que ser menor a 12 KB para persistir en tu sesión.`,
+        },
+        { status: 413 }
+      );
+    }
+
+    const fileId = uuid();
     const material = await createMaterial(
       fileId,
       materiaId,
       file.name,
       file.type || "application/octet-stream",
       file.size,
-      storageKey
+      `session:${fileId}`,
+      buffer.toString("base64")
     );
 
-    return NextResponse.json(material, { status: 201 });
-  } catch (err) {
-    console.error("Error uploading file:", err);
     return NextResponse.json(
-      { error: "Error al subir el archivo" },
-      { status: 500 }
+      { ...material, contentBase64: undefined, hasContent: true },
+      { status: 201 }
     );
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Error al subir el archivo";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+SKILL="$ROOT/.cursor/skills/verify-arquimes"
+RUN_DIR="$SKILL/run"
+CURRENT="$RUN_DIR/current"
+
+if [[ -f "$CURRENT" ]]; then
+  # shellcheck disable=SC1090
+  source "$CURRENT"
+  if [[ -n "${PID:-}" ]] && kill -0 "$PID" 2>/dev/null; then
+    echo "verify-arquimes: instance already running pid=$PID url=$BASE_URL" >&2
+    echo "Reuse it, or bin/cleanup first. Refusing a second launch on a live run." >&2
+    exit 1
+  fi
+fi
+
+mkdir -p "$RUN_DIR"
+RUN_ID="$(date +%s)-$$"
+TMP="/tmp/arquimes-verify-$RUN_ID"
+mkdir -p "$TMP/profile"
+COOKIE_JAR="$TMP/cookies.txt"
+USER_DATA_DIR="$TMP/profile"
+LOG="$TMP/next.log"
+
+if [[ -n "${VERIFY_PORT:-}" ]]; then
+  PORT="$VERIFY_PORT"
+else
+  PORT=""
+  for try in $(seq 43131 43189); do
+    if ! ss -ltn 2>/dev/null | grep -q ":$try "; then
+      PORT="$try"
+      break
+    fi
+  done
+fi
+
+if [[ -z "${PORT:-}" ]]; then
+  echo "verify-arquimes: no free port in 43131-43189" >&2
+  exit 1
+fi
+
+BASE_URL="http://127.0.0.1:${PORT}"
+
+cd "$ROOT"
+nohup env PORT="$PORT" npm run dev -- --port "$PORT" --hostname 127.0.0.1 >"$LOG" 2>&1 &
+PID=$!
+
+{
+  echo "RUN_ID=$RUN_ID"
+  echo "PID=$PID"
+  echo "PORT=$PORT"
+  echo "BASE_URL=$BASE_URL"
+  echo "COOKIE_JAR=$COOKIE_JAR"
+  echo "USER_DATA_DIR=$USER_DATA_DIR"
+  echo "LOG=$LOG"
+  echo "TMP=$TMP"
+} >"$CURRENT"
+
+ready=0
+for _ in $(seq 1 60); do
+  if curl -sf "$BASE_URL/" | grep -q "Arquimes"; then
+    ready=1
+    break
+  fi
+  if ! kill -0 "$PID" 2>/dev/null; then
+    echo "verify-arquimes: dev server exited. log:" >&2
+    tail -40 "$LOG" >&2
+    rm -f "$CURRENT"
+    exit 1
+  fi
+  sleep 1
+done
+
+if [[ "$ready" -ne 1 ]]; then
+  echo "verify-arquimes: timed out waiting for $BASE_URL" >&2
+  tail -40 "$LOG" >&2
+  kill "$PID" 2>/dev/null || true
+  rm -f "$CURRENT"
+  exit 1
+fi
+
+echo "verify-arquimes launched $BASE_URL pid=$PID"

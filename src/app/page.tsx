@@ -97,6 +97,7 @@ export default async function HomePage() {
             </p>
             <Link
               href="/materias/nueva"
+              aria-label="Crear materia"
               className="inline-flex items-center gap-2 bg-accent text-background px-4 py-2 text-sm font-medium hover:bg-accent/90 transition-colors"
             >
               + Crear materia
@@ -137,7 +138,10 @@ export default async function HomePage() {
                       {materia.nextExamen ? (
                         <>
                           <div className="text-accent text-sm">
-                            {materia.nextExamen.type === "parcial" ? "Parcial" : "Final"}
+                            {materia.nextExamen.name ||
+                              (materia.nextExamen.type === "parcial"
+                                ? "Parcial"
+                                : "Final")}
                           </div>
                           <div className="text-sm text-foreground-muted">
                             {formatDate(materia.nextExamen.date)}

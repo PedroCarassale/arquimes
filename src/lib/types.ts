@@ -23,6 +23,7 @@ export interface Material {
   size: number;
   storageKey: string;
   addedAt: string;
+  contentBase64?: string;
 }
 
 export interface ExamenEnPreparacion {
@@ -30,8 +31,18 @@ export interface ExamenEnPreparacion {
   materiaId: string;
   type: ExamType;
   date: string;
+  name?: string;
+  objective?: string;
   modality?: string;
   createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+  materiaId?: string;
 }
 
 export interface Tema {

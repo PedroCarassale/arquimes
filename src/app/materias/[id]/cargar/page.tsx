@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { Materia } from "@/lib/types";
+import { apiFetch } from "@/lib/api";
 
 export default function CargarPage() {
   const router = useRouter();
@@ -14,12 +15,12 @@ export default function CargarPage() {
   const [materia, setMateria] = useState<Materia | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [step, setStep] = useState(1);
 
   useEffect(() => {
     async function loadMateria() {
-      const res = await fetch(`/api/materias/${id}`);
+      const res = await apiFetch(`/api/materias/${id}`);
       if (res.ok) {
         setMateria(await res.json());
       }
@@ -52,26 +53,41 @@ export default function CargarPage() {
   }
 
   async function handleUpload() {
-    if (files.length === 0) return;
-    
+    if (files.length === 0) {
+      setError("Seleccioná al menos un archivo.");
+      return;
+    }
+
     setUploading(true);
+    setError(null);
 
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append("file", file);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
 
-      try {
-        await fetch(`/api/materias/${id}/materiales`, {
+        const res = await apiFetch(`/api/materias/${id}/materiales`, {
           method: "POST",
           body: formData,
         });
-      } catch (err) {
-        console.error("Error uploading file:", err);
-      }
-    }
 
-    setUploading(false);
-    router.push(`/materias/${id}/apuntes`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            (data as { error?: string }).error ||
+              `No pude subir ${file.name}`
+          );
+        }
+      }
+
+      router.push(`/materias/${id}/apuntes`);
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No pude subir el archivo"
+      );
+      setUploading(false);
+    }
   }
 
   function removeFile(index: number) {
@@ -91,6 +107,9 @@ export default function CargarPage() {
         </div>
 
         <h1 className="font-serif text-3xl mb-2">Seleccionar archivos</h1>
+        {materia && (
+          <p className="sr-only">Materia {materia.name}</p>
+        )}
 
         <div className="mb-8">
           <h2 className="font-serif text-2xl text-foreground-muted mb-2">
@@ -101,7 +120,7 @@ export default function CargarPage() {
               Podés cargar apuntes, guías, bibliografía, imágenes o documentos de clase.
             </p>
             <span className="text-xs font-mono text-foreground-muted">
-              PDF · DOCX · PPTX · JPG · PNG
+              PDF · DOCX · PPTX · JPG · PNG · TXT
             </span>
           </div>
         </div>
@@ -125,7 +144,7 @@ export default function CargarPage() {
               </div>
               <h3 className="font-serif text-xl mb-2">Arrastrá los archivos acá</h3>
               <p className="text-sm text-foreground-muted mb-6">
-                También podés seleccionar archivos desde tu computadora o importar un enlace.
+                También podés seleccionar archivos desde tu computadora.
               </p>
               <div className="flex items-center justify-center gap-4">
                 <label className="text-sm bg-accent text-background px-6 py-2 cursor-pointer hover:bg-accent/90 transition-colors uppercase tracking-wider">
@@ -133,23 +152,31 @@ export default function CargarPage() {
                   <input
                     type="file"
                     multiple
+                    aria-label="Explorar archivos"
                     accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
                     onChange={handleFileSelect}
                   />
                 </label>
-                <button className="text-sm border border-border px-6 py-2 text-foreground-muted hover:text-foreground hover:border-foreground-muted transition-colors uppercase tracking-wider">
-                  Importar enlace
-                </button>
               </div>
             </>
           ) : (
             <div className="text-left">
-              <h3 className="font-serif text-xl mb-4">{files.length} archivo{files.length > 1 ? "s" : ""} seleccionado{files.length > 1 ? "s" : ""}</h3>
+              <h3 className="font-serif text-xl mb-4">
+                {files.length} archivo{files.length > 1 ? "s" : ""} seleccionado
+                {files.length > 1 ? "s" : ""}
+              </h3>
               <div className="space-y-2 mb-6">
                 {files.map((file, i) => (
-                  <div key={i} className="flex items-center gap-4 py-2 border-b border-border-subtle">
+                  <div
+                    key={`${file.name}-${i}`}
+                    className="flex items-center gap-4 py-2 border-b border-border-subtle"
+                  >
                     <span className="text-xs font-mono text-foreground-muted w-8">
-                      {file.type.includes("pdf") ? "PDF" : file.type.includes("image") ? "IMG" : "DOC"}
+                      {file.type.includes("pdf")
+                        ? "PDF"
+                        : file.type.includes("image")
+                        ? "IMG"
+                        : "DOC"}
                     </span>
                     <span className="flex-1 text-sm">{file.name}</span>
                     <span className="text-xs text-foreground-muted">
@@ -158,6 +185,7 @@ export default function CargarPage() {
                     <button
                       onClick={() => removeFile(i)}
                       className="text-xs text-foreground-muted hover:text-red-500"
+                      aria-label={`Quitar ${file.name}`}
                     >
                       ×
                     </button>
@@ -169,6 +197,7 @@ export default function CargarPage() {
                 <input
                   type="file"
                   multiple
+                  aria-label="Agregar más archivos"
                   accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
                   onChange={(e) => {
                     if (e.target.files) {
@@ -180,6 +209,12 @@ export default function CargarPage() {
             </div>
           )}
         </div>
+
+        {error && (
+          <p role="alert" className="text-sm text-red-500 mb-6">
+            {error}
+          </p>
+        )}
 
         <div className="grid grid-cols-3 gap-8 mb-8 py-6 border-t border-border-subtle">
           <div>
@@ -206,6 +241,7 @@ export default function CargarPage() {
           <button
             onClick={handleUpload}
             disabled={files.length === 0 || uploading}
+            aria-label="Continuar"
             className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {uploading ? "Subiendo..." : "Continuar →"}

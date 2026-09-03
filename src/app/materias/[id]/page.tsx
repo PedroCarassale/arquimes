@@ -150,7 +150,8 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="font-serif text-xl">
-                    {nextExamen.type === "parcial" ? "Parcial" : "Final"}
+                    {nextExamen.name ||
+                      (nextExamen.type === "parcial" ? "Parcial" : "Final")}
                   </div>
                   <div className="text-sm text-foreground-muted">
                     {formatDate(nextExamen.date)}
@@ -199,7 +200,8 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="font-serif text-xl">
-                    {nextExamen.type === "parcial" ? "Parcial" : "Final"}
+                    {nextExamen.name ||
+                      (nextExamen.type === "parcial" ? "Parcial" : "Final")}
                   </div>
                   <div className="text-sm text-foreground-muted">
                     {formatDate(nextExamen.date)}
@@ -207,6 +209,11 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                   {nextExamen.modality && (
                     <div className="text-xs text-foreground-subtle mt-1">
                       {nextExamen.modality}
+                    </div>
+                  )}
+                  {nextExamen.objective && (
+                    <div className="text-xs text-foreground-muted mt-1">
+                      {nextExamen.objective}
                     </div>
                   )}
                 </div>

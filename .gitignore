@@ -45,3 +45,6 @@ next-env.d.ts
 /data/*.db-shm
 /data/*.db-wal
 /uploads/
+
+# verification run state (keep evidence in artifacts/)
+.cursor/skills/verify-arquimes/run/current

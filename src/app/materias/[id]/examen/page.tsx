@@ -5,16 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { Materia } from "@/lib/types";
-
-const SUGGESTED_TEMAS = [
-  "Límites y continuidad",
-  "Derivadas",
-  "Aplicaciones de la derivada",
-  "Integrales",
-  "Integrales definidas",
-  "Series y sucesiones",
-  "Ecuaciones diferenciales",
-];
+import { apiFetch } from "@/lib/api";
 
 export default function CrearExamenPage() {
   const router = useRouter();
@@ -23,21 +14,30 @@ export default function CrearExamenPage() {
 
   const [materia, setMateria] = useState<Materia | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<"parcial" | "final">("parcial");
   const [name, setName] = useState("Primer parcial");
   const [date, setDate] = useState("");
   const [modality, setModality] = useState("Escrito · presencial");
+  const [objective, setObjective] = useState("");
+  const [suggestedTemas, setSuggestedTemas] = useState<string[]>([]);
   const [selectedTemas, setSelectedTemas] = useState<string[]>([]);
   const [customTema, setCustomTema] = useState("");
 
   useEffect(() => {
-    async function loadMateria() {
-      const res = await fetch(`/api/materias/${id}`);
-      if (res.ok) {
-        setMateria(await res.json());
+    async function load() {
+      const [materiaRes, temasRes] = await Promise.all([
+        apiFetch(`/api/materias/${id}`),
+        apiFetch(`/api/materias/${id}/temas`),
+      ]);
+      if (materiaRes.ok) {
+        setMateria(await materiaRes.json());
+      }
+      if (temasRes.ok) {
+        setSuggestedTemas(await temasRes.json());
       }
     }
-    loadMateria();
+    load();
   }, [id]);
 
   function toggleTema(tema: string) {
@@ -56,30 +56,48 @@ export default function CrearExamenPage() {
   }
 
   async function handleCreate() {
-    if (!date) return;
+    setError(null);
+
+    if (!date) {
+      setError("Indicá la fecha del examen.");
+      return;
+    }
+
+    if (selectedTemas.length === 0) {
+      setError("Agregá al menos un tema que entra en el examen.");
+      return;
+    }
 
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/materias/${id}/examenes`, {
+      const res = await apiFetch(`/api/materias/${id}/examenes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type,
           date,
           modality,
+          name,
+          objective,
           temas: selectedTemas,
         }),
       });
 
-      if (res.ok) {
-        router.push(`/materias/${id}`);
-      }
-    } catch (err) {
-      console.error("Error creating exam:", err);
-    }
+      const data = await res.json().catch(() => ({}));
 
-    setLoading(false);
+      if (!res.ok) {
+        throw new Error(
+          (data as { error?: string }).error || "No pude guardar el examen"
+        );
+      }
+
+      router.push(`/materias/${id}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pude guardar el examen");
+      setLoading(false);
+    }
   }
 
   return (
@@ -104,6 +122,7 @@ export default function CrearExamenPage() {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <button
                   type="button"
+                  aria-pressed={type === "parcial"}
                   onClick={() => setType("parcial")}
                   className={`p-4 text-left border transition-colors ${
                     type === "parcial"
@@ -120,6 +139,7 @@ export default function CrearExamenPage() {
                 </button>
                 <button
                   type="button"
+                  aria-pressed={type === "final"}
                   onClick={() => setType("final")}
                   className={`p-4 text-left border transition-colors ${
                     type === "final"
@@ -146,14 +166,19 @@ export default function CrearExamenPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="examen-nombre"
+                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                  >
                     Nombre
                   </label>
                   <input
+                    id="examen-nombre"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Primer parcial"
+                    aria-label="Nombre del examen"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent"
                   />
                 </div>
@@ -161,24 +186,33 @@ export default function CrearExamenPage() {
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="examen-fecha"
+                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                  >
                     Fecha
                   </label>
                   <input
+                    id="examen-fecha"
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    required
+                    aria-label="Fecha del examen"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground focus:outline-none focus:border-accent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="examen-modalidad"
+                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                  >
                     Modalidad
                   </label>
                   <select
+                    id="examen-modalidad"
                     value={modality}
                     onChange={(e) => setModality(e.target.value)}
+                    aria-label="Modalidad"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground focus:outline-none focus:border-accent"
                   >
                     <option>Escrito · presencial</option>
@@ -191,12 +225,19 @@ export default function CrearExamenPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="examen-objetivo"
+                  className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                >
                   Objetivo personal
                 </label>
                 <input
+                  id="examen-objetivo"
                   type="text"
+                  value={objective}
+                  onChange={(e) => setObjective(e.target.value)}
                   placeholder="Ejemplo: llegar pudiendo resolver un parcial completo sin ayuda."
+                  aria-label="Objetivo personal"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent"
                 />
               </div>
@@ -207,9 +248,14 @@ export default function CrearExamenPage() {
                 Temas incluidos
               </div>
               <h3 className="font-serif text-xl mb-4">Seleccioná lo que entra</h3>
+              <p className="text-sm text-foreground-muted mb-4">
+                {suggestedTemas.length > 0
+                  ? `Temas que ya cargaste en ${materia?.name || "esta materia"}.`
+                  : `No hay temas previos. Agregá los de ${materia?.name || "esta materia"}.`}
+              </p>
 
               <div className="space-y-2 mb-4">
-                {SUGGESTED_TEMAS.map((tema) => (
+                {suggestedTemas.map((tema) => (
                   <button
                     key={tema}
                     type="button"
@@ -234,7 +280,7 @@ export default function CrearExamenPage() {
                 ))}
 
                 {selectedTemas
-                  .filter((t) => !SUGGESTED_TEMAS.includes(t))
+                  .filter((t) => !suggestedTemas.includes(t))
                   .map((tema) => (
                     <button
                       key={tema}
@@ -256,6 +302,7 @@ export default function CrearExamenPage() {
                   value={customTema}
                   onChange={(e) => setCustomTema(e.target.value)}
                   placeholder="Agregar otro tema..."
+                  aria-label="Agregar otro tema"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -267,6 +314,7 @@ export default function CrearExamenPage() {
                 <button
                   type="button"
                   onClick={addCustomTema}
+                  aria-label="Agregar tema"
                   className="px-3 h-10 border border-border text-sm text-foreground-muted hover:text-foreground hover:border-foreground-muted transition-colors"
                 >
                   +
@@ -275,7 +323,13 @@ export default function CrearExamenPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-12 pt-6 border-t border-border-subtle">
+          {error && (
+            <p role="alert" className="text-sm text-red-500 mt-8">
+              {error}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-border-subtle">
             <Link
               href={`/materias/${id}`}
               className="text-sm text-foreground-muted hover:text-foreground transition-colors"
@@ -285,7 +339,8 @@ export default function CrearExamenPage() {
             <button
               type="button"
               onClick={handleCreate}
-              disabled={!date || loading}
+              disabled={loading}
+              aria-label="Continuar"
               className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Guardando..." : "Continuar →"}

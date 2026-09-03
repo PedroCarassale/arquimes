@@ -10,7 +10,7 @@ const navItems = [
   { href: "#", label: "Práctica", icon: "○", enabled: false },
   { href: "#", label: "Parciales", icon: "▫", enabled: false },
   { href: "/archivos", label: "Archivos", icon: "□", enabled: true },
-  { href: "#", label: "Chats", icon: "○", enabled: false },
+  { href: "#estudio-chat", label: "Chats", icon: "○", enabled: true },
 ];
 
 export function Sidebar() {
@@ -29,6 +29,8 @@ export function Sidebar() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
+              : item.href.startsWith("#")
+              ? false
               : pathname.startsWith(item.href) && item.href !== "#";
 
           if (!item.enabled) {

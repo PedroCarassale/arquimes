@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { apiFetch } from "@/lib/api";
 
 export default function CrearMateriaPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function CrearMateriaPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/materias", {
+      const res = await apiFetch("/api/materias", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -40,6 +41,7 @@ export default function CrearMateriaPage() {
 
       const materia = await res.json();
       router.push(`/materias/${materia.id}/inicio`);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
       setLoading(false);
@@ -76,68 +78,89 @@ export default function CrearMateriaPage() {
 
             <div className="space-y-6">
               <div>
-                <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="nombre-materia"
+                  className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                >
                   Nombre de la materia
                 </label>
                 <input
+                  id="nombre-materia"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Análisis Matemático II"
                   autoComplete="off"
+                  aria-label="Nombre de la materia"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="universidad"
+                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                  >
                     Universidad
                   </label>
                   <input
+                    id="universidad"
                     type="text"
                     value={faculty}
                     onChange={(e) => setFaculty(e.target.value)}
                     placeholder="UTN La Plata"
                     autoComplete="off"
+                    aria-label="Universidad"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  <label
+                    htmlFor="carrera"
+                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                  >
                     Carrera
                   </label>
                   <input
+                    id="carrera"
                     type="text"
                     placeholder="Ingeniería"
                     autoComplete="off"
+                    aria-label="Carrera"
                     className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                <label
+                  htmlFor="catedra"
+                  className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
+                >
                   Cátedra · Opcional
                 </label>
                 <input
+                  id="catedra"
                   type="text"
                   value={catedra}
                   onChange={(e) => setCatedra(e.target.value)}
                   placeholder="Agregar cátedra"
                   autoComplete="off"
+                  aria-label="Cátedra"
                   className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
                 />
               </div>
 
               {error && (
-                <p className="text-sm text-red-500">{error}</p>
+                <p role="alert" className="text-sm text-red-500">{error}</p>
               )}
 
               <button
                 type="button"
                 onClick={handleCreate}
                 disabled={loading}
+                aria-label="Crear materia"
                 className="w-full h-12 bg-accent text-background font-mono text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {loading ? "Creando..." : "Crear materia →"}

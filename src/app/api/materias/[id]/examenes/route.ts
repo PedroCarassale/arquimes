@@ -30,7 +30,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { type, date, modality, temas } = body;
+    const { type, date, modality, temas, name, objective } = body;
 
     if (!type || !["parcial", "final"].includes(type)) {
       return NextResponse.json(
@@ -47,7 +47,9 @@ export async function POST(
     }
 
     const temaNames = Array.isArray(temas)
-      ? temas.filter((t: unknown) => typeof t === "string" && t.trim()).map((t: string) => t.trim())
+      ? temas
+          .filter((t: unknown) => typeof t === "string" && t.trim())
+          .map((t: string) => t.trim())
       : [];
 
     const examen = await createExamenWithTemas(
@@ -56,14 +58,17 @@ export async function POST(
       type as ExamType,
       date,
       modality?.trim() || undefined,
-      temaNames
+      temaNames,
+      typeof name === "string" && name.trim() ? name.trim() : undefined,
+      typeof objective === "string" && objective.trim()
+        ? objective.trim()
+        : undefined
     );
 
     return NextResponse.json(examen, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Error al crear el examen" },
-      { status: 500 }
-    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Error al crear el examen";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
