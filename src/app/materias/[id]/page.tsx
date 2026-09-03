@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { getMateria, getMateriales, getExamenes, getTemas } from "@/lib/db";
 import { examDisplayName } from "@/lib/format";
+import { calculatePreparation } from "@/lib/mastery";
 import { MASTERY_LABELS, type MasteryState, type Tema } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -35,19 +36,6 @@ function daysUntil(dateStr: string): number {
   const target = new Date(dateStr);
   target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function calculatePreparation(temas: Tema[]): number {
-  if (temas.length === 0) return 0;
-  const weights: Record<MasteryState, number> = {
-    no_estudiado: 0,
-    empezado: 0.25,
-    estudiado: 0.6,
-    necesita_practica: 0.75,
-    dominado: 1,
-  };
-  const sum = temas.reduce((acc, t) => acc + weights[t.masteryState], 0);
-  return Math.round((sum / temas.length) * 100);
 }
 
 function getMasteryColor(state: MasteryState): string {
@@ -192,13 +180,14 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                 Siguiente paso
               </div>
               <p className="text-sm text-foreground-muted mb-4">
-                El archivo ya está guardado. Abrilo cuando quieras estudiarlo.
+                El archivo ya está. Agregá los temas que entran para poder
+                practicar y ver el preparado.
               </p>
               <Link
                 href={`/materias/${id}/examenes/${nextExamen.id}`}
                 className="text-accent text-sm hover:underline"
               >
-                Ver examen →
+                Agregar temas →
               </Link>
             </div>
           </div>
@@ -252,10 +241,14 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-serif">{preparation}%</span>
-                <span className="text-sm text-foreground-muted">en curso</span>
+                <span className="text-sm text-foreground-muted">
+                  {preparation === 0 ? "sin práctica" : "en curso"}
+                </span>
               </div>
               <div className="text-sm text-foreground-muted mt-1">
-                {temasCubiertos} de {temasCount} temas cubiertos
+                {preparation === 0
+                  ? "Todavía no hay práctica que mueva este número"
+                  : `${temasCubiertos} de ${temasCount} temas cubiertos`}
               </div>
             </div>
 
@@ -268,7 +261,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                   <div className="font-serif text-lg mb-1">
                     Empezar con {temas.find((t) => t.masteryState === "no_estudiado")?.name}
                   </div>
-                  <p className="text-sm text-foreground-muted">
+                  <p className="text-sm text-foreground-muted mb-3">
                     Tema sin estudiar
                   </p>
                 </>
@@ -277,7 +270,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                   <div className="font-serif text-lg mb-1">
                     Practicar {temas.find((t) => t.masteryState === "necesita_practica")?.name}
                   </div>
-                  <p className="text-sm text-foreground-muted">
+                  <p className="text-sm text-foreground-muted mb-3">
                     Necesita más práctica
                   </p>
                 </>
@@ -286,11 +279,17 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                   <div className="font-serif text-lg mb-1">
                     Seguir practicando
                   </div>
-                  <p className="text-sm text-foreground-muted">
+                  <p className="text-sm text-foreground-muted mb-3">
                     Mantené el ritmo de estudio
                   </p>
                 </>
               )}
+              <Link
+                href={`/materias/${id}/practica`}
+                className="text-accent text-sm hover:underline"
+              >
+                Practicar ahora →
+              </Link>
             </div>
           </div>
 

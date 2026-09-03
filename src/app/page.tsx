@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { examDisplayName } from "@/lib/format";
 import { getMaterias, getExamenes, getTemas } from "@/lib/db";
+import { calculatePreparation } from "@/lib/mastery";
 import { type MasteryState } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -21,19 +22,6 @@ function daysUntil(dateStr: string): number {
   const target = new Date(dateStr);
   target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function calculatePreparation(temas: { masteryState: MasteryState }[]): number {
-  if (temas.length === 0) return 0;
-  const weights: Record<MasteryState, number> = {
-    no_estudiado: 0,
-    empezado: 0.25,
-    estudiado: 0.6,
-    necesita_practica: 0.75,
-    dominado: 1,
-  };
-  const sum = temas.reduce((acc, t) => acc + weights[t.masteryState], 0);
-  return Math.round((sum / temas.length) * 100);
 }
 
 function getMasteryDots(temas: { masteryState: MasteryState }[]): React.ReactNode {
@@ -178,6 +166,10 @@ export default async function HomePage() {
                     <div className="text-right">
                       {!materia.nextExamen ? (
                         <span className="text-accent text-sm">Cargar examen →</span>
+                      ) : materia.temas.length === 0 ? (
+                        <span className="text-accent text-sm">Agregar temas →</span>
+                      ) : materia.preparation === 0 ? (
+                        <span className="text-accent text-sm">Practicar →</span>
                       ) : materia.preparation < 100 ? (
                         <span className="text-accent text-sm">Continuar preparación →</span>
                       ) : (

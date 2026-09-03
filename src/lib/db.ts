@@ -8,6 +8,7 @@ import {
   ChatMessage,
   MasteryState,
   GroundingPayload,
+  PracticeOutcome,
 } from "./types";
 import {
   groundingFromContext,
@@ -16,6 +17,7 @@ import {
   summarizeExamen,
   type StudyContext,
 } from "./study-chat";
+import { nextMasteryFromPractice } from "./practice";
 
 const COOKIE_PREFIX = "aqs";
 const COOKIE_COUNT = `${COOKIE_PREFIX}n`;
@@ -312,6 +314,18 @@ export async function getTemaNamesForMateria(materiaId: string): Promise<string[
   return [...new Set(names)];
 }
 
+export async function getTemasForMateria(materiaId: string): Promise<Tema[]> {
+  const store = await loadStore();
+  const examIds = new Set(
+    store.examenes.filter((e) => e.materiaId === materiaId).map((e) => e.id)
+  );
+  return store.temas
+    .filter((t) => examIds.has(t.examenId))
+    .sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+}
+
 export async function getMessages(materiaId?: string): Promise<ChatMessage[]> {
   const store = await loadStore();
   const list = materiaId
@@ -401,6 +415,22 @@ export async function updateTemaMastery(
     if (tema) {
       tema.masteryState = masteryState;
     }
+  });
+}
+
+export async function applyPracticeOutcome(
+  temaId: string,
+  materiaId: string,
+  outcome: PracticeOutcome
+): Promise<{ tema: Tema; previous: MasteryState } | undefined> {
+  return mutate((store) => {
+    const tema = store.temas.find((t) => t.id === temaId);
+    if (!tema) return undefined;
+    const examen = store.examenes.find((e) => e.id === tema.examenId);
+    if (!examen || examen.materiaId !== materiaId) return undefined;
+    const previous = tema.masteryState;
+    tema.masteryState = nextMasteryFromPractice(previous, outcome);
+    return { tema, previous };
   });
 }
 

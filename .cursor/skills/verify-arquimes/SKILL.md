@@ -1,6 +1,6 @@
 ---
 name: verify-arquimes
-description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen, chat de estudio) or after changing those screens. Never use this skill against the Vercel production deploy.
+description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen, chat de estudio, práctica) or after changing those screens. Never use this skill against the Vercel production deploy.
 ---
 
 # verify-arquimes
@@ -73,9 +73,14 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Guardar examen →` | exam submit (multipart file + note) |
 | `Exámenes` | tab, route `/materias/[id]/examenes` |
 | `Descargar archivo →` | exam file bytes on `/materias/[id]/examenes/[examId]` |
+| `Agregar otro tema`, `Agregar tema` | add a tema on the exam detail |
 | `Guardar archivos →` | apuntes upload submit |
 | `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen; grounded in the open materia) |
 | `Enviar mensaje` | send in the study chat rail |
+| `Práctica` | tab, route `/materias/[id]/practica` |
+| `Tu respuesta` | practice textarea |
+| `Así lo explicaría` / `Todavía no` | practice submit |
+| `Practicar ahora →` | Resumen link into práctica |
 
 One mapped feature per drive unless the task names more. Start from `/` unless the feature file says otherwise. A toast or `Creando...` is not proof: reopen from **Tus materias** (or Apuntes list) after refresh.
 
@@ -84,6 +89,18 @@ One mapped feature per drive unless the task names more. Start from `/` unless t
 ```
 
 That helper is the scripted path for `crear-materia`. Other features: follow `features/*.md` in a browser pointed at `$BASE_URL` with `USER_DATA_DIR`.
+
+```bash
+.cursor/skills/verify-arquimes/bin/drive-chat-estudio
+```
+
+Scripted path for `chat-estudio`: empty chat → upload apunte → grounded reply with citation persists after reload.
+
+```bash
+.cursor/skills/verify-arquimes/bin/drive-practica
+```
+
+Scripted path for `practica`: empty tab → cargar examen (file + note) → add a tema on the exam detail → answer one item → Resumen mastery/preparado after reload.
 
 ## Evidence
 
@@ -96,7 +113,7 @@ Proof standards:
 - Exercise the real UI path (click, type, submit). Do not POST `/api/*` as a substitute for the button, inject DOM, or call test-only endpoints.
 - Capture the action and the resulting state (HTML or screenshot **before** and **after**).
 - Screenshots must show Arquimes chrome (wordmark or `Tus materias` / create heading).
-- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open **Exámenes**, reload, and see the note plus filename; then open the row and download the file. After upload, open Apuntes and see the filename.
+- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open **Exámenes**, reload, and see the note plus filename; then open the row and download the file. After práctica, answer one item then open Resumen and refresh: mastery and preparación estimada must change. After upload, open Apuntes and see the filename.
 - File upload: a real file on disk, then the name on Apuntes after reload.
 
 ## Cleanup
@@ -122,6 +139,7 @@ All executable from repo root:
 | `.cursor/skills/verify-arquimes/bin/drive-crear-materia` | Browser path: empty home → create → list |
 | `.cursor/skills/verify-arquimes/bin/drive-cargar-examen` | Browser path: create materia → attach tiny PDF + note → Exámenes list + download after reload |
 | `.cursor/skills/verify-arquimes/bin/drive-chat-estudio` | Browser path: empty materia chat → upload txt → grounded reply persists |
+| `.cursor/skills/verify-arquimes/bin/drive-practica` | Browser path: empty práctica → exam file + tema → answer → resumen mastery |
 | `.cursor/skills/verify-arquimes/bin/cleanup` | Tear down this run only |
 
 Feature recipes: `.cursor/skills/verify-arquimes/features/`.

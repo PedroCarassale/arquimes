@@ -10,11 +10,11 @@ Every feature lands only after `.cursor/skills/verify-arquimes` drives the **loc
 
 ## Now
 
-Slice 1 must actually work: home/Tus materias, crear materia (not unirse), resumen, apuntes/subir material, cargar examen, and a study chat grounded in that materia's files. Out: fake preparado numbers, community.
+Slice 1 must actually work: home/Tus materias, crear materia (not unirse), resumen, apuntes/subir material, cargar examen (file + note), study chat grounded in files, and práctica that updates tema mastery. Out: fake preparado numbers, community.
 
 ## Next
 
-Real preparado, práctica that feeds progress, plan de estudio.
+Real preparado from more practice, plan de estudio.
 
 ## Later
 

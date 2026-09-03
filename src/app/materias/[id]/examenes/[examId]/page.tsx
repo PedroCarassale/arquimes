@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { EliminarExamen } from "@/components/EliminarExamen";
-import { getExamen, getMateria, getMaterial } from "@/lib/db";
+import { AgregarTema } from "@/components/AgregarTema";
+import { getExamen, getMateria, getMaterial, getTemas } from "@/lib/db";
 import { examDisplayName, formatFileSize } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function ExamenDetailPage({ params }: PageProps) {
     ? await getMaterial(examen.materialId)
     : undefined;
   const hasFile = Boolean(material?.contentBase64);
+  const temas = await getTemas(examen.id);
   const materiaInfo = [materia.faculty, materia.catedra]
     .filter(Boolean)
     .join(" · ");
@@ -63,6 +65,8 @@ export default async function ExamenDetailPage({ params }: PageProps) {
           Este examen no tiene archivo.
         </p>
       )}
+
+      <AgregarTema examenId={examen.id} initialTemas={temas} />
 
       <Link
         href={`/materias/${id}/examenes`}

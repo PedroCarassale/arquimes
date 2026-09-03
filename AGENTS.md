@@ -23,6 +23,7 @@ Arquimes is NOT a PDF library, flashcard app, generic chatbot, or study calendar
 4. The materia home answers the north-star question honestly for this depth: if there is no exam, no topics, or no practice yet, say so in plain Spanish and point at the next action (subir material, cargar examen, agregar temas). If topics exist, show per-topic states starting at "no estudiado" (no estudiado / empezado / estudiado / necesita práctica / dominado). Do not fake a high readiness score.
 5. Skip a marketing landing. First useful screen is "tus materias" / crear materia.
 6. Always-on study chat answers from that student's materia (apuntes and uploaded exam files). If there is no readable material, say so in Spanish. Do not fake preparado. Persist the thread in the session store.
+7. Short práctica on exam temas updates mastery so Resumen's preparación estimada can move.
 
 ## Visual Identity
 
@@ -44,7 +45,7 @@ Dark, editorial, technological.
 - **Material**: file belonging to one materia (name, type, size, addedAt, storage key).
 - **ExamenEnPreparacion**: the exam file the student uploaded (bytes in session store), optional one-line note (`Parcial 2023`), optional date/type leftovers from older records.
 
-- **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Manual for now; future practice will move it.
+- **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Practice answers move it.
 - **ChatMessage**: per-materia study thread. Assistant replies cite files when they use them.
 
 Single-user persistence. No auth/multi-tenant unless it is the smallest way to keep data. No fake community seed data.
@@ -77,6 +78,7 @@ A stranger can:
 3. Optionally add an exam + topics
 4. See an honest readiness screen
 5. Ask the study chat something the uploaded file can answer, and get a reply that uses it
+6. Answer one práctica item and see the tema leave no estudiado
 
 There is no community surface. Visual identity is recognizably dark/editorial and uses the Archimedes mark.
 
