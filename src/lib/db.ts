@@ -20,7 +20,7 @@ import {
 
 const COOKIE_PREFIX = "aqs";
 const COOKIE_COUNT = `${COOKIE_PREFIX}n`;
-const CHUNK = 3500;
+const CHUNK = 1800;
 const MAX_CHUNKS = 8;
 
 const cookieOptions = {

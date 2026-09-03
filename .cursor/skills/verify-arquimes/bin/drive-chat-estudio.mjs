@@ -121,6 +121,7 @@ await page.goto(`${baseUrl}/materias/${materiaId}/cargar`, {
 });
 await page.getByRole("heading", { name: "Seleccionar archivos" }).waitFor();
 await page.getByLabel("Explorar archivos").setInputFiles(filePath);
+await page.getByText(fileName, { exact: true }).waitFor();
 await page.getByRole("button", { name: "Guardar archivos" }).click();
 await page.waitForURL(
   new RegExp(`/materias/${materiaId}/apuntes$`),
