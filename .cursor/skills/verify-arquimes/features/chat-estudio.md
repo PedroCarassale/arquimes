@@ -39,3 +39,4 @@ Preconditions:
 - A 69-byte empty PDF is not readable text; use a `.txt` (or a PDF with a text layer) to prove grounding.
 - Exam create/upload is another agent's path. Chat must still read apuntes of this materia, and exam `note` / `fileContentBase64` if those store fields are present.
 - Home without a materia is not a generic chatbot. Community copy is not a chat path.
+- Re-running on the same Chromium `USER_DATA_DIR` keeps the prior cookie store. The helper suffixes `Mecánica del continuo` and `cauchy-stress.txt` each run so apuntes/grounded asserts hit this run's materia and file, not the previous ones. The file body still contains `ARQUIMES-TENSOR-CAUCHY`.

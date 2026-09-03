@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { chromium } from "playwright";
+import { randomBytes } from "node:crypto";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { parseArgs } from "node:util";
 
@@ -26,8 +27,9 @@ if (baseUrl.includes("vercel.app")) {
 
 mkdirSync(evidence, { recursive: true });
 
-const materiaName = "Mecánica del continuo";
-const fileName = "cauchy-stress.txt";
+const suffix = randomBytes(3).toString("hex");
+const materiaName = `Mecánica del continuo ${suffix}`;
+const fileName = `cauchy-stress-${suffix}.txt`;
 const token = "ARQUIMES-TENSOR-CAUCHY";
 const fileBody = `El tensor de Cauchy-Stress (σ) describe las fuerzas internas por unidad de área en un continuo. En equilibrio, div σ + ρb = 0. Token: ${token}.`;
 const question = "¿Qué describe el tensor de Cauchy-Stress?";
@@ -82,7 +84,7 @@ await page.goto(baseUrl + "/materias/nueva", { waitUntil: "networkidle" });
 await page.getByLabel("Nombre de la materia").fill(materiaName);
 await page.getByRole("button", { name: "Crear materia" }).click();
 await page.waitForURL(/\/materias\/[0-9a-f-]+$/i, { timeout: 20000 });
-await page.getByRole("heading", { name: materiaName }).waitFor();
+await page.getByRole("heading", { name: materiaName, exact: true }).waitFor();
 const materiaUrl = page.url();
 const materiaId = materiaUrl.split("/materias/")[1].split("/")[0];
 
@@ -120,7 +122,10 @@ await page.goto(`${baseUrl}/materias/${materiaId}/cargar`, {
 await page.getByRole("heading", { name: "Seleccionar archivos" }).waitFor();
 await page.getByLabel("Explorar archivos").setInputFiles(filePath);
 await page.getByRole("button", { name: "Guardar archivos" }).click();
-await page.waitForURL(/\/apuntes$/, { timeout: 20000 });
+await page.waitForURL(
+  new RegExp(`/materias/${materiaId}/apuntes$`),
+  { timeout: 20000 }
+);
 await page.reload({ waitUntil: "networkidle" });
 const apuntesHtml = await page.content();
 writeFileSync(`${evidence}/chat-apuntes.html`, apuntesHtml);
@@ -161,4 +166,4 @@ if (!persistHtml.includes(fileName)) {
 }
 
 await context.close();
-console.log("drive-chat-estudio ok");
+console.log(`drive-chat-estudio ok ${materiaName} ${fileName}`);
