@@ -1,6 +1,6 @@
 ---
 name: verify-arquimes
-description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen) or after changing those screens. Never use this skill against the Vercel production deploy.
+description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen, chat de estudio) or after changing those screens. Never use this skill against the Vercel production deploy.
 ---
 
 # verify-arquimes
@@ -74,7 +74,8 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Exámenes` | tab, route `/materias/[id]/examenes` |
 | `Descargar archivo →` | exam file bytes on `/materias/[id]/examenes/[examId]` |
 | `Guardar archivos →` | apuntes upload submit |
-| `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen) |
+| `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen; grounded in the open materia) |
+| `Enviar mensaje` | send in the study chat rail |
 
 One mapped feature per drive unless the task names more. Start from `/` unless the feature file says otherwise. A toast or `Creando...` is not proof: reopen from **Tus materias** (or Apuntes list) after refresh.
 
@@ -120,6 +121,7 @@ All executable from repo root:
 | `.cursor/skills/verify-arquimes/bin/doctor` | Read-only health of this run |
 | `.cursor/skills/verify-arquimes/bin/drive-crear-materia` | Browser path: empty home → create → list |
 | `.cursor/skills/verify-arquimes/bin/drive-cargar-examen` | Browser path: create materia → attach tiny PDF + note → Exámenes list + download after reload |
+| `.cursor/skills/verify-arquimes/bin/drive-chat-estudio` | Browser path: empty materia chat → upload txt → grounded reply persists |
 | `.cursor/skills/verify-arquimes/bin/cleanup` | Tear down this run only |
 
 Feature recipes: `.cursor/skills/verify-arquimes/features/`.

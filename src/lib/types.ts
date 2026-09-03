@@ -25,6 +25,7 @@ export interface Material {
   addedAt: string;
   contentBase64?: string;
   kind?: "apuntes" | "examen";
+  examId?: string;
 }
 
 export interface ExamenEnPreparacion {
@@ -40,6 +41,8 @@ export interface ExamenEnPreparacion {
   fileName?: string;
   fileType?: string;
   fileSize?: number;
+  note?: string;
+  fileContentBase64?: string;
 }
 
 export interface ChatMessage {
@@ -48,7 +51,27 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   materiaId?: string;
+  citations?: string[];
 }
+
+export type StudySourceKind = "apunte" | "examen";
+
+export type StudyExamSummary = {
+  name: string;
+  typeLabel: string;
+  date: string;
+  objective?: string;
+  temas: string[];
+};
+
+export type GroundingPayload = {
+  materiaId: string;
+  materiaName: string;
+  sourceCount: number;
+  readableCount: number;
+  sources: { name: string; kind: StudySourceKind; readable: boolean }[];
+  exams: StudyExamSummary[];
+};
 
 export interface Tema {
   id: string;
@@ -57,6 +80,8 @@ export interface Tema {
   masteryState: MasteryState;
   createdAt: string;
 }
+
+export type PracticeOutcome = "lo_tengo" | "todavia_no";
 
 export const MASTERY_LABELS: Record<MasteryState, string> = {
   no_estudiado: "No estudiado",

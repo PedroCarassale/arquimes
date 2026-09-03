@@ -22,6 +22,7 @@ Arquimes is NOT a PDF library, flashcard app, generic chatbot, or study calendar
 3. They can declare they are preparing an exam by uploading the exam file (PDF/image/doc) with an optional one-line note.
 4. The materia home answers the north-star question honestly for this depth: if there is no exam, no topics, or no practice yet, say so in plain Spanish and point at the next action (subir material, cargar examen, agregar temas). If topics exist, show per-topic states starting at "no estudiado" (no estudiado / empezado / estudiado / necesita práctica / dominado). Do not fake a high readiness score.
 5. Skip a marketing landing. First useful screen is "tus materias" / crear materia.
+6. Always-on study chat answers from that student's materia (apuntes and uploaded exam files). If there is no readable material, say so in Spanish. Do not fake preparado. Persist the thread in the session store.
 
 ## Visual Identity
 
@@ -44,6 +45,7 @@ Dark, editorial, technological.
 - **ExamenEnPreparacion**: the exam file the student uploaded (bytes in session store), optional one-line note (`Parcial 2023`), optional date/type leftovers from older records.
 
 - **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Manual for now; future practice will move it.
+- **ChatMessage**: per-materia study thread. Assistant replies cite files when they use them.
 
 Single-user persistence. No auth/multi-tenant unless it is the smallest way to keep data. No fake community seed data.
 
@@ -58,12 +60,11 @@ Single-user persistence. No auth/multi-tenant unless it is the smallest way to k
 
 ## Out of Scope (This Slice)
 
-- Chat
 - Community features
 - Docentes
 - Past-exam intelligence
 - Study planner
-- OCR/transcription/RAG
+- OCR/transcription/vector RAG (chat reads stored text bytes; it does not invent a syllabus)
 - Paper design tooling
 - User accounts beyond single-user
 - Marketing site
@@ -75,6 +76,7 @@ A stranger can:
 2. Upload a PDF
 3. Optionally add an exam + topics
 4. See an honest readiness screen
+5. Ask the study chat something the uploaded file can answer, and get a reply that uses it
 
 There is no community surface. Visual identity is recognizably dark/editorial and uses the Archimedes mark.
 

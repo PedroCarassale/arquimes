@@ -1,28 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
-import { ChatMessage } from "@/lib/types";
+import { ChatMessage, GroundingPayload } from "@/lib/types";
 
 export function ChatRail() {
   const pathname = usePathname();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [grounding, setGrounding] = useState<GroundingPayload | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
-  const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
+  const rawId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
+  const materiaId = rawId && rawId !== "nueva" ? rawId : undefined;
 
   useEffect(() => {
-    async function load() {
-      const res = await apiFetch("/api/chat");
-      if (res.ok) {
-        setMessages(await res.json());
+    let cancelled = false;
+
+    async function load(showLoading: boolean) {
+      if (showLoading) setLoading(true);
+      setError(null);
+      const path = materiaId
+        ? `/api/chat?materiaId=${encodeURIComponent(materiaId)}`
+        : "/api/chat";
+      const res = await apiFetch(path);
+      if (!res.ok) {
+        if (!cancelled) {
+          setError("No pude cargar el chat");
+          setLoading(false);
+        }
+        return;
       }
+      const data = (await res.json()) as {
+        messages?: ChatMessage[];
+        grounding?: GroundingPayload | null;
+      };
+      if (cancelled) return;
+      setMessages(Array.isArray(data.messages) ? data.messages : []);
+      setGrounding(data.grounding ?? null);
+      setLoading(false);
     }
-    load();
-  }, []);
+
+    load(true);
+    return () => {
+      cancelled = true;
+    };
+  }, [materiaId]);
+
+  useEffect(() => {
+    const id = materiaId ?? "";
+    if (!id) return;
+    let cancelled = false;
+
+    async function refreshGrounding() {
+      const res = await apiFetch(
+        `/api/chat?materiaId=${encodeURIComponent(id)}`
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as {
+        grounding?: GroundingPayload | null;
+        messages?: ChatMessage[];
+      };
+      if (cancelled) return;
+      setGrounding(data.grounding ?? null);
+      if (Array.isArray(data.messages)) setMessages(data.messages);
+    }
+
+    refreshGrounding();
+    return () => {
+      cancelled = true;
+    };
+  }, [materiaId, pathname]);
+
+  useEffect(() => {
+    const node = threadRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [messages, sending]);
 
   async function handleSend() {
     const content = draft.trim();
@@ -37,7 +96,7 @@ export function ChatRail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content,
-          materiaId: materiaId && materiaId !== "nueva" ? materiaId : undefined,
+          materiaId,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -54,23 +113,35 @@ export function ChatRail() {
     }
   }
 
+  const sourceNames = grounding?.sources.map((s) => s.name) ?? [];
+  const hasReadable = (grounding?.readableCount ?? 0) > 0;
+
   return (
     <aside
       id="estudio-chat"
       aria-label="Chat de estudio"
       className="fixed right-0 top-0 bottom-0 w-[280px] border-l border-border-subtle bg-background flex flex-col"
+      role="complementary"
     >
       <div className="p-4 border-b border-border-subtle">
         <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-1">
-          Chat
+          Chat de estudio
         </div>
-        <h2 className="font-serif text-lg">Estudio</h2>
+        <h2 className="font-serif text-lg">
+          {grounding?.materiaName || "Estudio"}
+        </h2>
+        <p className="text-xs text-foreground-muted mt-1">
+          {headerCopy(materiaId, grounding)}
+        </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 && (
+      <div ref={threadRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+        {loading && (
+          <p className="text-sm text-foreground-muted">Cargando el hilo…</p>
+        )}
+        {!loading && messages.length === 0 && (
           <p className="text-sm text-foreground-muted">
-            Preguntá lo que quieras. Todavía no leí tus apuntes.
+            {emptyThreadCopy(materiaId, grounding, hasReadable, sourceNames)}
           </p>
         )}
         {messages.map((message) => (
@@ -78,7 +149,19 @@ export function ChatRail() {
             <div className="text-xs font-mono text-foreground-muted uppercase mb-1">
               {message.role === "user" ? "Vos" : "Arquimes"}
             </div>
-            <p className="text-sm">{message.content}</p>
+            <p
+              className="text-sm whitespace-pre-wrap"
+              data-chat-role={message.role}
+            >
+              {message.content}
+            </p>
+            {message.role === "assistant" &&
+              message.citations &&
+              message.citations.length > 0 && (
+                <p className="text-xs font-mono text-foreground-muted mt-1">
+                  Fuente: {message.citations.join(", ")}
+                </p>
+              )}
           </div>
         ))}
       </div>
@@ -87,6 +170,25 @@ export function ChatRail() {
         {error && (
           <p role="alert" className="text-xs text-red-500 mb-2">
             {error}
+          </p>
+        )}
+        {!materiaId && (
+          <p className="text-xs text-foreground-muted mb-2">
+            <Link href="/" className="text-accent hover:underline">
+              Tus materias
+            </Link>{" "}
+            · el chat se ancla a una materia.
+          </p>
+        )}
+        {materiaId && !hasReadable && (
+          <p className="text-xs text-foreground-muted mb-2">
+            <Link
+              href={`/materias/${materiaId}/cargar`}
+              className="text-accent hover:underline"
+            >
+              Cargar apuntes
+            </Link>{" "}
+            para poder responder desde tu material.
           </p>
         )}
         <label htmlFor="chat-composer" className="sr-only">
@@ -102,7 +204,7 @@ export function ChatRail() {
               handleSend();
             }
           }}
-          placeholder="Preguntá sobre tu materia…"
+          placeholder={composerPlaceholder(materiaId, hasReadable)}
           aria-label="Escribí un mensaje"
           rows={3}
           className="w-full p-2 bg-surface border border-border text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent resize-none mb-2"
@@ -119,4 +221,47 @@ export function ChatRail() {
       </div>
     </aside>
   );
+}
+
+function headerCopy(
+  materiaId: string | undefined,
+  grounding: GroundingPayload | null
+): string {
+  if (!materiaId) return "Abrí una materia para anclar el chat.";
+  if (!grounding) return "No encuentro esa materia.";
+  if (grounding.readableCount > 0) {
+    const n = grounding.readableCount;
+    return `${n} archivo${n === 1 ? "" : "s"} con texto en esta materia.`;
+  }
+  if (grounding.sourceCount > 0) {
+    return "Hay archivos, pero no pude leer el texto.";
+  }
+  return "Sin apuntes ni archivos de examen todavía.";
+}
+
+function emptyThreadCopy(
+  materiaId: string | undefined,
+  grounding: GroundingPayload | null,
+  hasReadable: boolean,
+  sourceNames: string[]
+): string {
+  if (!materiaId) {
+    return "Abrí una materia. El chat responde desde tus apuntes y archivos de examen; no inventa un programa.";
+  }
+  if (!grounding) {
+    return "No encuentro esa materia en tu sesión.";
+  }
+  if (hasReadable) {
+    return `Puedo ayudarte con ${grounding.materiaName} a partir de ${sourceNames.join(", ")}. Preguntá sobre ese material para ver qué cubre respecto del examen.`;
+  }
+  return `Todavía no hay apuntes ni archivos de examen con texto en ${grounding.materiaName}. Preguntá igual y te lo digo con honestidad; no voy a fingir que estás preparado.`;
+}
+
+function composerPlaceholder(
+  materiaId: string | undefined,
+  hasReadable: boolean
+): string {
+  if (!materiaId) return "Abrí una materia para preguntar…";
+  if (!hasReadable) return "Preguntá: te voy a decir si falta material…";
+  return "Preguntá sobre tus apuntes…";
 }

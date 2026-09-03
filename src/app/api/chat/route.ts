@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { addChatTurn, getMessages } from "@/lib/db";
+import {
+  addChatTurn,
+  getMessages,
+  getStudyContext,
+  getStudyGrounding,
+} from "@/lib/db";
+import { composeStudyReply } from "@/lib/study-chat";
 
 export const dynamic = "force-dynamic";
 
-function stubReply(): string {
-  return "Todavía no leí tus apuntes. Cuando el chat esté conectado a tu material, voy a poder ayudarte con esta materia.";
-}
-
-export async function GET() {
-  const messages = await getMessages();
-  return NextResponse.json(messages);
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const materiaId = url.searchParams.get("materiaId") || undefined;
+  const messages = await getMessages(materiaId);
+  const grounding = materiaId ? await getStudyGrounding(materiaId) : null;
+  return NextResponse.json({ messages, grounding });
 }
 
 export async function POST(request: Request) {
@@ -25,8 +30,25 @@ export async function POST(request: Request) {
     }
 
     const materiaId =
-      typeof body.materiaId === "string" ? body.materiaId : undefined;
-    const turn = await addChatTurn(content, stubReply(), materiaId);
+      typeof body.materiaId === "string" && body.materiaId.trim()
+        ? body.materiaId.trim()
+        : undefined;
+
+    const ctx = materiaId ? await getStudyContext(materiaId) : null;
+    if (materiaId && !ctx) {
+      return NextResponse.json(
+        { error: "No encuentro esa materia en tu sesión." },
+        { status: 404 }
+      );
+    }
+
+    const reply = composeStudyReply(content, ctx);
+    const turn = await addChatTurn(
+      content,
+      reply.content,
+      materiaId,
+      reply.citations
+    );
     return NextResponse.json(turn, { status: 201 });
   } catch (error) {
     const message =

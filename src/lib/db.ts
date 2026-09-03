@@ -7,12 +7,20 @@ import {
   Tema,
   ChatMessage,
   MasteryState,
+  GroundingPayload,
 } from "./types";
+import {
+  groundingFromContext,
+  sourcesFromExamen,
+  sourcesFromMateriales,
+  summarizeExamen,
+  type StudyContext,
+} from "./study-chat";
 
 const COOKIE_PREFIX = "aqs";
 const COOKIE_COUNT = `${COOKIE_PREFIX}n`;
-const CHUNK = 3500;
-const MAX_CHUNKS = 8;
+const CHUNK = 1800;
+const MAX_CHUNKS = 16;
 
 const cookieOptions = {
   path: "/",
@@ -304,17 +312,60 @@ export async function getTemaNamesForMateria(materiaId: string): Promise<string[
   return [...new Set(names)];
 }
 
-export async function getMessages(): Promise<ChatMessage[]> {
+export async function getMessages(materiaId?: string): Promise<ChatMessage[]> {
   const store = await loadStore();
-  return [...store.messages].sort(
+  const list = materiaId
+    ? store.messages.filter((m) => m.materiaId === materiaId)
+    : store.messages.filter((m) => !m.materiaId);
+  return [...list].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 }
 
+export async function getStudyContext(
+  materiaId: string
+): Promise<StudyContext | null> {
+  const store = await loadStore();
+  const materia = store.materias.find((m) => m.id === materiaId);
+  if (!materia) return null;
+
+  const materiales = store.materiales.filter((m) => m.materiaId === materiaId);
+  const examenes = store.examenes.filter((e) => e.materiaId === materiaId);
+  const examIds = new Set(examenes.map((e) => e.id));
+  const temas = store.temas.filter((t) => examIds.has(t.examenId));
+
+  const sources = [
+    ...sourcesFromMateriales(materiales),
+    ...examenes.flatMap((examen) => sourcesFromExamen(examen)),
+  ];
+
+  return {
+    materiaId,
+    materiaName: materia.name,
+    sources,
+    exams: examenes.map((examen) =>
+      summarizeExamen(
+        examen,
+        temas.filter((t) => t.examenId === examen.id)
+      )
+    ),
+  };
+}
+
+export async function getStudyGrounding(
+  materiaId: string
+): Promise<GroundingPayload | null> {
+  const ctx = await getStudyContext(materiaId);
+  return ctx ? groundingFromContext(ctx) : null;
+}
+
+const MAX_MESSAGES = 48;
+
 export async function addChatTurn(
   userContent: string,
   assistantContent: string,
-  materiaId?: string
+  materiaId?: string,
+  citations?: string[]
 ): Promise<ChatMessage[]> {
   return mutate((store) => {
     const now = new Date().toISOString();
@@ -331,8 +382,12 @@ export async function addChatTurn(
       content: assistantContent,
       createdAt: now,
       materiaId,
+      citations: citations && citations.length > 0 ? citations : undefined,
     };
     store.messages.push(user, assistant);
+    if (store.messages.length > MAX_MESSAGES) {
+      store.messages.splice(0, store.messages.length - MAX_MESSAGES);
+    }
     return [user, assistant];
   });
 }
