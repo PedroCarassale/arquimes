@@ -1,5 +1,3 @@
-import Database from "better-sqlite3";
-import path from "path";
 import {
   Materia,
   Material,
@@ -9,77 +7,19 @@ import {
   ExamType,
 } from "./types";
 
-const DB_PATH = path.join(process.cwd(), "data", "arquimes.db");
-
-let db: Database.Database | null = null;
-
-function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    initSchema();
-  }
-  return db;
-}
-
-function initSchema() {
-  const database = db!;
-
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS materias (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      faculty TEXT,
-      catedra TEXT,
-      createdAt TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS materiales (
-      id TEXT PRIMARY KEY,
-      materiaId TEXT NOT NULL,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      size INTEGER NOT NULL,
-      storageKey TEXT NOT NULL,
-      addedAt TEXT NOT NULL,
-      FOREIGN KEY (materiaId) REFERENCES materias(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS examenes (
-      id TEXT PRIMARY KEY,
-      materiaId TEXT NOT NULL,
-      type TEXT NOT NULL,
-      date TEXT NOT NULL,
-      modality TEXT,
-      createdAt TEXT NOT NULL,
-      FOREIGN KEY (materiaId) REFERENCES materias(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS temas (
-      id TEXT PRIMARY KEY,
-      examenId TEXT NOT NULL,
-      name TEXT NOT NULL,
-      masteryState TEXT NOT NULL DEFAULT 'no_estudiado',
-      createdAt TEXT NOT NULL,
-      FOREIGN KEY (examenId) REFERENCES examenes(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_materiales_materia ON materiales(materiaId);
-    CREATE INDEX IF NOT EXISTS idx_examenes_materia ON examenes(materiaId);
-    CREATE INDEX IF NOT EXISTS idx_temas_examen ON temas(examenId);
-  `);
-}
+const materias = new Map<string, Materia>();
+const materiales = new Map<string, Material>();
+const examenes = new Map<string, ExamenEnPreparacion>();
+const temas = new Map<string, Tema>();
 
 export function getMaterias(): Materia[] {
-  return getDb()
-    .prepare("SELECT * FROM materias ORDER BY createdAt DESC")
-    .all() as Materia[];
+  return Array.from(materias.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 export function getMateria(id: string): Materia | undefined {
-  return getDb().prepare("SELECT * FROM materias WHERE id = ?").get(id) as
-    | Materia
-    | undefined;
+  return materias.get(id);
 }
 
 export function createMateria(
@@ -89,22 +29,40 @@ export function createMateria(
   catedra?: string
 ): Materia {
   const createdAt = new Date().toISOString();
-  getDb()
-    .prepare(
-      "INSERT INTO materias (id, name, faculty, catedra, createdAt) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(id, name, faculty || null, catedra || null, createdAt);
-  return { id, name, faculty, catedra, createdAt };
+  const materia: Materia = { id, name, faculty, catedra, createdAt };
+  materias.set(id, materia);
+  return materia;
 }
 
 export function deleteMateria(id: string): void {
-  getDb().prepare("DELETE FROM materias WHERE id = ?").run(id);
+  materias.delete(id);
+  for (const [key, material] of materiales) {
+    if (material.materiaId === id) {
+      materiales.delete(key);
+    }
+  }
+  for (const [key, examen] of examenes) {
+    if (examen.materiaId === id) {
+      for (const [temaKey, tema] of temas) {
+        if (tema.examenId === key) {
+          temas.delete(temaKey);
+        }
+      }
+      examenes.delete(key);
+    }
+  }
 }
 
 export function getMateriales(materiaId: string): Material[] {
-  return getDb()
-    .prepare("SELECT * FROM materiales WHERE materiaId = ? ORDER BY addedAt DESC")
-    .all(materiaId) as Material[];
+  return Array.from(materiales.values())
+    .filter((m) => m.materiaId === materiaId)
+    .sort(
+      (a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()
+    );
+}
+
+export function getMaterial(id: string): Material | undefined {
+  return materiales.get(id);
 }
 
 export function createMaterial(
@@ -116,28 +74,23 @@ export function createMaterial(
   storageKey: string
 ): Material {
   const addedAt = new Date().toISOString();
-  getDb()
-    .prepare(
-      "INSERT INTO materiales (id, materiaId, name, type, size, storageKey, addedAt) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .run(id, materiaId, name, type, size, storageKey, addedAt);
-  return { id, materiaId, name, type, size, storageKey, addedAt };
+  const material: Material = { id, materiaId, name, type, size, storageKey, addedAt };
+  materiales.set(id, material);
+  return material;
 }
 
 export function deleteMaterial(id: string): void {
-  getDb().prepare("DELETE FROM materiales WHERE id = ?").run(id);
+  materiales.delete(id);
 }
 
 export function getExamenes(materiaId: string): ExamenEnPreparacion[] {
-  return getDb()
-    .prepare("SELECT * FROM examenes WHERE materiaId = ? ORDER BY date ASC")
-    .all(materiaId) as ExamenEnPreparacion[];
+  return Array.from(examenes.values())
+    .filter((e) => e.materiaId === materiaId)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 export function getExamen(id: string): ExamenEnPreparacion | undefined {
-  return getDb().prepare("SELECT * FROM examenes WHERE id = ?").get(id) as
-    | ExamenEnPreparacion
-    | undefined;
+  return examenes.get(id);
 }
 
 export function createExamen(
@@ -148,41 +101,44 @@ export function createExamen(
   modality?: string
 ): ExamenEnPreparacion {
   const createdAt = new Date().toISOString();
-  getDb()
-    .prepare(
-      "INSERT INTO examenes (id, materiaId, type, date, modality, createdAt) VALUES (?, ?, ?, ?, ?, ?)"
-    )
-    .run(id, materiaId, type, date, modality || null, createdAt);
-  return { id, materiaId, type, date, modality, createdAt };
+  const examen: ExamenEnPreparacion = { id, materiaId, type, date, modality, createdAt };
+  examenes.set(id, examen);
+  return examen;
 }
 
 export function deleteExamen(id: string): void {
-  getDb().prepare("DELETE FROM examenes WHERE id = ?").run(id);
+  examenes.delete(id);
+  for (const [key, tema] of temas) {
+    if (tema.examenId === id) {
+      temas.delete(key);
+    }
+  }
 }
 
 export function getTemas(examenId: string): Tema[] {
-  return getDb()
-    .prepare("SELECT * FROM temas WHERE examenId = ? ORDER BY createdAt ASC")
-    .all(examenId) as Tema[];
+  return Array.from(temas.values())
+    .filter((t) => t.examenId === examenId)
+    .sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
 }
 
 export function createTema(id: string, examenId: string, name: string): Tema {
   const createdAt = new Date().toISOString();
   const masteryState: MasteryState = "no_estudiado";
-  getDb()
-    .prepare(
-      "INSERT INTO temas (id, examenId, name, masteryState, createdAt) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(id, examenId, name, masteryState, createdAt);
-  return { id, examenId, name, masteryState, createdAt };
+  const tema: Tema = { id, examenId, name, masteryState, createdAt };
+  temas.set(id, tema);
+  return tema;
 }
 
 export function updateTemaMastery(id: string, masteryState: MasteryState): void {
-  getDb()
-    .prepare("UPDATE temas SET masteryState = ? WHERE id = ?")
-    .run(masteryState, id);
+  const tema = temas.get(id);
+  if (tema) {
+    tema.masteryState = masteryState;
+    temas.set(id, tema);
+  }
 }
 
 export function deleteTema(id: string): void {
-  getDb().prepare("DELETE FROM temas WHERE id = ?").run(id);
+  temas.delete(id);
 }

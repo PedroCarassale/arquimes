@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { createMaterial, getMateriales, getMateria } from "@/lib/db";
-
-const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
 export async function GET(
   request: Request,
@@ -40,16 +36,8 @@ export async function POST(
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
     const fileId = uuid();
-    const ext = path.extname(file.name) || "";
-    const storageKey = `${fileId}${ext}`;
-
-    await mkdir(UPLOADS_DIR, { recursive: true });
-    const filePath = path.join(UPLOADS_DIR, storageKey);
-    await writeFile(filePath, buffer);
+    const storageKey = `demo-${fileId}`;
 
     const material = createMaterial(
       fileId,
