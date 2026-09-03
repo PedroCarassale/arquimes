@@ -73,7 +73,7 @@ async function saveStore(store: Store): Promise<void> {
 
   jar.set(COOKIE_COUNT, "0", cookieOptions);
   for (let i = 0; i < MAX_CHUNKS; i++) {
-    jar.delete(`${COOKIE_PREFIX}${i}`, { path: "/" });
+    jar.delete({ name: `${COOKIE_PREFIX}${i}`, path: "/" });
   }
 
   const chunks: string[] = [];
