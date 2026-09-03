@@ -1,0 +1,1 @@
+El tensor de Cauchy-Stress (σ) describe las fuerzas internas por unidad de área en un continuo. En equilibrio, div σ + ρb = 0. Token: ARQUIMES-TENSOR-CAUCHY.
