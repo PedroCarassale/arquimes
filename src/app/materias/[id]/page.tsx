@@ -4,7 +4,7 @@ import { MateriaLayout } from "@/components/MateriaLayout";
 import { getMateria, getMateriales, getExamenes, getTemas } from "@/lib/db";
 import { examDisplayName } from "@/lib/format";
 import { calculatePreparation } from "@/lib/mastery";
-import { MASTERY_LABELS, type MasteryState, type Tema } from "@/lib/types";
+import { MASTERY_LABELS, type MasteryState } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,15 +18,6 @@ function formatDate(dateStr: string): string {
     weekday: "long",
     day: "numeric",
     month: "long",
-  });
-}
-
-function formatShortDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("es-AR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
   });
 }
 
@@ -51,19 +42,6 @@ function getMasteryColor(state: MasteryState): string {
     default:
       return "text-foreground-subtle";
   }
-}
-
-function getProgressBar(temas: Tema[], state: MasteryState): number {
-  if (temas.length === 0) return 0;
-  const weights: Record<MasteryState, number> = {
-    no_estudiado: 0,
-    empezado: 0.25,
-    estudiado: 0.6,
-    necesita_practica: 0.75,
-    dominado: 1,
-  };
-  const tema = temas.find((t) => t.masteryState === state);
-  return tema ? weights[state] * 100 : 0;
 }
 
 export default async function MateriaResumenPage({ params }: PageProps) {

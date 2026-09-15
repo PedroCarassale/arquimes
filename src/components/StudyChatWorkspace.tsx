@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
@@ -46,8 +46,10 @@ export function StudyChatWorkspace({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
+  const loadSequence = useRef(0);
 
-  async function load(sessionId?: string) {
+  const load = useCallback(async (sessionId?: string) => {
+    const seq = ++loadSequence.current;
     const params = new URLSearchParams({ materiaId });
     if (sessionId) params.set("sessionId", sessionId);
     const response = await apiFetch(`/api/chat?${params.toString()}`);
@@ -58,6 +60,7 @@ export function StudyChatWorkspace({
     if (!response.ok) {
       throw new Error((payload as { error?: string }).error || "No pude cargar el chat.");
     }
+    if (seq !== loadSequence.current) return;
 
     const data = payload as ChatState;
     setState({
@@ -68,12 +71,16 @@ export function StudyChatWorkspace({
       provider: data.provider ?? emptyState.provider,
       suggestedChips: Array.isArray(data.suggestedChips) ? data.suggestedChips : [],
     });
-  }
+  }, [materiaId]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setLoading(true);
+        setError(null);
+      }
+    });
     load()
       .catch((loadError) => {
         if (!cancelled) {
@@ -86,7 +93,7 @@ export function StudyChatWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [materiaId]);
+  }, [load]);
 
   useEffect(() => {
     if (!threadRef.current) return;

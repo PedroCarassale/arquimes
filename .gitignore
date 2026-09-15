@@ -46,6 +46,9 @@ next-env.d.ts
 /data/*.db-shm
 /data/*.db-wal
 /uploads/
+.arquimes-chat.db
+artifacts/verify-arquimes/apunte-cauchy-*.txt
+artifacts/verify-arquimes/parcial-fluidos-*.txt
 
 # verification run state (keep evidence in artifacts/)
 .cursor/skills/verify-arquimes/run/current
