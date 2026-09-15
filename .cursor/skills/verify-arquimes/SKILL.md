@@ -75,8 +75,9 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Descargar archivo →` | exam file bytes on `/materias/[id]/examenes/[examId]` |
 | `Agregar otro tema`, `Agregar tema` | add a tema on the exam detail |
 | `Guardar archivos →` | apuntes upload submit |
-| `Chat de estudio`, `Escribí un mensaje` | shell composer (always on screen; grounded in the open materia) |
-| `Enviar mensaje` | send in the study chat rail |
+| `Compañero de preparación`, `Escribí un mensaje` | chat page `/materias/[id]/chat` with multi-session composer |
+| `Enviar mensaje` | send in the active chat session |
+| `+ Nuevo chat`, `Renombrar`, `Borrar` | session controls in chat sidebar |
 | `Práctica` | tab, route `/materias/[id]/practica` |
 | `Tu respuesta` | practice textarea |
 | `Así lo explicaría` / `Todavía no` | practice submit |
@@ -94,7 +95,7 @@ That helper is the scripted path for `crear-materia`. Other features: follow `fe
 .cursor/skills/verify-arquimes/bin/drive-chat-estudio
 ```
 
-Scripted path for `chat-estudio`: empty chat → upload apunte → grounded reply with citation persists after reload.
+Scripted path for `chat-estudio`: empty chat + atajo → cargar material/examen/tema → nueva sesión → grounded/provider-missing reply persists after reload.
 
 ```bash
 .cursor/skills/verify-arquimes/bin/drive-practica

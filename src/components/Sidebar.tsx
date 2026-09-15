@@ -10,11 +10,16 @@ const navItems = [
   { href: "#", label: "Práctica", icon: "○", enabled: false },
   { href: "#", label: "Parciales", icon: "▫", enabled: false },
   { href: "/archivos", label: "Archivos", icon: "□", enabled: true },
-  { href: "#estudio-chat", label: "Chats", icon: "○", enabled: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
+  const chatHref = materiaId ? `/materias/${materiaId}/chat` : "/materias";
+  const items = [
+    ...navItems,
+    { href: chatHref, label: "Chats", icon: "○", enabled: true },
+  ];
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[180px] bg-background border-r border-border-subtle flex flex-col">
@@ -25,7 +30,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive =
             item.href === "/"
               ? pathname === "/"

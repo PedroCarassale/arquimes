@@ -65,8 +65,8 @@ export function ExamenForm({ materia }: { materia: Materia }) {
         </div>
         <h1 className="font-serif text-3xl mb-2">Cargar examen</h1>
         <p className="text-sm text-foreground-muted mb-8">
-          Subí el PDF o el archivo del examen. Si querés, agregá una línea de
-          qué se trata. Guardar deja el archivo en tu materia.
+          Paso 2 de 3: subí el archivo del próximo examen. Sumá una nota corta
+          de contexto y después agregá temas para practicar.
         </p>
 
         <div
@@ -152,20 +152,28 @@ export function ExamenForm({ materia }: { materia: Materia }) {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-6 border-t border-border-subtle">
           <Link
-            href={`/materias/${materia.id}`}
+            href={`/materias/${materia.id}/cargar`}
             className="text-sm text-foreground-muted hover:text-foreground transition-colors"
           >
-            ← Volver a la materia
+            ← Paso 1: Cargar apuntes
           </Link>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={loading}
-            aria-label="Guardar examen"
-            className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Guardando..." : "Guardar examen →"}
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/materias/${materia.id}/examenes`}
+              className="border border-border px-4 py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
+            >
+              Paso 3: Definir temas
+            </Link>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loading}
+              aria-label="Guardar examen"
+              className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Guardando..." : "Guardar examen →"}
+            </button>
+          </div>
         </div>
       </div>
     </AppShell>

@@ -189,6 +189,13 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               >
                 Agregar temas →
               </Link>
+              <p className="text-xs text-foreground-muted mt-3">
+                Cuando completes los temas, abrí{" "}
+                <Link href={`/materias/${id}/chat`} className="text-accent hover:underline">
+                  Chat
+                </Link>{" "}
+                para pedir resumen o plan de estudio.
+              </p>
             </div>
           </div>
         </>
@@ -290,6 +297,13 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               >
                 Practicar ahora →
               </Link>
+              <p className="text-xs text-foreground-muted mt-3">
+                También podés abrir{" "}
+                <Link href={`/materias/${id}/chat`} className="text-accent hover:underline">
+                  Chat
+                </Link>{" "}
+                para repasar por tema o simular examen.
+              </p>
             </div>
           </div>
 

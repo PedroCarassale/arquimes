@@ -51,7 +51,18 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   materiaId?: string;
+  chatSessionId?: string;
   citations?: string[];
+  isError?: boolean;
+}
+
+export interface ChatSession {
+  id: string;
+  materiaId: string;
+  examenId?: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type StudySourceKind = "apunte" | "examen";

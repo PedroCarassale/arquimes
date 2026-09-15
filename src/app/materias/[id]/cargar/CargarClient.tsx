@@ -90,8 +90,8 @@ export function CargarClient({ materia }: { materia: Materia }) {
 
         <h1 className="font-serif text-3xl mb-2">Seleccionar archivos</h1>
         <p className="text-sm text-foreground-muted mb-8">
-          Los archivos quedan en {materia.name}. Esta pantalla guarda el
-          material; no hay más pasos.
+          Paso 1 de 3 para cargar info del examen: subí apuntes o guías a{" "}
+          {materia.name}. Después cargás el archivo del examen y definís temas.
         </p>
 
         <div className="mb-8">
@@ -206,14 +206,22 @@ export function CargarClient({ materia }: { materia: Materia }) {
           >
             ← Volver a la materia
           </Link>
-          <button
-            onClick={handleUpload}
-            disabled={uploading}
-            aria-label="Guardar archivos"
-            className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {uploading ? "Subiendo..." : "Guardar archivos →"}
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/materias/${materia.id}/examen`}
+              className="border border-border px-4 py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
+            >
+              Paso 2: Cargar examen
+            </Link>
+            <button
+              onClick={handleUpload}
+              disabled={uploading}
+              aria-label="Guardar archivos"
+              className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? "Subiendo..." : "Guardar archivos →"}
+            </button>
+          </div>
         </div>
       </div>
     </AppShell>

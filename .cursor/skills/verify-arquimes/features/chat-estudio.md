@@ -1,20 +1,21 @@
 # Chat de estudio
 
-Chat de estudio is the always-on rail (`Chat de estudio`) that answers from the student's materia: apuntes and uploaded exam files when they have readable text. Empty material must say so in Spanish. The thread persists in the same cookie session.
+Chat de estudio lives in `/materias/[id]/chat` as the primary study companion. It supports multi-session chats per materia, shortcut chips, and grounded answers from apuntes + archivo del examen + nota + temas. If there is no provider key, it must fail honestly in Spanish. Sessions and messages persist in durable storage.
 
 ## Sub-features
 
 - `chat-empty-materia` on a materia with no apuntes/exam files answers honestly that there is no material (no fake preparado, no generic chatbot voice).
-- `chat-grounded` after a small uploaded file, a question that file can answer is replied using that file and citing its name.
-- `chat-persist` still shows the same thread in the rail after a full reload of the materia.
-- `chat-home` off a materia does not invent a syllabus; copy tells the student to open a materia.
+- `chat-shortcut` sends at least one atajo chip from the composer.
+- `chat-session-create` creates a new chat session and shows it in the left list.
+- `chat-grounded-or-provider-missing` after loading material, sending a question returns either a grounded response (with source context) or an explicit provider-missing error.
+- `chat-persist` still shows the same session/thread after a full reload.
 
 ## How to get to it (user POV)
 
-- The rail `Chat de estudio` is always on the right of the app shell.
-- Sidebar `Chats` jumps to `#estudio-chat`.
+- Open a materia and enter tab `Chat`.
+- The left panel button `+ Nuevo chat` creates sessions.
 - Composer accessible name: `Escribí un mensaje`. Send: `Enviar mensaje`.
-- The Chat tab on a materia may stay disabled; the rail is the path.
+- Use one shortcut chip (e.g. `Haceme un resumen completo de lo que entra.`).
 
 ## Driving it with verify-arquimes
 
@@ -28,15 +29,14 @@ Preconditions:
 .cursor/skills/verify-arquimes/bin/drive-chat-estudio
 ```
 
-- **Empty.** From `/` create a materia (e.g. `Mecánica del continuo`). On Resumen, in `Chat de estudio`, type a content question (`¿Qué describe el tensor de Cauchy-Stress?`) and `Enviar`. The Arquimes reply says there are no apuntes / archivos de examen. It must not claim the student is preparado. Capture `artifacts/verify-arquimes/chat-empty.html`.
-- **Upload.** Open `Cargar apuntes` / `/cargar`. `Explorar archivos` with a small `.txt` whose body contains a unique token the question can hit (the drive helper writes `cauchy-stress.txt`). `Guardar archivos →`. Apuntes lists the filename after reload.
-- **Grounded.** Back on the materia, ask the same question in the rail. The reply quotes or uses the file body and names `cauchy-stress.txt` (visible as `Fuente:` or inside the answer). Capture `artifacts/verify-arquimes/chat-grounded.html`.
-- **Persist.** Full reload. The user question and the grounded reply are still in the rail. Capture `artifacts/verify-arquimes/chat-persist.html`.
+- **Empty + atajo.** From `/` create a materia, open `Chat`, click one atajo chip and verify the answer is honest when material is missing. Capture `artifacts/verify-arquimes/chat-empty.html`.
+- **Load exam info.** Upload one apunte in `/cargar`, then create exam in `/examen` with note and add one tema from exam detail.
+- **New session + send.** Back in `Chat`, click `+ Nuevo chat`, send `¿Qué describe el tensor de Cauchy-Stress?` and capture `artifacts/verify-arquimes/chat-grounded.html`.
+- **Expected response.** Accept either grounded content using uploaded material or a clear provider-missing error (`No hay proveedor...` / missing key). Never allow fake readiness claims.
+- **Persist.** Full reload. Session remains listed and the thread still contains the sent question. Capture `artifacts/verify-arquimes/chat-persist.html`.
 
 ## Gotchas
 
-- Do not POST `/api/chat` as a substitute for the composer. Cookie session is the browser origin.
+- Do not POST `/api/chat` as a substitute for the composer. Drive real UI only.
 - A 69-byte empty PDF is not readable text; use a `.txt` (or a PDF with a text layer) to prove grounding.
-- Exam create/upload is another agent's path. Chat must still read apuntes of this materia, and exam `note` / `fileContentBase64` if those store fields are present.
-- Home without a materia is not a generic chatbot. Community copy is not a chat path.
-- Re-running on the same Chromium `USER_DATA_DIR` keeps the prior cookie store. The helper suffixes `Mecánica del continuo` and `cauchy-stress.txt` each run so apuntes/grounded asserts hit this run's materia and file, not the previous ones. The file body still contains `ARQUIMES-TENSOR-CAUCHY`.
+- Re-running on the same Chromium `USER_DATA_DIR` keeps prior cookies. Use suffixed names to avoid false positives.
