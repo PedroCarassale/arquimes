@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { CompactChatComposer } from "@/components/CompactChatComposer";
+import type { ComposerUploadChip } from "@/components/CompactChatComposer";
 import { normalizeChatMessage } from "@/lib/chat-message";
+import { uploadApunteFile, validateApunteFile } from "@/lib/apunte-upload";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
 type ProviderSummary = {
@@ -44,6 +46,11 @@ export function StudyChatWorkspace({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadChip, setUploadChip] = useState<ComposerUploadChip | null>(null);
+  const [uploadFeedback, setUploadFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
@@ -217,6 +224,67 @@ export function StudyChatWorkspace({
     }
     await load();
   }
+
+  const handleAttachFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+    const targetSessionId = state.activeSessionId || undefined;
+    let savedCount = 0;
+
+    for (const file of files) {
+      const validationError = validateApunteFile(file);
+      if (validationError) {
+        setUploadChip({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          status: "error",
+        });
+        setUploadFeedback({ tone: "error", text: validationError });
+        continue;
+      }
+
+      setUploadChip({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: "saving",
+      });
+      setUploadFeedback(null);
+
+      try {
+        await uploadApunteFile(materiaId, file);
+        savedCount += 1;
+        setUploadChip({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          status: "saved",
+        });
+        setUploadFeedback({
+          tone: "success",
+          text: `Apunte guardado: ${file.name}`,
+        });
+      } catch (uploadError) {
+        setUploadChip({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          status: "error",
+        });
+        setUploadFeedback({
+          tone: "error",
+          text:
+            uploadError instanceof Error
+              ? uploadError.message
+              : `No pude guardar “${file.name}”.`,
+        });
+      }
+    }
+
+    if (savedCount > 0) {
+      await load(targetSessionId);
+    }
+  }, [load, materiaId, state.activeSessionId]);
 
   return (
     <div className="flex min-h-0 flex-col lg:h-full">
@@ -461,6 +529,19 @@ export function StudyChatWorkspace({
               placeholder="Escribí un mensaje…"
               sending={sending}
               onChange={setDraft}
+              onAttachFiles={(files) => {
+                handleAttachFiles(files).catch((attachError) => {
+                  setUploadFeedback({
+                    tone: "error",
+                    text:
+                      attachError instanceof Error
+                        ? attachError.message
+                        : "No pude guardar el archivo.",
+                  });
+                });
+              }}
+              uploadChip={uploadChip}
+              uploadFeedback={uploadFeedback}
               onSend={() =>
                 sendMessage(draft).catch((err) => setError(err.message))
               }

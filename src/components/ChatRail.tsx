@@ -6,7 +6,9 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { CompactChatComposer } from "@/components/CompactChatComposer";
+import type { ComposerUploadChip } from "@/components/CompactChatComposer";
 import { normalizeChatMessage } from "@/lib/chat-message";
+import { uploadApunteFile, validateApunteFile } from "@/lib/apunte-upload";
 import type { ChatMessage, GroundingPayload } from "@/lib/types";
 
 export function ChatRail() {
@@ -17,6 +19,11 @@ export function ChatRail() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadChip, setUploadChip] = useState<ComposerUploadChip | null>(null);
+  const [uploadFeedback, setUploadFeedback] = useState<{
+    tone: "success" | "error";
+    text: string;
+  } | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const rawId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
@@ -118,6 +125,78 @@ export function ChatRail() {
       setError(err instanceof Error ? err.message : "No pude enviar el mensaje");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleAttachFiles(files: File[]) {
+    if (files.length === 0) return;
+    if (!materiaId) {
+      setUploadFeedback({
+        tone: "error",
+        text: "Abrí una materia para guardar apuntes desde el chat.",
+      });
+      return;
+    }
+
+    let savedCount = 0;
+    for (const file of files) {
+      const validationError = validateApunteFile(file);
+      if (validationError) {
+        setUploadChip({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          status: "error",
+        });
+        setUploadFeedback({ tone: "error", text: validationError });
+        continue;
+      }
+      setUploadChip({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: "saving",
+      });
+      setUploadFeedback(null);
+      try {
+        await uploadApunteFile(materiaId, file);
+        savedCount += 1;
+        setUploadChip({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          status: "saved",
+        });
+        setUploadFeedback({
+          tone: "success",
+          text: `Apunte guardado: ${file.name}`,
+        });
+      } catch (uploadError) {
+        setUploadChip({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          status: "error",
+        });
+        setUploadFeedback({
+          tone: "error",
+          text:
+            uploadError instanceof Error
+              ? uploadError.message
+              : `No pude guardar “${file.name}”.`,
+        });
+      }
+    }
+
+    if (savedCount > 0) {
+      const res = await apiFetch(`/api/chat?materiaId=${encodeURIComponent(materiaId)}`);
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        grounding?: GroundingPayload | null;
+        messages?: ChatMessage[];
+      };
+      setGrounding(data.grounding ?? null);
+      if (Array.isArray(data.messages)) setMessages(data.messages);
     }
   }
 
@@ -225,6 +304,19 @@ export function ChatRail() {
           placeholder={composerPlaceholder(materiaId, hasReadable)}
           sending={sending}
           onChange={setDraft}
+          onAttachFiles={(files) => {
+            handleAttachFiles(files).catch((attachError) =>
+              setUploadFeedback({
+                tone: "error",
+                text:
+                  attachError instanceof Error
+                    ? attachError.message
+                    : "No pude guardar el archivo.",
+              })
+            );
+          }}
+          uploadChip={uploadChip}
+          uploadFeedback={uploadFeedback}
           onSend={handleSend}
         />
       </div>
