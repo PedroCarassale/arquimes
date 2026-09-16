@@ -259,7 +259,7 @@ const waitSessionCreate = page.waitForResponse(
 );
 await page.getByRole("button", { name: "Nuevo chat" }).click();
 await waitSessionCreate;
-await page.getByText("Nuevo chat", { exact: true }).waitFor();
+await page.getByRole("heading", { name: "Nuevo chat", exact: true }).waitFor();
 await sendChat(page, question, `${evidence}/chat-thinking.png`);
 await page.waitForTimeout(400);
 
