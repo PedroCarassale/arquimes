@@ -1,42 +1,42 @@
 {
   "sessions": [
     {
-      "id": "e6ec888a-99c8-4cc4-bccd-d0ca2157a4bd",
-      "materiaId": "2ad1b2a6-8e04-4e44-b3d9-6e4c19adc5f0",
+      "id": "cb3f3f29-74a5-47a7-85f5-4829496f019e",
+      "materiaId": "03b8a920-6085-4da5-89fa-2f301cc1cb70",
       "title": "Necesito aprender todo el apunte. Mapeá los temas y empecemos po…",
-      "createdAt": "2026-09-16T15:41:53.370Z",
-      "updatedAt": "2026-09-16T15:41:53.380Z"
+      "createdAt": "2026-09-16T16:51:51.802Z",
+      "updatedAt": "2026-09-16T16:51:51.811Z"
     }
   ],
-  "activeSessionId": "e6ec888a-99c8-4cc4-bccd-d0ca2157a4bd",
+  "activeSessionId": "cb3f3f29-74a5-47a7-85f5-4829496f019e",
   "messages": [
     {
-      "id": "041cbe8f-0500-4e3c-9ecc-76b8faa8ffea",
+      "id": "e155cf42-f50d-431e-a832-175c28f71a29",
       "role": "user",
       "content": "Necesito aprender todo el apunte. Mapeá los temas y empecemos por el primero.",
-      "createdAt": "2026-09-16T15:41:53.380Z",
-      "chatSessionId": "e6ec888a-99c8-4cc4-bccd-d0ca2157a4bd",
-      "materiaId": "2ad1b2a6-8e04-4e44-b3d9-6e4c19adc5f0",
+      "createdAt": "2026-09-16T16:51:51.811Z",
+      "chatSessionId": "cb3f3f29-74a5-47a7-85f5-4829496f019e",
+      "materiaId": "03b8a920-6085-4da5-89fa-2f301cc1cb70",
       "isError": false
     },
     {
-      "id": "ea79bd0f-95ad-4f88-9560-3477ef5a7983",
+      "id": "2b9f8e90-87f8-45e7-b8e4-2a7b902e8756",
       "role": "assistant",
-      "content": "Todavía no hay apuntes ni archivos de examen en Cálculo numérico 0e3df7. No voy a inventar el programa ni decirte que estás preparado. Cargá material en Apuntes y preguntame de nuevo.",
-      "createdAt": "2026-09-16T15:41:53.380Z",
-      "chatSessionId": "e6ec888a-99c8-4cc4-bccd-d0ca2157a4bd",
-      "materiaId": "2ad1b2a6-8e04-4e44-b3d9-6e4c19adc5f0",
+      "content": "Todavía no hay apuntes ni archivos de examen en Cálculo numérico e3af4f. No voy a inventar el programa ni decirte que estás preparado. Cargá material en Apuntes y preguntame de nuevo.",
+      "createdAt": "2026-09-16T16:51:51.811Z",
+      "chatSessionId": "cb3f3f29-74a5-47a7-85f5-4829496f019e",
+      "materiaId": "03b8a920-6085-4da5-89fa-2f301cc1cb70",
       "isError": true
     }
   ],
   "grounding": {
-    "materiaId": "2ad1b2a6-8e04-4e44-b3d9-6e4c19adc5f0",
-    "materiaName": "Cálculo numérico 0e3df7",
+    "materiaId": "03b8a920-6085-4da5-89fa-2f301cc1cb70",
+    "materiaName": "Cálculo numérico e3af4f",
     "sourceCount": 1,
     "readableCount": 1,
     "sources": [
       {
-        "name": "teoria-errores-0e3df7.pdf",
+        "name": "teoria-errores-e3af4f.pdf",
         "kind": "apunte",
         "readable": true
       }
