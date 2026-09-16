@@ -9,8 +9,8 @@ const SUGGESTED_CHIPS = [
   "Tomame un parcial simulado con corrección.",
 ] as const;
 
-const MAX_CONTEXT_CHARS = 32_000;
-const MAX_SOURCE_CHARS = 14_000;
+const MAX_CONTEXT_CHARS = 48_000;
+const MAX_SOURCE_CHARS = 20_000;
 const CHUNK_TARGET = 1_100;
 const MAX_SELECTED_CHUNKS = 12;
 
