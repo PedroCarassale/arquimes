@@ -1,0 +1,58 @@
+{
+  "sessions": [
+    {
+      "id": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
+      "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
+      "title": "Haceme un resumen completo de lo que entra.",
+      "createdAt": "2026-09-16T03:03:28.567Z",
+      "updatedAt": "2026-09-16T03:03:28.578Z"
+    }
+  ],
+  "activeSessionId": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
+  "messages": [
+    {
+      "id": "14f296d8-1866-4ebb-95d2-fd4446ecd844",
+      "role": "user",
+      "content": "Haceme un resumen completo de lo que entra.",
+      "createdAt": "2026-09-16T03:03:28.578Z",
+      "chatSessionId": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
+      "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
+      "isError": false
+    },
+    {
+      "id": "d789a7c4-e826-4e88-af04-e5d80c8b63ba",
+      "role": "assistant",
+      "content": "Todavía no hay apuntes ni archivos de examen en Mecánica del continuo 2d40bb. No voy a inventar el programa ni decirte que estás preparado. Cargá material en Apuntes y preguntame de nuevo.",
+      "createdAt": "2026-09-16T03:03:28.578Z",
+      "chatSessionId": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
+      "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
+      "citations": [],
+      "isError": true
+    }
+  ],
+  "grounding": {
+    "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
+    "materiaName": "Mecánica del continuo 2d40bb",
+    "sourceCount": 1,
+    "readableCount": 1,
+    "sources": [
+      {
+        "name": "apunte-cauchy-2d40bb.pdf",
+        "kind": "apunte",
+        "readable": true
+      }
+    ],
+    "exams": []
+  },
+  "provider": {
+    "configured": false,
+    "selected": null,
+    "message": "No hay proveedor de IA configurado. Definí OPENAI_API_KEY o ANTHROPIC_API_KEY para habilitar el chat."
+  },
+  "suggestedChips": [
+    "Haceme un resumen completo de lo que entra.",
+    "Armame un plan de estudio para llegar al examen.",
+    "Explícame un tema puntual paso a paso.",
+    "Tomame un parcial simulado con corrección."
+  ]
+}

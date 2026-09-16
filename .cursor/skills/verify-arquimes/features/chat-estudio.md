@@ -23,14 +23,14 @@ Preconditions:
 
 - Doctor is green.
 - Fresh profile (or a materia you just created).
-- A real tiny text file on disk (not a blank PDF).
+- Un PDF real con capa de texto (no un PDF vacío).
 
 ```bash
 .cursor/skills/verify-arquimes/bin/drive-chat-estudio
 ```
 
 - **Empty + atajo.** From `/` create a materia, open `Chat`, click one atajo chip and verify the answer is honest when material is missing. Capture `artifacts/verify-arquimes/chat-empty.html`.
-- **Load exam info.** Upload one apunte in `/cargar`, then create exam in `/examen` with note and add one tema from exam detail.
+- **Load exam info.** Upload one apunte PDF en `/cargar`, verificar `grounding.readableCount > 0` en `/api/chat`, luego crear examen en `/examen` con nota y agregar un tema desde el detalle.
 - **New session + send.** Back in `Chat`, click `+ Nuevo chat`, send `¿Qué describe el tensor de Cauchy-Stress?` and capture `artifacts/verify-arquimes/chat-grounded.html`.
 - **Expected response.** Accept either grounded content using uploaded material or a clear provider-missing error (`No hay proveedor...` / missing key). Never allow fake readiness claims.
 - **Persist.** Full reload. Session remains listed and the thread still contains the sent question. Capture `artifacts/verify-arquimes/chat-persist.html`.
@@ -38,5 +38,5 @@ Preconditions:
 ## Gotchas
 
 - Do not POST `/api/chat` as a substitute for the composer. Drive real UI only.
-- A 69-byte empty PDF is not readable text; use a `.txt` (or a PDF with a text layer) to prove grounding.
+- Un PDF vacío (~69 bytes) no prueba grounding; usar un PDF con texto seleccionable.
 - Re-running on the same Chromium `USER_DATA_DIR` keeps prior cookies. Use suffixed names to avoid false positives.

@@ -3,6 +3,7 @@ import {
   deleteExamen,
   getExamen,
   getMaterial,
+  materialHasContent,
   updateExamenNote,
 } from "@/lib/db";
 
@@ -22,7 +23,7 @@ export async function GET(
     : undefined;
   return NextResponse.json({
     ...examen,
-    hasFile: Boolean(material?.contentBase64),
+    hasFile: material ? materialHasContent(material) : false,
   });
 }
 

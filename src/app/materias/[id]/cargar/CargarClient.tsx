@@ -103,7 +103,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
               Podés cargar apuntes, guías, bibliografía, imágenes o documentos de clase.
             </p>
             <span className="text-xs font-mono text-foreground-muted">
-              PDF · DOCX · PPTX · JPG · PNG · TXT
+              PDF · DOCX · PPTX · JPG · PNG · TXT · hasta 15 MB
             </span>
           </div>
         </div>

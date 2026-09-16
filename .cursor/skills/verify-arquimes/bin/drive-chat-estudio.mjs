@@ -29,10 +29,15 @@ mkdirSync(evidence, { recursive: true });
 
 const suffix = randomBytes(3).toString("hex");
 const materiaName = `Mecánica del continuo ${suffix}`;
-const apunteFileName = `apunte-cauchy-${suffix}.txt`;
+const apunteFileName = `apunte-cauchy-${suffix}.pdf`;
 const examFileName = `parcial-fluidos-${suffix}.txt`;
 const token = "ARQUIMES-TENSOR-CAUCHY";
-const fileBody = `El tensor de Cauchy-Stress (σ) describe las fuerzas internas por unidad de área en un continuo. En equilibrio, div σ + ρb = 0. Token: ${token}.`;
+const fileBody = Array.from({ length: 220 })
+  .map(
+    (_, i) =>
+      `Página de apuntes ${i + 1}. El tensor de Cauchy-Stress (σ) describe fuerzas internas por unidad de área. En equilibrio, div σ + ρb = 0. Token: ${token}.`
+  )
+  .join("\n");
 const examBody = `Parcial integrador de mecánica de fluidos. Se evalúa Cauchy-Stress, conservación de masa y energía.`;
 const examNote = "Parcial 2023 de fluidos continuos";
 const tema = "Conservación de masa";
@@ -41,8 +46,56 @@ const shortcutPrompt = "Haceme un resumen completo de lo que entra.";
 
 const apunteFilePath = `${evidence}/${apunteFileName}`;
 const examFilePath = `${evidence}/${examFileName}`;
-writeFileSync(apunteFilePath, fileBody);
 writeFileSync(examFilePath, examBody);
+
+async function writePdfWithText(path, text) {
+  const lines = text.split("\n").slice(0, 360);
+  const textOps = [
+    "BT",
+    "/F1 10 Tf",
+    "44 800 Td",
+    "13 TL",
+    ...lines.map((line) => `(${escapePdfText(line)}) Tj T*`),
+    "ET",
+    "",
+  ].join("\n");
+  const stream = Buffer.from(textOps, "latin1");
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream.toString("latin1")}endstream`,
+  ];
+
+  let body = "";
+  const offsets = [0];
+  for (let i = 0; i < objects.length; i += 1) {
+    offsets.push(body.length + "%PDF-1.4\n".length);
+    body += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+
+  const xrefStart = "%PDF-1.4\n".length + body.length;
+  const xrefEntries = offsets
+    .map((offset, index) => {
+      if (index === 0) return "0000000000 65535 f ";
+      return `${String(offset).padStart(10, "0")} 00000 n `;
+    })
+    .join("\n");
+  const trailer = `xref\n0 ${objects.length + 1}\n${xrefEntries}\ntrailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  const pdf = `%PDF-1.4\n${body}${trailer}`;
+  writeFileSync(path, pdf, "latin1");
+}
+
+function escapePdfText(value) {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("(", "\\(")
+    .replaceAll(")", "\\)")
+    .replaceAll("\r", " ")
+    .replaceAll("\n", " ");
+}
 
 async function sendChat(page, text) {
   const waitPost = page.waitForResponse(
@@ -50,15 +103,23 @@ async function sendChat(page, text) {
       res.url().includes("/api/chat") &&
       res.request().method() === "POST" &&
       res.status() < 500,
-    { timeout: 20000 }
+    { timeout: 45000 }
   );
   await page.getByLabel("Escribí un mensaje").fill(text);
   await page.getByRole("button", { name: "Enviar mensaje" }).click();
   await waitPost;
   await page.waitForFunction(
-    (message) => document.body.textContent?.includes(message),
+    (message) => {
+      const body = document.body.textContent || "";
+      return (
+        body.includes(message) ||
+        /No hay proveedor de IA configurado|falta OPENAI_API_KEY|falta ANTHROPIC_API_KEY/i.test(
+          body
+        )
+      );
+    },
     text,
-    { timeout: 20000 }
+    { timeout: 45000 }
   );
 }
 
@@ -88,6 +149,7 @@ const context = await chromium.launchPersistentContext(userDataDir, {
   viewport: { width: 1280, height: 800 },
 });
 const page = context.pages()[0] || (await context.newPage());
+await writePdfWithText(apunteFilePath, fileBody);
 
 await page.goto(baseUrl + "/materias/nueva", { waitUntil: "networkidle" });
 await page.getByLabel("Nombre de la materia").fill(materiaName);
@@ -148,6 +210,26 @@ const apuntesHtml = await page.content();
 writeFileSync(`${evidence}/chat-apuntes.html`, apuntesHtml);
 if (!apuntesHtml.includes(apunteFileName)) {
   throw new Error("apuntes missing uploaded study file");
+}
+const apunteStats = page.locator(`text=${apunteFileName}`);
+await apunteStats.first().waitFor();
+
+const groundingRes = await page.request.get(
+  `${baseUrl}/api/chat?materiaId=${materiaId}`
+);
+if (!groundingRes.ok()) {
+  throw new Error(`grounding fetch failed: ${groundingRes.status()}`);
+}
+const groundingJson = await groundingRes.json();
+writeFileSync(
+  `${evidence}/chat-grounding.json`,
+  JSON.stringify(groundingJson, null, 2)
+);
+const readableCount = groundingJson?.grounding?.readableCount ?? 0;
+if (readableCount < 1) {
+  throw new Error(
+    `expected grounding.readableCount > 0 after PDF upload, got ${readableCount}`
+  );
 }
 
 await page.goto(`${baseUrl}/materias/${materiaId}/examen`, {

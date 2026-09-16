@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteMaterial, getMaterial } from "@/lib/db";
+import { readStudyFileContent } from "@/lib/file-store";
 
 export const dynamic = "force-dynamic";
 
@@ -9,17 +10,27 @@ export async function GET(
 ) {
   const { id } = await params;
   const material = await getMaterial(id);
-  if (!material || !material.contentBase64) {
+  if (!material) {
     return NextResponse.json(
       { error: "Archivo no encontrado" },
       { status: 404 }
     );
   }
 
-  const bytes = Buffer.from(material.contentBase64, "base64");
+  const persisted = await readStudyFileContent(material.storageKey);
+  const bytes = material.contentBase64
+    ? Buffer.from(material.contentBase64, "base64")
+    : persisted?.bytes;
+  if (!bytes) {
+    return NextResponse.json(
+      { error: "Archivo no encontrado" },
+      { status: 404 }
+    );
+  }
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
-      "Content-Type": material.type || "application/octet-stream",
+      "Content-Type":
+        persisted?.type || material.type || "application/octet-stream",
       "Content-Disposition": `attachment; filename="${encodeURIComponent(material.name)}"`,
     },
   });

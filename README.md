@@ -9,7 +9,8 @@ No hay comunidad en este corte.
 ## Stack
 
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
-- Materias, apuntes y exámenes en cookies httpOnly por sesión
+- Materias y metadatos en cookies httpOnly por sesión
+- Archivos (bytes + texto extraído) en SQLite/libSQL owner-scoped
 - **Chat multi-sesión durable** con SQLite/libSQL (`@libsql/client`) para Vercel Serverless (Turso/libSQL)
 - Providers de IA compatibles: OpenAI y Anthropic
 
@@ -26,15 +27,23 @@ Abrí `http://127.0.0.1:43131`. Un puerto distinto es una sesión vacía.
 
 Copiá `.env.example` a `.env.local` y completá según necesites:
 
-- `LIBSQL_URL`: URL de Turso/libSQL (obligatoria en producción para guardar chats).
+- `LIBSQL_URL`: URL de Turso/libSQL (obligatoria en producción para guardar chats y archivos).
 - `LIBSQL_AUTH_TOKEN`: token de Turso/libSQL (si aplica).
 - `AI_PROVIDER`: opcional (`openai` o `anthropic`).
 - `OPENAI_API_KEY`: API key de OpenAI.
 - `OPENAI_MODEL`: opcional (default `gpt-4o-mini`).
 - `ANTHROPIC_API_KEY`: API key de Anthropic.
 - `ANTHROPIC_MODEL`: opcional (default `claude-3-5-sonnet-latest`).
+- `PDF_OCR_API_URL`: endpoint opcional para OCR de PDFs escaneados.
+- `PDF_OCR_API_KEY`: bearer token opcional para ese endpoint OCR.
 
 Si no hay key de IA, la UI sigue funcionando pero el envío de mensajes responde con un error honesto en español.
+Si no hay `PDF_OCR_API_URL`, los PDFs escaneados se detectan como no legibles y el chat lo explica sin inventar contenido.
+
+## Límites actuales
+
+- Límite de subida: **15 MB por archivo**.
+- Los bytes del archivo ya no quedan en cookies; se guardan en libSQL con scope privado por owner cookie.
 
 ## Verificar en local
 
@@ -62,5 +71,7 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
    - crear, abrir, renombrar y borrar sesiones
    - atajos para resumen completo, plan de estudio, tema puntual y simulación
    - grounding con apuntes, archivo de examen, nota y temas
+   - extracción robusta de PDF con `pdf-parse` (capa de texto)
+   - fallback OCR opcional por `PDF_OCR_API_URL` para escaneados
    - persistencia durable de títulos/mensajes
 6. Práctica: una pregunta corta por tema; responder mueve el dominio y el % de preparado

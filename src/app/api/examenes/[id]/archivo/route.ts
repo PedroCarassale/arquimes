@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getExamen, getMaterial } from "@/lib/db";
+import { readStudyFileContent } from "@/lib/file-store";
 
 export const dynamic = "force-dynamic";
 
@@ -16,18 +17,28 @@ export async function GET(
   const material = examen.materialId
     ? await getMaterial(examen.materialId)
     : undefined;
-  if (!material?.contentBase64) {
+  if (!material) {
     return NextResponse.json(
       { error: "Este examen no tiene archivo." },
       { status: 404 }
     );
   }
 
-  const bytes = Buffer.from(material.contentBase64, "base64");
+  const persisted = await readStudyFileContent(material.storageKey);
+  const bytes = material.contentBase64
+    ? Buffer.from(material.contentBase64, "base64")
+    : persisted?.bytes;
+  if (!bytes) {
+    return NextResponse.json(
+      { error: "Este examen no tiene archivo." },
+      { status: 404 }
+    );
+  }
   const fileName = examen.fileName || material.name || "examen";
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
-      "Content-Type": material.type || "application/octet-stream",
+      "Content-Type":
+        persisted?.type || material.type || "application/octet-stream",
       "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
     },
   });

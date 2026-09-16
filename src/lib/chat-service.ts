@@ -74,7 +74,7 @@ function buildContextBlock(ctx: StudyContext): string {
         `FUENTE: ${source.name}`,
         `TIPO: ${source.kind}`,
         text
-          ? `CONTENIDO: ${clip(text.replace(/\s+/g, " "), 1600)}`
+          ? `CONTENIDO: ${buildGroundingSnippet(text)}`
           : "CONTENIDO: [sin texto legible]",
       ].join("\n");
     })
@@ -99,6 +99,21 @@ function buildContextBlock(ctx: StudyContext): string {
     sourceChunks || "SIN FUENTES",
     examChunks || "SIN EXAMENES CARGADOS",
   ].join("\n\n");
+}
+
+function buildGroundingSnippet(text: string): string {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+  if (normalized.length <= 4200) return normalized;
+  const paragraphs = normalized.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  if (paragraphs.length <= 3) return clip(normalized, 4200);
+  const head = paragraphs.slice(0, 4).join("\n\n");
+  const middleIndex = Math.floor(paragraphs.length / 2);
+  const middle = paragraphs.slice(Math.max(0, middleIndex - 1), middleIndex + 1).join("\n\n");
+  const tail = paragraphs.slice(-3).join("\n\n");
+  return clip(
+    `${head}\n\n[...contenido intermedio recortado...]\n\n${middle}\n\n[...tramo final...]\n\n${tail}`,
+    4200
+  );
 }
 
 function parseResponse(text: string): { answer: string; citations: string[] } | null {

@@ -1,4 +1,5 @@
 import { examDisplayName, examTypeLabel } from "./format";
+import { extractText } from "unpdf";
 import type {
   ExamenEnPreparacion,
   GroundingPayload,
@@ -14,6 +15,7 @@ export type StudySource = {
   name: string;
   kind: StudySourceKind;
   text: string | null;
+  unreadableHint?: string;
 };
 
 export type StudyContext = {
@@ -136,21 +138,49 @@ export function groundingFromContext(ctx: StudyContext): GroundingPayload {
   };
 }
 
-export function sourcesFromMateriales(materiales: Material[]): StudySource[] {
-  return materiales.map((material) => ({
-    name: material.name,
-    kind: material.kind === "examen" ? "examen" : "apunte",
-    text: material.contentBase64
-      ? extractTextFromBase64(
-          material.name,
-          material.type,
-          material.contentBase64
-        )
-      : null,
-  }));
+export async function sourcesFromMateriales(
+  materiales: Material[],
+  fileMetaByStorageKey?: Map<
+    string,
+    { extractedText: string | null; extractionStatus?: string; extractionDetail?: string | null }
+  >
+): Promise<StudySource[]> {
+  const sources = await Promise.all(
+    materiales.map(async (material) => {
+      const storageMeta = material.storageKey
+        ? fileMetaByStorageKey?.get(material.storageKey)
+        : undefined;
+      if (storageMeta) {
+        return {
+          name: material.name,
+          kind: material.kind === "examen" ? "examen" : "apunte",
+          text: storageMeta.extractedText,
+          unreadableHint: unreadableHintFromStatus(
+            storageMeta.extractionStatus,
+            storageMeta.extractionDetail
+          ),
+        } as StudySource;
+      }
+      const legacyText = material.contentBase64
+        ? await extractTextFromBase64(
+            material.name,
+            material.type,
+            material.contentBase64
+          )
+        : null;
+      return {
+        name: material.name,
+        kind: material.kind === "examen" ? "examen" : "apunte",
+        text: legacyText,
+      } as StudySource;
+    })
+  );
+  return sources;
 }
 
-export function sourcesFromExamen(examen: ExamenEnPreparacion): StudySource[] {
+export async function sourcesFromExamen(
+  examen: ExamenEnPreparacion
+): Promise<StudySource[]> {
   const sources: StudySource[] = [];
   const examName = examDisplayName(examen);
   const note = examen.note?.trim() || examen.name?.trim();
@@ -162,14 +192,15 @@ export function sourcesFromExamen(examen: ExamenEnPreparacion): StudySource[] {
     });
   }
   if (examen.fileContentBase64) {
+    const extracted = await extractTextFromBase64(
+      examen.fileName || examName,
+      examen.fileType || "",
+      examen.fileContentBase64
+    );
     sources.push({
       name: examen.fileName || `Archivo · ${examName}`,
       kind: "examen",
-      text: extractTextFromBase64(
-        examen.fileName || examName,
-        examen.fileType || "",
-        examen.fileContentBase64
-      ),
+      text: extracted,
     });
   }
   return sources;
@@ -188,13 +219,23 @@ export function summarizeExamen(
   };
 }
 
-export function extractTextFromBase64(
+export async function extractTextFromBase64(
   name: string,
   type: string,
   contentBase64: string
-): string | null {
+): Promise<string | null> {
   const buffer = Buffer.from(contentBase64, "base64");
   if (buffer.length === 0) return null;
+  const extracted = await extractTextFromBuffer(name, type, buffer);
+  return extracted.text;
+}
+
+export async function extractTextFromBuffer(
+  name: string,
+  type: string,
+  buffer: Buffer
+): Promise<{ text: string | null; status: string; detail?: string }> {
+  if (buffer.length === 0) return { text: null, status: "empty" };
 
   const lower = name.toLowerCase();
   const mime = (type || "").toLowerCase();
@@ -207,20 +248,31 @@ export function extractTextFromBase64(
       lower
     )
   ) {
-    return null;
+    return { text: null, status: "unsupported-media" };
   }
 
   if (mime.includes("pdf") || lower.endsWith(".pdf")) {
-    const pdfText = extractPdfText(buffer);
-    return pdfText.trim() ? pdfText.trim() : null;
+    const pdfExtract = await extractPdfText(buffer);
+    if (pdfExtract.text.trim()) {
+      return { text: pdfExtract.text.trim(), status: "pdf-text-layer" };
+    }
+    if (pdfExtract.errorDetail) {
+      return {
+        text: null,
+        status: "pdf-text-error",
+        detail: `No pude leer el PDF: ${pdfExtract.errorDetail}`,
+      };
+    }
+    const ocr = await extractPdfTextWithOcr(name, type, buffer);
+    return ocr;
   }
 
   const text = buffer
     .toString("utf8")
     .replace(/^\uFEFF/, "")
     .replace(/\0/g, "");
-  if (!looksLikeText(text)) return null;
-  return text.trim() ? text.trim() : null;
+  if (!looksLikeText(text)) return { text: null, status: "binary" };
+  return { text: text.trim() ? text.trim() : null, status: "plain-text" };
 }
 
 export function composeStudyReply(
@@ -278,8 +330,14 @@ function emptyMaterialReply(
   const examLine = examHintLine(ctx);
   if (unreadable.length > 0) {
     const names = unreadable.map((s) => s.name).join(", ");
+    const hints = [
+      ...new Set(
+        unreadable.map((s) => s.unreadableHint?.trim()).filter(Boolean) as string[]
+      ),
+    ];
     return [
-      `En ${ctx.materiaName} tenés ${names}, pero no pude leer el texto (imagen, video o PDF sin texto seleccionable).`,
+      `En ${ctx.materiaName} tenés ${names}, pero no pude leer el texto.`,
+      hints.length ? hints.join(" ") : "Puede ser una imagen, video o PDF sin texto seleccionable.",
       "Subí un .txt, .md o un PDF con texto para que pueda responder desde tu material.",
       examLine,
       "Mientras no pueda leer el contenido, no voy a decirte que estás preparado.",
@@ -312,7 +370,15 @@ function noMatchReply(
     .join("; ");
   const unread =
     unreadable.length > 0
-      ? ` También tenés ${unreadable.map((s) => s.name).join(", ")}, que no pude leer.`
+      ? ` También tenés ${unreadable.map((s) => s.name).join(", ")}, que no pude leer. ${
+          [
+            ...new Set(
+              unreadable
+                .map((s) => s.unreadableHint?.trim())
+                .filter(Boolean) as string[]
+            ),
+          ].join(" ")
+        }`
       : "";
   const examLine = examHintLine(ctx);
   return [
@@ -432,41 +498,97 @@ function looksLikeText(text: string): boolean {
   return printable / chars.length >= 0.85;
 }
 
-function extractPdfText(buffer: Buffer): string {
-  const raw = buffer.toString("latin1");
-  const pieces: string[] = [];
-
-  const tj = /\((?:\\.|[^\\)])*\)\s*Tj/g;
-  let match: RegExpExecArray | null;
-  while ((match = tj.exec(raw))) {
-    pieces.push(pdfLiteralToString(match[0]));
+async function extractPdfText(
+  buffer: Buffer
+): Promise<{ text: string; errorDetail?: string }> {
+  try {
+    const extracted = await extractText(new Uint8Array(buffer), {
+      mergePages: true,
+    });
+    const text = Array.isArray(extracted.text)
+      ? extracted.text.join("\n")
+      : extracted.text;
+    return { text: (text || "").replace(/[ \t]+/g, " ").trim() };
+  } catch (error) {
+    return {
+      text: "",
+      errorDetail: error instanceof Error ? clip(error.message, 180) : "Error desconocido.",
+    };
   }
-
-  const tjArray = /\[([\s\S]*?)\]\s*TJ/g;
-  while ((match = tjArray.exec(raw))) {
-    const inner = match[1];
-    const literals = inner.match(/\((?:\\.|[^\\)])*\)/g) || [];
-    pieces.push(literals.map(pdfLiteralToString).join(""));
-  }
-
-  return pieces
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
-function pdfLiteralToString(literal: string): string {
-  const inner = literal.replace(/\)\s*Tj$/, "");
-  const start = inner.indexOf("(");
-  const end = inner.lastIndexOf(")");
-  if (start < 0 || end <= start) return "";
-  const body = inner.slice(start + 1, end);
-  return body
-    .replace(/\\n/g, "\n")
-    .replace(/\\r/g, "\r")
-    .replace(/\\t/g, "\t")
-    .replace(/\\([()\\])/g, "$1")
-    .replace(/\\(\d{1,3})/g, (_, oct) =>
-      String.fromCharCode(parseInt(oct, 8))
-    );
+async function extractPdfTextWithOcr(
+  name: string,
+  type: string,
+  buffer: Buffer
+): Promise<{ text: string | null; status: string; detail?: string }> {
+  const endpoint = process.env.PDF_OCR_API_URL?.trim();
+  if (!endpoint) {
+    return {
+      text: null,
+      status: "pdf-ocr-unavailable",
+      detail:
+        "Parece un PDF escaneado sin texto seleccionable. Para leerlo hace falta OCR y no está configurado.",
+    };
+  }
+
+  try {
+    const token = process.env.PDF_OCR_API_KEY?.trim();
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        fileName: name,
+        mimeType: type || "application/pdf",
+        contentBase64: buffer.toString("base64"),
+      }),
+    });
+    if (!response.ok) {
+      const detail = clip(await response.text(), 220);
+      return {
+        text: null,
+        status: "pdf-ocr-error",
+        detail: `No pude aplicar OCR al PDF (${response.status}). ${detail}`,
+      };
+    }
+    const payload = (await response.json()) as { text?: unknown };
+    const text = typeof payload.text === "string" ? payload.text.trim() : "";
+    if (!text) {
+      return {
+        text: null,
+        status: "pdf-ocr-empty",
+        detail: "El OCR no devolvió texto legible para este PDF escaneado.",
+      };
+    }
+    return { text, status: "pdf-ocr-success" };
+  } catch (error) {
+    const detail =
+      error instanceof Error ? clip(error.message, 180) : "Error desconocido.";
+    return {
+      text: null,
+      status: "pdf-ocr-error",
+      detail: `Falló el OCR configurado: ${detail}`,
+    };
+  }
+}
+
+function unreadableHintFromStatus(status?: string, detail?: string | null): string | undefined {
+  if (detail?.trim()) return detail.trim();
+  if (!status) return undefined;
+  if (status === "pdf-ocr-unavailable") {
+    return "El PDF parece escaneado y falta configurar OCR para extraer texto.";
+  }
+  if (status === "pdf-ocr-empty") {
+    return "Intenté OCR, pero no devolvió texto legible.";
+  }
+  if (status === "pdf-ocr-error") {
+    return "El OCR configurado falló para este PDF.";
+  }
+  if (status === "pdf-text-error") {
+    return "No pude interpretar ese PDF. Si es un escaneo, configurá OCR.";
+  }
+  return undefined;
 }

@@ -1,5 +1,5 @@
-export const MAX_SESSION_FILE_BYTES = 12_000;
+export const MAX_STUDY_FILE_BYTES = 15 * 1024 * 1024; // 15MB por archivo
 
-export function sessionFileTooBigMessage(fileName: string): string {
-  return `No pude guardar “${fileName}”: en esta versión el archivo tiene que ser menor a 12 KB para persistir en tu sesión.`;
+export function studyFileTooBigMessage(fileName: string): string {
+  return `No pude guardar “${fileName}”: supera el límite de 15 MB por archivo.`;
 }

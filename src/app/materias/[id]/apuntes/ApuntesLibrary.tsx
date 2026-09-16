@@ -212,7 +212,7 @@ export function ApuntesLibrary({
               {uploading ? "Subiendo..." : "Soltá archivos para cargarlos"}
             </h3>
             <p className="text-sm text-foreground-muted mb-4">
-              PDF, texto o imágenes chicas · Hasta 12 KB por archivo en esta sesión
+              PDF, texto o imágenes · Hasta 15 MB por archivo
             </p>
             <label className="text-accent text-sm cursor-pointer hover:underline">
               Elegir archivos →

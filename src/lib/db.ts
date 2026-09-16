@@ -18,6 +18,10 @@ import {
   type StudyContext,
 } from "./study-chat";
 import { nextMasteryFromPractice } from "./practice";
+import {
+  deleteStudyFileByStorageKey,
+  getStudyFileMetaByStorageKeys,
+} from "./file-store";
 
 const COOKIE_PREFIX = "aqs";
 const COOKIE_COUNT = `${COOKIE_PREFIX}n`;
@@ -143,8 +147,15 @@ export async function createMateria(
 }
 
 export async function deleteMateria(id: string): Promise<void> {
+  const storageKeys: string[] = [];
   await mutate((store) => {
     store.materias = store.materias.filter((m) => m.id !== id);
+    storageKeys.push(
+      ...store.materiales
+        .filter((m) => m.materiaId === id)
+        .map((m) => m.storageKey)
+        .filter(Boolean)
+    );
     store.materiales = store.materiales.filter((m) => m.materiaId !== id);
     const examenIds = new Set(
       store.examenes.filter((e) => e.materiaId === id).map((e) => e.id)
@@ -152,6 +163,7 @@ export async function deleteMateria(id: string): Promise<void> {
     store.examenes = store.examenes.filter((e) => e.materiaId !== id);
     store.temas = store.temas.filter((t) => !examenIds.has(t.examenId));
   });
+  await Promise.all(storageKeys.map((storageKey) => deleteStudyFileByStorageKey(storageKey)));
 }
 
 export async function getMateriales(materiaId: string): Promise<Material[]> {
@@ -164,6 +176,10 @@ export async function getMateriales(materiaId: string): Promise<Material[]> {
 export async function getMaterial(id: string): Promise<Material | undefined> {
   const store = await loadStore();
   return store.materiales.find((m) => m.id === id);
+}
+
+export function materialHasContent(material: Material): boolean {
+  return Boolean(material.contentBase64 || material.storageKey?.startsWith("libsql:"));
 }
 
 export async function createMaterial(
@@ -195,9 +211,13 @@ export async function createMaterial(
 }
 
 export async function deleteMaterial(id: string): Promise<void> {
+  let storageKey: string | undefined;
   await mutate((store) => {
+    const material = store.materiales.find((m) => m.id === id);
+    storageKey = material?.storageKey;
     store.materiales = store.materiales.filter((m) => m.id !== id);
   });
+  await deleteStudyFileByStorageKey(storageKey);
 }
 
 export async function getExamenes(materiaId: string): Promise<ExamenEnPreparacion[]> {
@@ -223,7 +243,8 @@ export async function createExamenWithFile(
     fileName: string;
     fileType: string;
     fileSize: number;
-    contentBase64: string;
+    contentBase64?: string;
+    storageKey?: string;
   }
 ): Promise<ExamenEnPreparacion> {
   return mutate((store) => {
@@ -235,7 +256,7 @@ export async function createExamenWithFile(
       name: data.fileName,
       type: data.fileType,
       size: data.fileSize,
-      storageKey: `session:${materialId}`,
+      storageKey: data.storageKey || `session:${materialId}`,
       addedAt: createdAt,
       contentBase64: data.contentBase64,
       kind: "examen",
@@ -268,16 +289,20 @@ export async function updateExamenNote(
 }
 
 export async function deleteExamen(id: string): Promise<void> {
+  let storageKey: string | undefined;
   await mutate((store) => {
     const examen = store.examenes.find((e) => e.id === id);
     store.examenes = store.examenes.filter((e) => e.id !== id);
     store.temas = store.temas.filter((t) => t.examenId !== id);
     if (examen?.materialId) {
+      const material = store.materiales.find((m) => m.id === examen.materialId);
+      storageKey = material?.storageKey;
       store.materiales = store.materiales.filter(
         (m) => m.id !== examen.materialId
       );
     }
   });
+  await deleteStudyFileByStorageKey(storageKey);
 }
 
 export async function getTemas(examenId: string): Promise<Tema[]> {
@@ -347,10 +372,17 @@ export async function getStudyContext(
   const examenes = store.examenes.filter((e) => e.materiaId === materiaId);
   const examIds = new Set(examenes.map((e) => e.id));
   const temas = store.temas.filter((t) => examIds.has(t.examenId));
+  const fileMetaByStorageKey = await getStudyFileMetaByStorageKeys(
+    materiales.map((m) => m.storageKey).filter(Boolean)
+  );
+  const examLegacySources = (
+    await Promise.all(examenes.map((examen) => sourcesFromExamen(examen)))
+  ).flat();
+  const materialSources = await sourcesFromMateriales(materiales, fileMetaByStorageKey);
 
   const sources = [
-    ...sourcesFromMateriales(materiales),
-    ...examenes.flatMap((examen) => sourcesFromExamen(examen)),
+    ...materialSources,
+    ...examLegacySources,
   ];
 
   return {

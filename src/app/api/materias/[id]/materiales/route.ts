@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createMaterial, getMateriales, getMateria } from "@/lib/db";
-import {
-  MAX_SESSION_FILE_BYTES,
-  sessionFileTooBigMessage,
-} from "@/lib/limits";
+import { storeStudyFile } from "@/lib/file-store";
+import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
+import { extractTextFromBuffer } from "@/lib/study-chat";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +16,7 @@ export async function GET(
   return NextResponse.json(
     materiales.map(({ contentBase64, ...rest }) => ({
       ...rest,
-      hasContent: Boolean(contentBase64),
+      hasContent: Boolean(contentBase64 || rest.storageKey?.startsWith("libsql:")),
     }))
   );
 }
@@ -54,14 +53,27 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    if (buffer.length > MAX_SESSION_FILE_BYTES) {
+    if (buffer.length > MAX_STUDY_FILE_BYTES) {
       return NextResponse.json(
-        { error: sessionFileTooBigMessage(file.name) },
+        { error: studyFileTooBigMessage(file.name) },
         { status: 413 }
       );
     }
 
+    const extraction = await extractTextFromBuffer(
+      file.name,
+      file.type || "application/octet-stream",
+      buffer
+    );
+    const persisted = await storeStudyFile({
+      name: file.name,
+      type: file.type || "application/octet-stream",
+      size: file.size || buffer.length,
+      bytes: buffer,
+      extractedText: extraction.text,
+      extractionStatus: extraction.status,
+      extractionDetail: extraction.detail,
+    });
     const fileId = uuid();
     const material = await createMaterial(
       fileId,
@@ -69,8 +81,7 @@ export async function POST(
       file.name,
       file.type || "application/octet-stream",
       file.size,
-      `session:${fileId}`,
-      buffer.toString("base64")
+      persisted.storageKey
     );
 
     return NextResponse.json(
