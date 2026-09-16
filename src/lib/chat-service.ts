@@ -1,5 +1,5 @@
-import { generateWithProvider, type ProviderMessage } from "./ai-providers";
-import { parseAssistantContent } from "./chat-message";
+import { generateWithProvider, type ProviderMessage } from "./ai-providers.ts";
+import { parseAssistantContent } from "./chat-message.ts";
 import type { ChatMessage } from "./types";
 import type { StudyContext } from "./study-chat";
 
