@@ -13,7 +13,10 @@ export class ProviderConfigError extends Error {}
 
 type ProviderName = "openai" | "anthropic";
 
-const OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5.4";
+const OPENAI_BASE_URL =
+  process.env.OPENAI_BASE_URL?.trim().replace(/\/+$/, "") ||
+  "https://api.openai.com/v1";
 const ANTHROPIC_MODEL =
   process.env.ANTHROPIC_MODEL?.trim() || "claude-3-5-sonnet-latest";
 
@@ -67,7 +70,7 @@ async function callOpenAI(messages: ProviderMessage[]): Promise<ProviderResult> 
     );
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -75,7 +78,8 @@ async function callOpenAI(messages: ProviderMessage[]): Promise<ProviderResult> 
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
-      temperature: 0.2,
+      max_completion_tokens: 3_200,
+      ...(!OPENAI_MODEL.startsWith("gpt-5") ? { temperature: 0.2 } : {}),
       messages,
     }),
   });
@@ -119,7 +123,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: 900,
+      max_tokens: 2_400,
       temperature: 0.2,
       system,
       messages: chat,

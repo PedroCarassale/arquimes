@@ -31,7 +31,8 @@ Copiá `.env.example` a `.env.local` y completá según necesites:
 - `LIBSQL_AUTH_TOKEN`: token de Turso/libSQL (si aplica).
 - `AI_PROVIDER`: opcional (`openai` o `anthropic`).
 - `OPENAI_API_KEY`: API key de OpenAI.
-- `OPENAI_MODEL`: opcional (default `gpt-4o-mini`).
+- `OPENAI_MODEL`: opcional (default `gpt-5.4`, prioriza calidad de tutoría).
+- `OPENAI_BASE_URL`: opcional (default `https://api.openai.com/v1`; permite gateways compatibles).
 - `ANTHROPIC_API_KEY`: API key de Anthropic.
 - `ANTHROPIC_MODEL`: opcional (default `claude-3-5-sonnet-latest`).
 - `PDF_OCR_API_URL`: endpoint opcional para OCR de PDFs escaneados.
@@ -69,8 +70,9 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
 4. Resumen honesto: si no hay examen, temas o práctica, lo dice
 5. Chat multi-sesión por materia (`/materias/[id]/chat`):
    - crear, abrir, renombrar y borrar sesiones
-   - atajos para resumen completo, plan de estudio, tema puntual y simulación
-   - grounding con apuntes, archivo de examen, nota y temas
+   - atajos para aprender el apunte progresivamente, trazar una ruta, abrir un tema y simular
+   - tutoría progresiva con mapa de temas, fórmulas KaTeX, ejemplos y chequeos de comprensión
+   - recuperación por consulta sobre apuntes, archivo de examen, nota y temas
    - extracción robusta de PDF con `pdf-parse` (capa de texto)
    - fallback OCR opcional por `PDF_OCR_API_URL` para escaneados
    - persistencia durable de títulos/mensajes
