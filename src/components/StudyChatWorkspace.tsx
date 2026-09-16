@@ -219,13 +219,13 @@ export function StudyChatWorkspace({
 
   return (
     <div className="flex min-h-0 flex-col lg:h-full">
-      <div className="mb-3 flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
+      <div className="mb-2 flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="mb-1 font-mono text-xs uppercase tracking-wider text-foreground-muted">
             Chat de estudio
           </div>
-          <h2 className="font-serif text-2xl">Compañero de preparación</h2>
-          <p className="mt-1 max-w-3xl text-sm text-foreground-muted">
+          <h2 className="font-serif text-xl">Compañero de preparación</h2>
+          <p className="mt-1 hidden max-w-3xl text-sm text-foreground-muted 2xl:block">
             Cargá información del examen y preguntá libremente. El chat usa tus apuntes,
             archivo de examen, nota y temas.
           </p>
@@ -347,15 +347,17 @@ export function StudyChatWorkspace({
         </section>
 
         <section className="flex min-h-[680px] min-w-0 flex-col overflow-hidden border border-border-subtle bg-background lg:min-h-0">
-          <div className="shrink-0 border-b border-border-subtle px-4 py-3">
-            <div className="text-xs font-mono uppercase tracking-wider text-foreground-muted">
-              {loading ? "Cargando…" : state.activeSessionId ? "Sesión activa" : "Listo para estudiar"}
+          <div className="flex shrink-0 items-end justify-between gap-4 border-b border-border-subtle px-4 py-2">
+            <div>
+              <div className="font-mono text-xs uppercase tracking-wider text-foreground-muted">
+                {loading ? "Cargando…" : state.activeSessionId ? "Sesión activa" : "Listo para estudiar"}
+              </div>
+              <h3 className="mt-1 font-serif text-xl">
+                {state.sessions.find((session) => session.id === state.activeSessionId)?.title ||
+                  "Nuevo chat de examen"}
+              </h3>
             </div>
-            <h3 className="font-serif text-2xl mt-1">
-              {state.sessions.find((session) => session.id === state.activeSessionId)?.title ||
-                "Nuevo chat de examen"}
-            </h3>
-            <p className="text-xs text-foreground-muted mt-2">
+            <p className="max-w-64 text-right text-xs text-foreground-muted">
               {state.provider.message}
             </p>
           </div>

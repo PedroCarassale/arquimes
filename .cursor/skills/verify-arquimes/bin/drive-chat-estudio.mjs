@@ -174,6 +174,7 @@ await page.waitForURL(new RegExp(`/materias/${materiaId}/chat$`), {
   timeout: 20000,
 });
 await page.getByRole("heading", { name: "Compañero de preparación" }).waitFor();
+await page.getByText("Cargando conversación…").waitFor({ state: "detached" });
 if ((await page.getByRole("button", { name: shortcutPrompt }).count()) !== 0) {
   throw new Error("suggested message chip is still rendered");
 }

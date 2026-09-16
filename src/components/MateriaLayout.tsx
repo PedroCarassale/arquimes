@@ -41,20 +41,26 @@ export function MateriaLayout({
             : "p-8"
         }
       >
-        <div className={immersive ? "mb-3 shrink-0" : "mb-6"}>
+        <div
+          className={
+            immersive
+              ? "mb-2 flex shrink-0 items-baseline gap-3"
+              : "mb-6"
+          }
+        >
           <div
             className={`font-mono text-xs uppercase tracking-wider text-foreground-muted ${
-              immersive ? "mb-1" : "mb-2"
+              immersive ? "shrink-0" : "mb-2"
             }`}
           >
-            Materias / {materiaName}
+            {immersive ? "Materia" : `Materias / ${materiaName}`}
           </div>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className={`mb-1 font-serif ${immersive ? "text-2xl" : "text-3xl"}`}>
+              <h1 className={`font-serif ${immersive ? "text-xl" : "mb-1 text-3xl"}`}>
                 {materiaName}
               </h1>
-              {materiaInfo && (
+              {materiaInfo && !immersive && (
                 <p className="text-sm text-foreground-muted">{materiaInfo}</p>
               )}
             </div>
@@ -63,7 +69,7 @@ export function MateriaLayout({
 
         <nav
           className={`flex shrink-0 gap-6 overflow-x-auto border-b border-border-subtle ${
-            immersive ? "mb-3" : "mb-8"
+            immersive ? "mb-2" : "mb-8"
           }`}
         >
           {tabs.map((tab) => {
@@ -76,7 +82,7 @@ export function MateriaLayout({
               return (
                 <span
                   key={tab.label}
-                  className="pb-3 text-sm text-foreground-subtle cursor-not-allowed"
+                  className={`${immersive ? "pb-2" : "pb-3"} cursor-not-allowed text-sm text-foreground-subtle`}
                 >
                   {tab.label}
                 </span>
@@ -87,7 +93,7 @@ export function MateriaLayout({
               <Link
                 key={tab.label}
                 href={href}
-                className={`pb-3 text-sm transition-colors border-b-2 -mb-[1px] ${
+                className={`${immersive ? "pb-2" : "pb-3"} -mb-[1px] border-b-2 text-sm transition-colors ${
                   isActive
                     ? "text-foreground border-foreground"
                     : "text-foreground-muted border-transparent hover:text-foreground"
