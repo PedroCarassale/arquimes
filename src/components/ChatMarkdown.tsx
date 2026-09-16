@@ -7,7 +7,7 @@ import remarkMath from "remark-math";
 
 export function ChatMarkdown({ children }: { children: string }) {
   const mathReady = children.replace(
-    /\\\((.+?)\\\)/gs,
+    /\\\(([\s\S]+?)\\\)/g,
     (_, expression: string) => `$${expression}$`
   );
 
