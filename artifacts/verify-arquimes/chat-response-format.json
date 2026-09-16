@@ -1,0 +1,14 @@
+{
+  "assistantContent": "## Mapa del apunte\n\nCon lo que pude recuperar del material, la ruta es:\n\n1. Valor exacto y valor aproximado.\n2. Error absoluto.\n3. Error relativo.\n4. Error porcentual.\n\nVamos a abrir **solo el primer bloque** y después chequeamos si quedó firme.\n\n## Bloque 1 · Exacto vs. aproximado\n\nEl apunte distingue el valor exacto \\(\\alpha\\) del valor aproximado \\(a\\). La aproximación aparece cuando medimos, redondeamos o truncamos un cálculo.\n\nLa diferencia se cuantifica con el error absoluto:\n\n$$\n\\Delta(a)=|\\alpha-a|\n$$\n\nMás adelante, el error relativo usa la fracción \\(\\epsilon=\\frac{\\Delta(a)}{|\\alpha|}\\).\n\n### Ejemplo\n\nSi \\(\\alpha=10\\) y usamos \\(a=9{,}8\\), entonces:\n\n$$\n\\Delta(a)=|10-9{,}8|=0{,}2\n$$\n\n> **Idea clave:** \\(\\alpha\\) es el valor de referencia; \\(a\\) es la aproximación y \\(\\Delta(a)\\) mide cuánto se separan.\n\n### Chequeo rápido\n\n1. ¿Cuál símbolo representa el valor exacto y cuál la aproximación?\n2. Si \\(\\alpha=5\\) y \\(a=4{,}7\\), ¿cuánto vale \\(\\Delta(a)\\)?\n3. ¿Por qué el error absoluto nunca puede ser negativo?",
+  "citations": [
+    "teoria-errores-7bffb4.pdf"
+  ],
+  "assertions": {
+    "bubbleStartsWithRawJson": false,
+    "storedAsRawJson": false,
+    "inlineDelimiterSurvived": true,
+    "blockDelimiterSurvived": true,
+    "texBackslashesSurvived": true,
+    "citationsStoredSeparately": true
+  }
+}
