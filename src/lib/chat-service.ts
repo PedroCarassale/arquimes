@@ -400,9 +400,12 @@ export function isBroadLearningRequest(query: string): boolean {
     /\b(?:todo|toda)(?:\s+(?:el|la))?\s+(?:apunte|material|contenido|temario|programa)\b/,
     /\btodos? los temas\b/,
     /\b(?:apunte|material|temario|programa)\s+(?:completo|completa|entero|entera)\b/,
+    /\b(?:completo|completa|entero|entera)\s+(?:(?:de|del)\s+)?(?:apunte|material|contenido|temario|programa)\b/,
+    /\b(?:mapea|mapear|mapeo|organiza|organizar)\b.*\b(?:tema|temas|apunte|material|contenido)\b/,
     /\b(?:mapa|indice|programa|ruta de estudio)\b/,
     /\b(?:desde cero|de principio a fin|de punta a punta)\b/,
     /\b(?:aprender|estudiar|recorrer|explica|explicame)\s+(?:todo\s+)?(?:el\s+)?(?:apunte|material|temario)\b/,
+    /\b(?:explica|explicame|ensena|ensename)\s+todo\b/,
   ].some((pattern) => pattern.test(folded));
 }
 

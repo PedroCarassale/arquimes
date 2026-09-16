@@ -29,6 +29,9 @@ test("detecta pedidos de aprendizaje del apunte completo", () => {
   assert.equal(isBroadLearningRequest(BROAD_ASK), true);
   assert.equal(isBroadLearningRequest("Explicame el apunte entero"), true);
   assert.equal(isBroadLearningRequest("Recorramos el material de punta a punta"), true);
+  assert.equal(isBroadLearningRequest("Mapeá los temas del apunte"), true);
+  assert.equal(isBroadLearningRequest("Haceme un resumen completo del apunte"), true);
+  assert.equal(isBroadLearningRequest("Explicame todo"), true);
   assert.equal(isBroadLearningRequest("Explicame la definición de límite"), false);
   assert.equal(isBroadLearningRequest("Me cuesta, sobre todo, derivadas"), false);
 });
