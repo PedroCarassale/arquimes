@@ -77,3 +77,9 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
    - fallback OCR opcional por `PDF_OCR_API_URL` para escaneados
    - persistencia durable de títulos/mensajes
 6. Práctica: una pregunta corta por tema; responder mueve el dominio y el % de preparado
+7. Preparación opcional (`/materias/[id]/preparacion`):
+   - form por materia con `Temas a evaluar` + `Fecha del parcial`
+   - generación/regeneración de plan con OpenAI desde servidor
+   - contrato de respuesta estructurada (JSON Schema estricto) documentado en `docs/preparacion-plan-schema.md`
+
+En Resumen, la preparación/plan no se fuerza: si no está configurado, se muestra solo una CTA ligera para ir a `Preparación`.

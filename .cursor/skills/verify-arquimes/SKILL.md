@@ -5,7 +5,7 @@ description: Drive the Arquimes Next.js web UI locally the way a student does. U
 
 # verify-arquimes
 
-Arquimes is a private exam-prep Next.js app. Students create a materia, upload files, declare an exam, and read an honest resumen. Persistence is an httpOnly cookie store on the **browser origin** (`127.0.0.1:<port>`), so two windows on the same origin share data. Isolation is a unique port **and** a disposable browser profile (cookie jar or Chromium `user-data-dir`).
+Arquimes is a private exam-prep Next.js app. Students create a materia, upload files, declare an exam, configure optional preparación, and read an honest resumen. Persistence is an httpOnly cookie store on the **browser origin** (`127.0.0.1:<port>`), so two windows on the same origin share data. Isolation is a unique port **and** a disposable browser profile (cookie jar or Chromium `user-data-dir`).
 
 **One Next.js dev server per checkout.** Next 16 refuses a second `npm run dev` in the same `/workspace` (lock in `.next`). Two isolated Next processes are therefore **not** possible here. Do not start another. If `run/current` is green, reuse it. If some other `next dev` owns the repo, stop that run only if it is this verification PID; otherwise refuse rather than hijacking a stranger's server. Isolate browser data with `USER_DATA_DIR` / cookie jar even when the port is unique.
 
@@ -67,6 +67,7 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Unirme a una materia` / `Próximamente` | disabled community column — do not treat as a path |
 | materia name heading | route `/materias/[id]` Resumen |
 | `Apuntes` | tab, route `/materias/[id]/apuntes` |
+| `Preparación` | tab, route `/materias/[id]/preparacion` |
 | `Seleccionar archivos` | heading, route `/materias/[id]/cargar` |
 | `Cargar examen` | heading, route `/materias/[id]/examen` |
 | `Archivo del examen`, `De qué trata` | file input + optional one-line note |
@@ -140,6 +141,7 @@ All executable from repo root:
 | `.cursor/skills/verify-arquimes/bin/drive-crear-materia` | Browser path: empty home → create → list |
 | `.cursor/skills/verify-arquimes/bin/drive-cargar-examen` | Browser path: create materia → attach tiny PDF + note → Exámenes list + download after reload |
 | `.cursor/skills/verify-arquimes/bin/drive-chat-estudio` | Browser path: empty materia chat → upload txt → grounded reply persists |
+| Manual feature `features/preparacion.md` | Browser path: resumen CTA → configurar temas/fecha → generar plan |
 | `.cursor/skills/verify-arquimes/bin/drive-practica` | Browser path: empty práctica → exam file + tema → answer → resumen mastery |
 | `.cursor/skills/verify-arquimes/bin/cleanup` | Tear down this run only |
 

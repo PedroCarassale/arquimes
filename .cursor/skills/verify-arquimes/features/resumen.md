@@ -32,5 +32,5 @@ Preconditions:
 
 - `inicio` redirects to Resumen when the materia exists; a 404 means the cookie session is wrong.
 - Do not treat a hardcoded 78% as success.
-- La barra principal de materia tiene solo `Resumen`, `Apuntes` y `Chat`. Las rutas de examen/práctica siguen vivas y se disparan desde CTAs de Resumen o por URL directa.
+- La barra principal de materia tiene `Resumen`, `Apuntes`, `Chat` y `Preparación`. Las rutas de examen/práctica siguen vivas y se disparan desde CTAs de Resumen o por URL directa.
 - A `0%` with `No estudiado` is honest until [práctica](./practica.md) is answered. Do not treat `—` with temas as success.

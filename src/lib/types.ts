@@ -7,11 +7,51 @@ export type MasteryState =
 
 export type ExamType = "parcial" | "final";
 
+export interface PlanPreparacionSemana {
+  semana: number;
+  foco: string;
+  temas: string[];
+  meta: string;
+}
+
+export interface PlanPreparacionDia {
+  dia: number;
+  fecha: string;
+  foco: string;
+  tareas: string[];
+  checkpoint: string;
+}
+
+export interface PlanPreparacionHito {
+  titulo: string;
+  fecha: string;
+  criterio: string;
+}
+
+export interface PlanPreparacion {
+  version: "1";
+  generatedAt: string;
+  resumen: {
+    objetivo: string;
+    diasHastaParcial: number;
+    minutosPorDia: number;
+  };
+  semanas: PlanPreparacionSemana[];
+  agendaDiaria: PlanPreparacionDia[];
+  hitos: PlanPreparacionHito[];
+}
+
 export interface Materia {
   id: string;
   name: string;
   faculty?: string;
   catedra?: string;
+  preparacion?: {
+    temas: string[];
+    fechaParcial: string;
+    plan?: PlanPreparacion;
+    updatedAt: string;
+  };
   createdAt: string;
 }
 

@@ -36,5 +36,5 @@ Preconditions:
 - Do not POST `/api/materias/[id]/practica` as a substitute for the button.
 - `Así lo explicaría` requires a phrase (about 8 characters). `Todavía no` still moves `No estudiado` to `Empezado`.
 - Exam create is file + optional note. Temas live on the exam detail (`Agregar otro tema`), not on the create form.
-- La barra principal de materia muestra `Resumen`, `Apuntes` y `Chat`. Práctica se abre desde Resumen o por URL directa. No usar la `Práctica` global del sidebar (sigue deshabilitada).
+- La barra principal de materia muestra `Resumen`, `Apuntes`, `Chat` y `Preparación`. Práctica se abre desde Resumen o por URL directa. No usar la `Práctica` global del sidebar (sigue deshabilitada).
 - Cookie credentials stay on this origin; a new port is a new empty store.

@@ -28,6 +28,32 @@ const server = createServer(async (request, response) => {
   }
 
   const body = await readJson(request);
+  const schemaName =
+    body?.response_format?.json_schema?.name ||
+    body?.response_format?.json_schema?.schema?.title;
+
+  if (schemaName === "arquimes_plan_preparacion_v1") {
+    const messages = Array.isArray(body?.messages) ? body.messages : [];
+    const userText = String(messages.at(-1)?.content || "");
+    const plan = buildPreparationPlan(userText);
+
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(
+      JSON.stringify({
+        id: "chatcmpl-arquimes-preparacion-local",
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: JSON.stringify(plan),
+            },
+          },
+        ],
+      })
+    );
+    return;
+  }
+
   const messages = Array.isArray(body?.messages) ? body.messages : [];
   const system = String(messages.find((message) => message?.role === "system")?.content || "");
   const user = String(messages.at(-1)?.content || "");
@@ -166,4 +192,80 @@ function readJson(request) {
     });
     request.on("error", reject);
   });
+}
+
+function buildPreparationPlan(userText) {
+  const fecha = userText.match(/Fecha del parcial:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+  const rawTemas = userText.match(/Temas a evaluar:\s*(.+)/)?.[1] || "";
+  const temas = rawTemas
+    .split("|")
+    .map((tema) => tema.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const examDate = fecha || nextDate(14);
+  const dias = Math.max(3, diffInDays(examDate));
+  const diasPlan = Math.min(8, dias);
+  const semanas = Math.max(1, Math.min(4, Math.ceil(dias / 7)));
+
+  return {
+    resumen: {
+      objetivo: "Consolidar teoría y práctica para llegar al parcial con seguridad.",
+      diasHastaParcial: dias,
+      minutosPorDia: dias < 10 ? 100 : 80,
+    },
+    semanas: Array.from({ length: semanas }, (_, index) => ({
+      semana: index + 1,
+      foco: `Semana ${index + 1}: consolidar ${temas[index % Math.max(temas.length, 1)] || "temas base"}`,
+      temas: temas.length ? temas.slice(0, Math.min(temas.length, 4)) : ["Repaso general"],
+      meta: "Cerrar conceptos clave con ejercicios y autoexplicación breve.",
+    })),
+    agendaDiaria: Array.from({ length: diasPlan }, (_, index) => {
+      const fechaDia = addDays(examDate, -(diasPlan - index));
+      const tema = temas[index % Math.max(temas.length, 1)] || "Repaso general";
+      return {
+        dia: index + 1,
+        fecha: fechaDia,
+        foco: `Profundizar ${tema}`,
+        tareas: [
+          `Leer y resumir ${tema} en una hoja.`,
+          `Resolver 3 ejercicios cortos de ${tema}.`,
+          "Explicar en voz alta el tema sin apuntes.",
+        ],
+        checkpoint: `Poder explicar ${tema} con un ejemplo propio.`,
+      };
+    }),
+    hitos: [
+      {
+        titulo: "Chequeo intermedio",
+        fecha: addDays(examDate, -Math.max(2, Math.floor(dias / 2))),
+        criterio: "Resolver una mini guía sin mirar apuntes.",
+      },
+      {
+        titulo: "Simulacro final",
+        fecha: addDays(examDate, -1),
+        criterio: "Hacer un parcial simulado cronometrado y corregir errores.",
+      },
+    ],
+  };
+}
+
+function diffInDays(yyyyMmDd) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(`${yyyyMmDd}T00:00:00`);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
+}
+
+function addDays(yyyyMmDd, delta) {
+  const date = new Date(`${yyyyMmDd}T00:00:00`);
+  date.setDate(date.getDate() + delta);
+  return date.toISOString().slice(0, 10);
+}
+
+function nextDate(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }

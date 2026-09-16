@@ -9,6 +9,7 @@ import {
   MasteryState,
   GroundingPayload,
   PracticeOutcome,
+  PlanPreparacion,
 } from "./types";
 import {
   groundingFromContext,
@@ -142,6 +143,46 @@ export async function createMateria(
     const createdAt = new Date().toISOString();
     const materia: Materia = { id, name, faculty, catedra, createdAt };
     store.materias.push(materia);
+    return materia;
+  });
+}
+
+export async function updateMateriaPreparacion(
+  id: string,
+  input: {
+    temas: string[];
+    fechaParcial: string;
+    resetPlan?: boolean;
+  }
+): Promise<Materia | undefined> {
+  return mutate((store) => {
+    const materia = store.materias.find((m) => m.id === id);
+    if (!materia) return undefined;
+    const updatedAt = new Date().toISOString();
+    materia.preparacion = {
+      temas: input.temas,
+      fechaParcial: input.fechaParcial,
+      plan: input.resetPlan === false ? materia.preparacion?.plan : undefined,
+      updatedAt,
+    };
+    return materia;
+  });
+}
+
+export async function saveMateriaPlanPreparacion(
+  id: string,
+  plan: PlanPreparacion
+): Promise<Materia | undefined> {
+  return mutate((store) => {
+    const materia = store.materias.find((m) => m.id === id);
+    if (!materia) return undefined;
+    const updatedAt = new Date().toISOString();
+    materia.preparacion = {
+      temas: materia.preparacion?.temas || [],
+      fechaParcial: materia.preparacion?.fechaParcial || "",
+      plan,
+      updatedAt,
+    };
     return materia;
   });
 }

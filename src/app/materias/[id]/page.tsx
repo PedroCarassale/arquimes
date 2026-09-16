@@ -62,6 +62,10 @@ export default async function MateriaResumenPage({ params }: PageProps) {
   const temasCubiertos = temas.filter(
     (t) => t.masteryState !== "no_estudiado"
   ).length;
+  const preparacion = materia.preparacion;
+  const hasPreparacionConfig = Boolean(
+    preparacion?.fechaParcial && preparacion.temas.length > 0
+  );
 
   const materiaInfo = [materia.faculty, materia.catedra].filter(Boolean).join(" · ");
 
@@ -75,6 +79,26 @@ export default async function MateriaResumenPage({ params }: PageProps) {
       materiaName={materia.name}
       materiaInfo={materiaInfo || "Privada"}
     >
+      {!hasPreparacionConfig ? (
+        <div className="mb-8 border border-dashed border-border-subtle p-4">
+          <p className="text-sm text-foreground-muted">
+            Si querés organizarte con anticipación, configurá temas y fecha del parcial en{" "}
+            <Link href={`/materias/${id}/preparacion`} className="text-accent hover:underline">
+              Preparación
+            </Link>
+            .
+          </p>
+        </div>
+      ) : (
+        <div className="mb-8 border border-border-subtle p-4">
+          <p className="text-sm text-foreground-muted">
+            Preparación configurada: {preparacion?.temas.length || 0} temas · parcial{" "}
+            {preparacion?.fechaParcial ? formatDate(preparacion.fechaParcial) : "sin fecha"}.
+            {preparacion?.plan ? " Ya tenés un plan generado." : " Podés generar tu plan cuando quieras."}
+          </p>
+        </div>
+      )}
+
       {noExam && (
         <div className="border border-border-subtle p-8 text-center">
           <p className="text-foreground-muted mb-4">
@@ -145,13 +169,30 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div className="border border-border-subtle p-6">
-              <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                Preparación estimada
+            {hasPreparacionConfig ? (
+              <div className="border border-border-subtle p-6">
+                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  Preparación estimada
+                </div>
+                <div className="text-3xl font-serif">—</div>
+                <div className="text-sm text-foreground-muted">Sin temas de práctica cargados</div>
               </div>
-              <div className="text-3xl font-serif">—</div>
-              <div className="text-sm text-foreground-muted">Sin temas cargados</div>
-            </div>
+            ) : (
+              <div className="border border-border-subtle p-6">
+                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  Plan de estudio
+                </div>
+                <p className="text-sm text-foreground-muted mb-3">
+                  Configurá temas y fecha del parcial para generar tu plan.
+                </p>
+                <Link
+                  href={`/materias/${id}/preparacion`}
+                  className="text-accent text-sm hover:underline"
+                >
+                  Configurar preparación →
+                </Link>
+              </div>
+            )}
 
             <div className="border border-border-subtle p-6">
               <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
@@ -220,22 +261,39 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div className="border border-border-subtle p-6">
-              <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                Preparación estimada
+            {hasPreparacionConfig ? (
+              <div className="border border-border-subtle p-6">
+                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  Preparación estimada
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-serif">{preparation}%</span>
+                  <span className="text-sm text-foreground-muted">
+                    {preparation === 0 ? "sin práctica" : "en curso"}
+                  </span>
+                </div>
+                <div className="text-sm text-foreground-muted mt-1">
+                  {preparation === 0
+                    ? "Todavía no hay práctica que mueva este número"
+                    : `${temasCubiertos} de ${temasCount} temas cubiertos`}
+                </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-serif">{preparation}%</span>
-                <span className="text-sm text-foreground-muted">
-                  {preparation === 0 ? "sin práctica" : "en curso"}
-                </span>
+            ) : (
+              <div className="border border-border-subtle p-6">
+                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+                  Plan de estudio
+                </div>
+                <p className="text-sm text-foreground-muted mb-3">
+                  Este resumen evita forzar un plan hasta que vos lo configures.
+                </p>
+                <Link
+                  href={`/materias/${id}/preparacion`}
+                  className="text-accent text-sm hover:underline"
+                >
+                  Configurar preparación →
+                </Link>
               </div>
-              <div className="text-sm text-foreground-muted mt-1">
-                {preparation === 0
-                  ? "Todavía no hay práctica que mueva este número"
-                  : `${temasCubiertos} de ${temasCount} temas cubiertos`}
-              </div>
-            </div>
+            )}
 
             <div className="border border-accent-muted p-6 bg-accent-muted/30">
               <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">

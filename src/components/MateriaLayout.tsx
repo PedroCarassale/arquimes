@@ -16,6 +16,7 @@ const tabs: { href: string; label: string }[] = [
   { href: "", label: "Resumen" },
   { href: "/apuntes", label: "Apuntes" },
   { href: "/chat", label: "Chat" },
+  { href: "/preparacion", label: "Preparación" },
 ];
 
 export function MateriaLayout({
