@@ -1,43 +1,43 @@
 {
   "sessions": [
     {
-      "id": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
-      "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
-      "title": "Haceme un resumen completo de lo que entra.",
-      "createdAt": "2026-09-16T03:03:28.567Z",
-      "updatedAt": "2026-09-16T03:03:28.578Z"
+      "id": "86cf562e-1f0b-4045-b6be-2853dc6bbb90",
+      "materiaId": "92b264ac-1a14-487f-8942-1349cc7687d2",
+      "title": "Necesito aprender todo el apunte. Mapeá los temas y empecemos po…",
+      "createdAt": "2026-09-16T15:05:25.102Z",
+      "updatedAt": "2026-09-16T15:05:25.110Z"
     }
   ],
-  "activeSessionId": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
+  "activeSessionId": "86cf562e-1f0b-4045-b6be-2853dc6bbb90",
   "messages": [
     {
-      "id": "14f296d8-1866-4ebb-95d2-fd4446ecd844",
+      "id": "67955d41-64a0-4275-b3f9-30b38866bea8",
       "role": "user",
-      "content": "Haceme un resumen completo de lo que entra.",
-      "createdAt": "2026-09-16T03:03:28.578Z",
-      "chatSessionId": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
-      "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
+      "content": "Necesito aprender todo el apunte. Mapeá los temas y empecemos por el primero.",
+      "createdAt": "2026-09-16T15:05:25.110Z",
+      "chatSessionId": "86cf562e-1f0b-4045-b6be-2853dc6bbb90",
+      "materiaId": "92b264ac-1a14-487f-8942-1349cc7687d2",
       "isError": false
     },
     {
-      "id": "d789a7c4-e826-4e88-af04-e5d80c8b63ba",
+      "id": "9ba13539-7355-4ad3-a4c5-088e847d0e4d",
       "role": "assistant",
-      "content": "Todavía no hay apuntes ni archivos de examen en Mecánica del continuo 2d40bb. No voy a inventar el programa ni decirte que estás preparado. Cargá material en Apuntes y preguntame de nuevo.",
-      "createdAt": "2026-09-16T03:03:28.578Z",
-      "chatSessionId": "3fc1980e-978e-40f9-9693-1fa9384bd59b",
-      "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
+      "content": "Todavía no hay apuntes ni archivos de examen en Cálculo numérico d26d0e. No voy a inventar el programa ni decirte que estás preparado. Cargá material en Apuntes y preguntame de nuevo.",
+      "createdAt": "2026-09-16T15:05:25.110Z",
+      "chatSessionId": "86cf562e-1f0b-4045-b6be-2853dc6bbb90",
+      "materiaId": "92b264ac-1a14-487f-8942-1349cc7687d2",
       "citations": [],
       "isError": true
     }
   ],
   "grounding": {
-    "materiaId": "14e7d735-acd1-4e20-a3fb-4086aff5245a",
-    "materiaName": "Mecánica del continuo 2d40bb",
+    "materiaId": "92b264ac-1a14-487f-8942-1349cc7687d2",
+    "materiaName": "Cálculo numérico d26d0e",
     "sourceCount": 1,
     "readableCount": 1,
     "sources": [
       {
-        "name": "apunte-cauchy-2d40bb.pdf",
+        "name": "teoria-errores-d26d0e.pdf",
         "kind": "apunte",
         "readable": true
       }
@@ -45,14 +45,14 @@
     "exams": []
   },
   "provider": {
-    "configured": false,
-    "selected": null,
-    "message": "No hay proveedor de IA configurado. Definí OPENAI_API_KEY o ANTHROPIC_API_KEY para habilitar el chat."
+    "configured": true,
+    "selected": "openai",
+    "message": "OpenAI configurado para responder."
   },
   "suggestedChips": [
-    "Haceme un resumen completo de lo que entra.",
-    "Armame un plan de estudio para llegar al examen.",
-    "Explícame un tema puntual paso a paso.",
+    "Necesito aprender todo el apunte. Mapeá los temas y empecemos por el primero.",
+    "Armame una ruta de estudio progresiva para llegar al examen.",
+    "Explicame un tema paso a paso, con fórmulas y un ejemplo.",
     "Tomame un parcial simulado con corrección."
   ]
 }
