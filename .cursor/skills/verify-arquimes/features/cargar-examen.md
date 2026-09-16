@@ -15,7 +15,6 @@ Cargar examen is a short dump: attach a real file (PDF / image / doc), optionall
 
 - On Resumen empty state, choose `Cargar examen →`.
 - On a materia, open `/materias/[id]/examen`.
-- From the Exámenes tab, choose `Cargar examen →`.
 
 ## Driving it with verify-arquimes
 

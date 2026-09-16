@@ -71,14 +71,14 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Cargar examen` | heading, route `/materias/[id]/examen` |
 | `Archivo del examen`, `De qué trata` | file input + optional one-line note |
 | `Guardar examen →` | exam submit (multipart file + note) |
-| `Exámenes` | tab, route `/materias/[id]/examenes` |
+| `Exámenes` | heading/list route `/materias/[id]/examenes` |
 | `Descargar archivo →` | exam file bytes on `/materias/[id]/examenes/[examId]` |
 | `Agregar otro tema`, `Agregar tema` | add a tema on the exam detail |
 | `Guardar archivos →` | apuntes upload submit |
 | `Compañero de preparación`, `Escribí un mensaje` | chat page `/materias/[id]/chat` with multi-session composer |
 | `Enviar mensaje` | send in the active chat session |
 | `+ Nuevo chat`, `Renombrar`, `Borrar` | session controls in chat sidebar |
-| `Práctica` | tab, route `/materias/[id]/practica` |
+| `Práctica` | heading, route `/materias/[id]/practica` |
 | `Tu respuesta` | practice textarea |
 | `Así lo explicaría` / `Todavía no` | practice submit |
 | `Practicar ahora →` | Resumen link into práctica |
@@ -114,7 +114,7 @@ Proof standards:
 - Exercise the real UI path (click, type, submit). Do not POST `/api/*` as a substitute for the button, inject DOM, or call test-only endpoints.
 - Capture the action and the resulting state (HTML or screenshot **before** and **after**).
 - Screenshots must show Arquimes chrome (wordmark or `Tus materias` / create heading).
-- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open **Exámenes**, reload, and see the note plus filename; then open the row and download the file. After práctica, answer one item then open Resumen and refresh: mastery and preparación estimada must change. After upload, open Apuntes and see the filename.
+- Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open `/materias/[id]/examenes`, reload, and see the note plus filename; then open the row and download the file. After práctica, answer one item then open Resumen and refresh: mastery and preparación estimada must change. After upload, open Apuntes and see the filename.
 - File upload: a real file on disk, then the name on Apuntes after reload.
 
 ## Cleanup

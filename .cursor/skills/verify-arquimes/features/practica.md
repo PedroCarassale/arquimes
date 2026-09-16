@@ -4,14 +4,13 @@ Práctica is a short recall question from the materia's temas (and file names if
 
 ## Sub-features
 
-- `practica-tab` reaches `/materias/[id]/practica` from the `Práctica` tab (not `cursor-not-allowed`).
+- `practica-open` reaches `/materias/[id]/practica` from `Practicar ahora →` en Resumen o por ruta directa.
 - `practica-empty` says there are no temas nor files, or that files exist but temas are missing, in Spanish.
 - `practica-item` shows one short question for a tema, with `Tu respuesta`.
 - `practica-mastery` answering `Así lo explicaría` moves the tema off `No estudiado` and changes preparación estimada after a Resumen refresh.
 
 ## How to get to it (user POV)
 
-- Inside a materia, choose the `Práctica` tab.
 - On Resumen with temas, choose `Practicar ahora →`.
 - Open `/materias/[id]/practica`.
 
@@ -37,5 +36,5 @@ Preconditions:
 - Do not POST `/api/materias/[id]/practica` as a substitute for the button.
 - `Así lo explicaría` requires a phrase (about 8 characters). `Todavía no` still moves `No estudiado` to `Empezado`.
 - Exam create is file + optional note. Temas live on the exam detail (`Agregar otro tema`), not on the create form.
-- Tabs `Programa y temas`, `Chat` (tab), `Miembros` stay disabled. The shell chat rail is separate. Do not treat sidebar `Práctica` (global, still disabled) as this path.
+- La barra principal de materia muestra `Resumen`, `Apuntes` y `Chat`. Práctica se abre desde Resumen o por URL directa. No usar la `Práctica` global del sidebar (sigue deshabilitada).
 - Cookie credentials stay on this origin; a new port is a new empty store.

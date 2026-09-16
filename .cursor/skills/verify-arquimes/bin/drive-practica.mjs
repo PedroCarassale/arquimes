@@ -59,7 +59,9 @@ await page.getByRole("heading", { name: materiaName }).waitFor();
 const materiaUrl = page.url();
 const materiaId = materiaUrl.split("/materias/")[1].split("/")[0];
 
-await page.getByRole("link", { name: "Práctica", exact: true }).click();
+await page.goto(`${baseUrl}/materias/${materiaId}/practica`, {
+  waitUntil: "networkidle",
+});
 await page.waitForURL(/\/practica$/);
 await page.getByRole("heading", { name: "Práctica" }).waitFor();
 const emptyHtml = await page.content();
@@ -67,12 +69,6 @@ writeFileSync(`${evidence}/practica-empty.html`, emptyHtml);
 await page.screenshot({ path: `${evidence}/practica-empty.png` });
 if (!emptyHtml.includes("No hay temas ni archivos para practicar")) {
   throw new Error("empty práctica copy missing");
-}
-if (emptyHtml.includes("cursor-not-allowed") && emptyHtml.includes(">Práctica<")) {
-  const practicaTab = page.getByRole("link", { name: "Práctica", exact: true });
-  if ((await practicaTab.count()) === 0) {
-    throw new Error("Práctica tab is still inert");
-  }
 }
 assertNo(emptyHtml, /Paso 1 de/i, "practice wizard");
 
@@ -118,7 +114,7 @@ if (beforeHtml.includes("Estudiado") && !beforeHtml.includes("No estudiado")) {
   throw new Error("mastery already estudiado before practice");
 }
 
-await page.getByRole("link", { name: "Práctica", exact: true }).click();
+await page.getByRole("link", { name: /Practicar ahora/ }).click();
 await page.waitForURL(/\/practica$/);
 await page.getByRole("heading", { name: "Práctica" }).waitFor();
 const itemHtml = await page.content();

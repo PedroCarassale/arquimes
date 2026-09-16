@@ -12,14 +12,10 @@ interface MateriaLayoutProps {
   children: React.ReactNode;
 }
 
-const tabs: { href: string; label: string; disabled?: boolean }[] = [
+const tabs: { href: string; label: string }[] = [
   { href: "", label: "Resumen" },
-  { href: "/programa", label: "Programa y temas", disabled: true },
   { href: "/apuntes", label: "Apuntes" },
-  { href: "/examenes", label: "Exámenes" },
-  { href: "/practica", label: "Práctica" },
   { href: "/chat", label: "Chat" },
-  { href: "/miembros", label: "Miembros", disabled: true },
 ];
 
 export function MateriaLayout({
@@ -77,17 +73,6 @@ export function MateriaLayout({
             const isActive = tab.href === ""
               ? pathname === basePath || pathname === `${basePath}/`
               : pathname.startsWith(href);
-
-            if (tab.disabled) {
-              return (
-                <span
-                  key={tab.label}
-                  className={`${immersive ? "pb-2" : "pb-3"} cursor-not-allowed text-sm text-foreground-subtle`}
-                >
-                  {tab.label}
-                </span>
-              );
-            }
 
             return (
               <Link
