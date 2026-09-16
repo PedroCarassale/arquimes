@@ -136,9 +136,10 @@ async function sendChat(page, text, thinkingScreenshotPath) {
   if (thinkingScreenshotPath) {
     await page.screenshot({ path: thinkingScreenshotPath });
   }
-  await waitPost;
+  const response = await waitPost;
   await page.locator('[data-chat-thinking="true"]').waitFor({ state: "detached" });
   await page.locator('[data-chat-role="assistant"]').last().waitFor();
+  return response;
 }
 
 async function lastAssistantText(page) {
@@ -272,7 +273,12 @@ const waitSessionCreate = page.waitForResponse(
 await page.getByRole("button", { name: "Nuevo chat" }).click();
 await waitSessionCreate;
 await page.getByRole("heading", { name: "Nuevo chat", exact: true }).waitFor();
-await sendChat(page, question, `${evidence}/chat-thinking.png`);
+const chatResponse = await sendChat(
+  page,
+  question,
+  `${evidence}/chat-thinking.png`
+);
+const chatPayload = await chatResponse.json();
 await page.waitForTimeout(400);
 
 const groundedHtml = await page.content();
@@ -280,6 +286,51 @@ writeFileSync(`${evidence}/chat-grounded.html`, groundedHtml);
 await page.screenshot({ path: `${evidence}/chat-grounded.png` });
 
 const groundedReply = await lastAssistantText(page);
+if (/^\s*(?:```json\s*)?\{\s*"answer"/i.test(groundedReply)) {
+  throw new Error("assistant bubble exposed the raw JSON envelope");
+}
+const storedAssistant = chatPayload?.turn?.find(
+  (message) => message?.role === "assistant"
+);
+if (!storedAssistant || typeof storedAssistant.content !== "string") {
+  throw new Error("chat response did not include the stored assistant message");
+}
+if (/^\s*(?:```json\s*)?\{\s*"answer"/i.test(storedAssistant.content)) {
+  throw new Error("server persisted the raw JSON envelope");
+}
+if (
+  !storedAssistant.content.includes("\\(") ||
+  !storedAssistant.content.includes("$$") ||
+  !storedAssistant.content.includes("\\Delta") ||
+  !storedAssistant.content.includes("\\frac")
+) {
+  throw new Error("stored answer lost KaTeX delimiters or TeX command backslashes");
+}
+if (
+  !Array.isArray(storedAssistant.citations) ||
+  !storedAssistant.citations.includes(apunteFileName)
+) {
+  throw new Error("server did not persist citations separately");
+}
+writeFileSync(
+  `${evidence}/chat-response-format.json`,
+  JSON.stringify(
+    {
+      assistantContent: storedAssistant.content,
+      citations: storedAssistant.citations,
+      assertions: {
+        bubbleStartsWithRawJson: false,
+        storedAsRawJson: false,
+        inlineDelimiterSurvived: true,
+        blockDelimiterSurvived: true,
+        texBackslashesSurvived: true,
+        citationsStoredSeparately: true,
+      },
+    },
+    null,
+    2
+  )
+);
 if (groundedReply.length < 450) {
   throw new Error(`tutor reply is too shallow (${groundedReply.length} chars)`);
 }
@@ -316,6 +367,13 @@ await page.reload({ waitUntil: "networkidle" });
 const persistHtml = await page.content();
 writeFileSync(`${evidence}/chat-persist.html`, persistHtml);
 await page.screenshot({ path: `${evidence}/chat-persist.png` });
+const persistedReply = await lastAssistantText(page);
+if (/^\s*(?:```json\s*)?\{\s*"answer"/i.test(persistedReply)) {
+  throw new Error("persisted assistant bubble exposed the raw JSON envelope");
+}
+if ((await page.locator(".katex").count()) < 3) {
+  throw new Error("persisted assistant formulas were not rendered with KaTeX");
+}
 
 if (!persistHtml.includes(question)) {
   throw new Error("chat thread did not persist after reload");

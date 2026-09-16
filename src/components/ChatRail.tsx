@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
-import { ChatMessage, GroundingPayload } from "@/lib/types";
+import { ChatMarkdown } from "@/components/ChatMarkdown";
+import { normalizeChatMessage } from "@/lib/chat-message";
+import type { ChatMessage, GroundingPayload } from "@/lib/types";
 
 export function ChatRail() {
   const pathname = usePathname();
@@ -99,12 +101,17 @@ export function ChatRail() {
           materiaId,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        turn?: ChatMessage[];
+      };
       if (!res.ok) {
-        throw new Error((data as { error?: string }).error || "No pude enviar");
+        throw new Error(data.error || "No pude enviar");
       }
-      const turn = data as ChatMessage[];
-      setMessages((prev) => [...prev, ...turn]);
+      if (!Array.isArray(data.turn)) {
+        throw new Error("El chat devolvió una respuesta incompleta.");
+      }
+      setMessages((prev) => [...prev, ...data.turn!]);
       setDraft("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pude enviar el mensaje");
@@ -144,26 +151,46 @@ export function ChatRail() {
             {emptyThreadCopy(materiaId, grounding, hasReadable, sourceNames)}
           </p>
         )}
-        {messages.map((message) => (
-          <div key={message.id}>
-            <div className="text-xs font-mono text-foreground-muted uppercase mb-1">
-              {message.role === "user" ? "Vos" : "Arquimes"}
+        {messages.map((message) => {
+          const renderedMessage = normalizeChatMessage(message);
+          return (
+            <div key={renderedMessage.id}>
+              <div className="text-xs font-mono text-foreground-muted uppercase mb-1">
+                {renderedMessage.role === "user" ? "Vos" : "Arquimes"}
+              </div>
+              <div
+                className="text-sm"
+                data-chat-role={renderedMessage.role}
+              >
+                {renderedMessage.role === "assistant" ? (
+                  <ChatMarkdown>{renderedMessage.content}</ChatMarkdown>
+                ) : (
+                  <p className="whitespace-pre-wrap">{renderedMessage.content}</p>
+                )}
+              </div>
+              {renderedMessage.role === "assistant" &&
+                renderedMessage.citations &&
+                renderedMessage.citations.length > 0 && (
+                  <footer
+                    className="mt-1.5 flex flex-wrap gap-1 text-xs text-foreground-muted"
+                    aria-label="Fuentes de la respuesta"
+                  >
+                    <span className="font-mono uppercase tracking-wider">
+                      Fuentes
+                    </span>
+                    {renderedMessage.citations.map((citation) => (
+                      <span
+                        key={citation}
+                        className="rounded-full border border-border px-1.5 py-0.5"
+                      >
+                        {citation}
+                      </span>
+                    ))}
+                  </footer>
+                )}
             </div>
-            <p
-              className="text-sm whitespace-pre-wrap"
-              data-chat-role={message.role}
-            >
-              {message.content}
-            </p>
-            {message.role === "assistant" &&
-              message.citations &&
-              message.citations.length > 0 && (
-                <p className="text-xs font-mono text-foreground-muted mt-1">
-                  Fuente: {message.citations.join(", ")}
-                </p>
-              )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="p-3 border-t border-border-subtle">

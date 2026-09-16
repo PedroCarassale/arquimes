@@ -44,6 +44,10 @@ const server = createServer(async (request, response) => {
     "enseñá SOLO el primer bloque",
     "2 o 3 preguntas cortas",
     "compatible con KaTeX",
+    "\\Delta",
+    "\\frac",
+    "sin envolverlo en JSON",
+    "ARQUIMES_CITATIONS",
   ];
   const missing = [
     ...requiredContext.filter((token) => !system.includes(token)),
@@ -101,6 +105,8 @@ const server = createServer(async (request, response) => {
     "\\Delta(a)=|\\alpha-a|",
     "$$",
     "",
+    "Más adelante, el error relativo usa la fracción \\(\\epsilon=\\frac{\\Delta(a)}{|\\alpha|}\\).",
+    "",
     "### Ejemplo",
     "",
     "Si \\(\\alpha=10\\) y usamos \\(a=9{,}8\\), entonces:",
@@ -126,10 +132,9 @@ const server = createServer(async (request, response) => {
         {
           message: {
             role: "assistant",
-            content: JSON.stringify({
-              answer,
-              citations: [sourceName],
-            }),
+            content: `${answer}\n\n<!-- ARQUIMES_CITATIONS: ${JSON.stringify([
+              sourceName,
+            ])} -->`,
           },
         },
       ],

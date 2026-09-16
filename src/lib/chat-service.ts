@@ -1,4 +1,5 @@
 import { generateWithProvider, type ProviderMessage } from "./ai-providers";
+import { parseAssistantContent } from "./chat-message";
 import type { ChatMessage } from "./types";
 import type { StudyContext } from "./study-chat";
 
@@ -62,11 +63,12 @@ export function buildPrompt(input: {
     "- No avances al siguiente bloque hasta que el estudiante responda el chequeo, salvo que lo pida explícitamente.",
     "",
     "FORMATO",
-    "- El campo answer admite Markdown completo.",
-    "- Para matemática inline usá exclusivamente \\( ... \\) y para bloques usá $$ ... $$. Escribí LaTeX compatible con KaTeX. No uses delimitadores $...$.",
-    "- Devolvé solo JSON válido con este formato exacto:",
-    '{"answer":"markdown pedagógico con saltos de línea","citations":["nombre exacto de fuente"]}',
-    "- citations debe contener cada fuente realmente usada. Si no usaste ninguna, [].",
+    "- Respondé primero con el contenido pedagógico en Markdown, sin envolverlo en JSON ni en un bloque de código.",
+    "- Para matemática inline usá exclusivamente \\( ... \\) y para bloques usá $$ ... $$. No uses delimitadores $...$.",
+    "- Escribí LaTeX compatible con KaTeX y conservá las barras invertidas de los comandos TeX. Por ejemplo: \\Delta, \\frac{a}{b}, \\epsilon y \\alpha.",
+    "- Al final agregá una única línea de metadatos con este formato exacto:",
+    '<!-- ARQUIMES_CITATIONS: ["nombre exacto de fuente"] -->',
+    "- La lista debe contener cada fuente realmente usada. Si no usaste ninguna, escribí []. La línea de metadatos no forma parte de la respuesta visible.",
     "",
     "CONTEXTO DE MATERIA",
     contextBlock,
@@ -91,7 +93,7 @@ export async function runGroundedChat(input: {
 }): Promise<{ answer: string; citations: string[] }> {
   const prompt = buildPrompt(input);
   const response = await generateWithProvider(prompt);
-  const parsed = parseResponse(response.text);
+  const parsed = parseAssistantContent(response.text);
   if (!parsed) {
     return {
       answer: response.text.trim(),
@@ -317,27 +319,6 @@ function fold(text: string): string {
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase();
-}
-
-function parseResponse(text: string): { answer: string; citations: string[] } | null {
-  const trimmed = text.trim();
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    const obj = JSON.parse(trimmed.slice(start, end + 1)) as {
-      answer?: string;
-      citations?: unknown;
-    };
-    const answer = typeof obj.answer === "string" ? obj.answer.trim() : "";
-    if (!answer) return null;
-    const citations = Array.isArray(obj.citations)
-      ? obj.citations.filter((value): value is string => typeof value === "string")
-      : [];
-    return { answer, citations };
-  } catch {
-    return null;
-  }
 }
 
 function clip(text: string, max: number): string {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
+import { normalizeChatMessage } from "@/lib/chat-message";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
 type ProviderSummary = {
@@ -381,10 +382,11 @@ export function StudyChatWorkspace({
               </div>
             )}
             {state.messages.map((message) => {
-              const isUser = message.role === "user";
+              const renderedMessage = normalizeChatMessage(message);
+              const isUser = renderedMessage.role === "user";
               return (
                 <article
-                  key={message.id}
+                  key={renderedMessage.id}
                   className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   <div className={`max-w-[88%] md:max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
@@ -395,22 +397,36 @@ export function StudyChatWorkspace({
                       className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${
                         isUser
                           ? "rounded-br-sm bg-accent text-[#17100a]"
-                          : message.isError
+                          : renderedMessage.isError
                             ? "rounded-bl-sm border border-amber-400/30 bg-amber-400/10 text-amber-100"
                             : "rounded-bl-sm border border-border bg-surface-elevated text-foreground"
                       }`}
-                      data-chat-role={message.role}
+                      data-chat-role={renderedMessage.role}
                     >
                       {isUser ? (
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        <p className="whitespace-pre-wrap">{renderedMessage.content}</p>
                       ) : (
-                        <ChatMarkdown>{message.content}</ChatMarkdown>
+                        <ChatMarkdown>{renderedMessage.content}</ChatMarkdown>
                       )}
                     </div>
-                    {message.citations && message.citations.length > 0 && (
-                      <p className="mt-2 px-1 text-xs font-mono text-foreground-muted">
-                        Fuente: {message.citations.join(", ")}
-                      </p>
+                    {renderedMessage.citations &&
+                      renderedMessage.citations.length > 0 && (
+                      <footer
+                        className="mt-2 flex flex-wrap items-center gap-1.5 px-1 text-xs text-foreground-muted"
+                        aria-label="Fuentes de la respuesta"
+                      >
+                        <span className="font-mono uppercase tracking-wider">
+                          Fuentes
+                        </span>
+                        {renderedMessage.citations.map((citation) => (
+                          <span
+                            key={citation}
+                            className="rounded-full border border-border bg-surface px-2 py-0.5"
+                          >
+                            {citation}
+                          </span>
+                        ))}
+                      </footer>
                     )}
                   </div>
                 </article>

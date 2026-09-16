@@ -1,6 +1,10 @@
 import { cookies } from "next/headers";
 import { createClient, type Client } from "@libsql/client";
 import { v4 as uuid } from "uuid";
+import {
+  normalizeAssistantContent,
+  normalizeChatMessage,
+} from "./chat-message";
 import type { ChatMessage, ChatSession } from "./types";
 
 const OWNER_COOKIE = "aqs_chat_owner";
@@ -214,18 +218,18 @@ export async function listMessages(sessionId: string): Promise<StoredMessage[]> 
     args: [sessionId],
   });
 
-  return result.rows.map((row) => ({
-    id: String(row.id),
-    role: row.role === "assistant" ? "assistant" : "user",
-    content: String(row.content),
-    createdAt: String(row.created_at),
-    chatSessionId: sessionId,
-    materiaId: session.materiaId,
-    citations: row.citations_json
-      ? JSON.parse(String(row.citations_json))
-      : undefined,
-    isError: Number(row.is_error) === 1,
-  }));
+  return result.rows.map((row) =>
+    normalizeChatMessage({
+      id: String(row.id),
+      role: row.role === "assistant" ? "assistant" : "user",
+      content: String(row.content),
+      createdAt: String(row.created_at),
+      chatSessionId: sessionId,
+      materiaId: session.materiaId,
+      citations: parseStoredCitations(row.citations_json),
+      isError: Number(row.is_error) === 1,
+    })
+  );
 }
 
 export async function addTurn(input: {
@@ -245,6 +249,10 @@ export async function addTurn(input: {
   const now = new Date().toISOString();
   const userId = uuid();
   const assistantId = uuid();
+  const assistant = normalizeAssistantContent(
+    input.assistantContent,
+    input.citations
+  );
   await db.batch(
     [
       {
@@ -258,8 +266,10 @@ export async function addTurn(input: {
         args: [
           assistantId,
           input.sessionId,
-          input.assistantContent,
-          input.citations ? JSON.stringify(input.citations) : null,
+          assistant.answer,
+          assistant.citations.length
+            ? JSON.stringify(assistant.citations)
+            : null,
           input.assistantIsError ? 1 : 0,
           now,
         ],
@@ -284,12 +294,26 @@ export async function addTurn(input: {
     {
       id: assistantId,
       role: "assistant",
-      content: input.assistantContent,
+      content: assistant.answer,
       createdAt: now,
       materiaId: session.materiaId,
       chatSessionId: input.sessionId,
-      citations: input.citations,
+      citations: assistant.citations.length ? assistant.citations : undefined,
       isError: Boolean(input.assistantIsError),
     },
   ];
+}
+
+function parseStoredCitations(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(String(value)) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (citation): citation is string => typeof citation === "string"
+        )
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
