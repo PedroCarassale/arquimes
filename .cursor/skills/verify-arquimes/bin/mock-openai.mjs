@@ -55,6 +55,14 @@ const server = createServer(async (request, response) => {
     missing.length > 0 ||
     !/necesito aprender todo el apunte/i.test(user)
   ) {
+    console.error(
+      JSON.stringify({
+        rejected: true,
+        sourceName: sourceName || null,
+        missing,
+        user,
+      })
+    );
     response.writeHead(422, { "Content-Type": "application/json" });
     response.end(
       JSON.stringify({
@@ -65,6 +73,8 @@ const server = createServer(async (request, response) => {
     );
     return;
   }
+
+  console.log(`accepted tutor request for ${sourceName}`);
 
   // El retardo hace observable y verificable el estado optimista del messenger.
   await new Promise((resolve) => setTimeout(resolve, 900));

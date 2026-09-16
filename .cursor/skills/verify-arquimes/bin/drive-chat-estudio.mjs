@@ -251,7 +251,15 @@ await page.getByRole("link", { name: "Chat", exact: true }).click();
 await page.waitForURL(new RegExp(`/materias/${materiaId}/chat$`), {
   timeout: 20000,
 });
+const waitSessionCreate = page.waitForResponse(
+  (res) =>
+    res.url().includes("/api/chat/sessions") &&
+    res.request().method() === "POST" &&
+    res.status() === 201
+);
 await page.getByRole("button", { name: "Nuevo chat" }).click();
+await waitSessionCreate;
+await page.getByText("Nuevo chat", { exact: true }).waitFor();
 await sendChat(page, question, `${evidence}/chat-thinking.png`);
 await page.waitForTimeout(400);
 
