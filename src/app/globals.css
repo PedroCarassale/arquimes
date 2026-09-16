@@ -187,3 +187,17 @@ select {
   overflow-y: hidden;
   padding: 0.35rem 0;
 }
+
+.chat-markdown .chat-math-fallback {
+  color: #f9b4a7;
+  font-family: var(--font-mono), monospace;
+}
+
+.chat-markdown .chat-math-fallback-display {
+  margin: 0.65rem 0;
+  overflow-x: auto;
+  border-left: 2px solid #ef806c;
+  background: rgba(239, 128, 108, 0.08);
+  padding: 0.7rem 0.8rem;
+  white-space: pre-wrap;
+}

@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { sanitizeChatText } from "@/lib/chat-message";
+import { preprocessAssistantMarkdown } from "@/lib/chat-markdown";
 
 type HastNode = {
   type: string;
@@ -20,10 +20,7 @@ export function ChatMarkdown({
 }: {
   children?: string | null;
 }) {
-  const mathReady = sanitizeChatText(children).replace(
-    /\\\(([\s\S]+?)\\\)/g,
-    (_, expression: string) => `$${expression}$`
-  );
+  const mathReady = preprocessAssistantMarkdown(children);
 
   return (
     <div className="chat-markdown">
@@ -46,36 +43,64 @@ export function ChatMarkdown({
 
 function rehypeInvalidMathFallback() {
   return (tree: HastNode) => {
-    visitMathCode(tree);
+    isolateInvalidMath(tree);
   };
 }
 
-function visitMathCode(node: HastNode): void {
+function isolateInvalidMath(node: HastNode): void {
+  node.children?.forEach((child) => {
+    if (
+      node.type === "element" &&
+      node.tagName === "pre" &&
+      child.type === "element" &&
+      child.tagName === "code" &&
+      invalidMathClasses(child).length
+    ) {
+      node.tagName = "div";
+      node.properties = {
+        className: ["chat-math-fallback", "chat-math-fallback-display"],
+        title: "No se pudo renderizar esta fórmula",
+      };
+      node.children = [{ type: "text", value: textContent(child) }];
+      return;
+    }
+
+    if (
+      child.type === "element" &&
+      child.tagName === "code" &&
+      invalidMathClasses(child).length
+    ) {
+      child.tagName = "span";
+      child.properties = {
+        className: ["chat-math-fallback"],
+        title: "No se pudo renderizar esta fórmula",
+      };
+    }
+
+    isolateInvalidMath(child);
+  });
+}
+
+function invalidMathClasses(node: HastNode): string[] {
   if (node.type === "element" && node.tagName === "code") {
     const classes = classNames(node.properties?.className);
     const isMath = classes.some((className) =>
       ["language-math", "math-inline", "math-display"].includes(className)
     );
 
-    if (isMath) {
-      const expression = textContent(node);
-      try {
-        katex.renderToString(expression, {
-          displayMode: classes.includes("math-display"),
-          throwOnError: true,
-          strict: "ignore",
-        });
-      } catch {
-        node.properties = {
-          ...node.properties,
-          className: ["chat-math-fallback"],
-          title: "No se pudo renderizar esta fórmula",
-        };
-      }
+    if (!isMath) return [];
+
+    try {
+      katex.renderToString(textContent(node), {
+        displayMode: classes.includes("math-display"),
+        throwOnError: true,
+        strict: "ignore",
+      });
+    } catch {
+      return classes;
     }
   }
-
-  node.children?.forEach(visitMathCode);
+  return [];
 }
 
 function classNames(value: unknown): string[] {
