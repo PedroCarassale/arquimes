@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
+import { CompactChatComposer } from "@/components/CompactChatComposer";
 import { normalizeChatMessage } from "@/lib/chat-message";
 import type { ChatMessage, GroundingPayload } from "@/lib/types";
 
@@ -218,33 +219,14 @@ export function ChatRail() {
             para poder responder desde tu material.
           </p>
         )}
-        <label htmlFor="chat-composer" className="sr-only">
-          Escribí un mensaje
-        </label>
-        <textarea
-          id="chat-composer"
+        <CompactChatComposer
+          id="rail-chat-composer"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
           placeholder={composerPlaceholder(materiaId, hasReadable)}
-          aria-label="Escribí un mensaje"
-          rows={3}
-          className="w-full p-2 bg-surface border border-border text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent resize-none mb-2"
+          sending={sending}
+          onChange={setDraft}
+          onSend={handleSend}
         />
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={sending || !draft.trim()}
-          aria-label="Enviar mensaje"
-          className="w-full h-9 bg-accent text-background text-sm hover:bg-accent/90 disabled:opacity-50"
-        >
-          {sending ? "Enviando…" : "Enviar"}
-        </button>
       </div>
     </aside>
   );

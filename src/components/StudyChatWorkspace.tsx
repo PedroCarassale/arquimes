@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
+import { CompactChatComposer } from "@/components/CompactChatComposer";
 import { normalizeChatMessage } from "@/lib/chat-message";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
@@ -453,39 +454,17 @@ export function StudyChatWorkspace({
             )}
           </div>
 
-          <div className="shrink-0 border-t border-border-subtle bg-background p-3">
-            <label htmlFor="chat-composer" className="sr-only">
-              Escribí un mensaje
-            </label>
-            <textarea
+          <div className="shrink-0 border-t border-border-subtle bg-background p-2">
+            <CompactChatComposer
               id="chat-composer"
-              aria-label="Escribí un mensaje"
-              rows={3}
-              className="w-full resize-none border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none"
-              placeholder="Preguntá libremente sobre esta materia o pedí un parcial simulado…"
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  sendMessage(draft).catch((err) => setError(err.message));
-                }
-              }}
+              placeholder="Escribí un mensaje…"
+              sending={sending}
+              onChange={setDraft}
+              onSend={() =>
+                sendMessage(draft).catch((err) => setError(err.message))
+              }
             />
-            <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-foreground-muted">
-                {state.grounding?.readableCount || 0} fuente(s) legible(s) para fundamentar respuestas.
-              </p>
-              <button
-                type="button"
-                className="bg-accent px-4 py-2 text-sm text-background hover:bg-accent/90 disabled:opacity-50"
-                onClick={() => sendMessage(draft).catch((err) => setError(err.message))}
-                disabled={sending || !draft.trim()}
-                aria-label="Enviar mensaje"
-              >
-                {sending ? "Pensando…" : "Enviar mensaje"}
-              </button>
-            </div>
           </div>
         </section>
       </div>
