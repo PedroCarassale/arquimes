@@ -4,6 +4,7 @@ import {
   normalizeAssistantContent,
   normalizeChatMessage,
   parseAssistantContent,
+  sanitizeChatText,
 } from "./chat-message.ts";
 
 test("extrae Markdown y citas de un sobre JSON válido", () => {
@@ -65,4 +66,20 @@ test("normaliza mensajes antiguos y conserva sus citas guardadas", () => {
 
   assert.equal(message.content, String.raw`\(x=\frac{1}{2}\)`);
   assert.deepEqual(message.citations, ["guardada.pdf", "respuesta.pdf"]);
+});
+
+test("elimina sentinelas undefined o null al final de una burbuja", () => {
+  assert.equal(
+    sanitizeChatText("La explicación termina acá.\nundefined"),
+    "La explicación termina acá."
+  );
+  assert.equal(sanitizeChatText("Respuesta completa\nnull"), "Respuesta completa");
+  assert.equal(sanitizeChatText(undefined), "");
+});
+
+test("normaliza contenido no textual sin imprimirlo", () => {
+  assert.deepEqual(normalizeAssistantContent(undefined), {
+    answer: "",
+    citations: [],
+  });
 });

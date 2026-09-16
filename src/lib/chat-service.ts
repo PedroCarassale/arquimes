@@ -12,6 +12,7 @@ const SUGGESTED_CHIPS = [
 
 const MAX_CONTEXT_CHARS = 48_000;
 const MAX_SOURCE_CHARS = 20_000;
+const MAX_BROAD_CONTEXT_CHARS = 150_000;
 const CHUNK_TARGET = 1_100;
 const MAX_SELECTED_CHUNKS = 12;
 
@@ -41,7 +42,12 @@ export function buildPrompt(input: {
   history: ChatMessage[];
   userMessage: string;
 }): ProviderMessage[] {
-  const contextBlock = buildContextBlock(input.context, input.userMessage);
+  const broadRequest = isBroadLearningRequest(input.userMessage);
+  const contextBlock = buildContextBlock(
+    input.context,
+    input.userMessage,
+    broadRequest
+  );
 
   const system = [
     "Sos Arquimes, un tutor universitario exigente, paciente y claro. Hablás en español rioplatense, con tono de estudio nocturno y sin marketing.",
@@ -49,7 +55,8 @@ export function buildPrompt(input: {
     "",
     "CONTRATO DE FUNDAMENTACIÓN",
     "- Enseñá únicamente desde el CONTEXTO DE MATERIA recuperado. No completes el programa con conocimiento externo ni inventes temas.",
-    "- Los fragmentos pueden ser una selección del archivo. Si no alcanzan para afirmar que el mapa es completo, decí «con lo que pude recuperar del material» y marcá qué cobertura falta.",
+    "- En pedidos amplios, el «ÍNDICE DEL MATERIAL (completo)» fue construido en el servidor recorriendo todo el texto extraído de cada fuente. Usalo para mapear el apunte y no inventes faltantes por números de fragmento.",
+    "- Solo afirmes que la cobertura es parcial cuando una fuente esté marcada como «EXTRACCIÓN FALLIDA». Un límite de recuperación o de contexto no significa que el PDF esté incompleto.",
     "- Preferí definiciones, notación, fórmulas y relaciones que estén presentes en el apunte. No atribuyas al apunte una fórmula que no aparece en el contexto.",
     "- Si falta material legible o no encontrás el tema, decilo de frente y sugerí qué fuente cargar.",
     "- Citá únicamente nombres exactos que aparezcan después de FUENTE. No inventes bibliografía.",
@@ -107,23 +114,38 @@ export async function runGroundedChat(input: {
   };
 }
 
-function buildContextBlock(ctx: StudyContext, query: string): string {
-  let remaining = MAX_CONTEXT_CHARS;
+function buildContextBlock(
+  ctx: StudyContext,
+  query: string,
+  broadRequest: boolean
+): string {
+  let remaining = broadRequest ? MAX_BROAD_CONTEXT_CHARS : MAX_CONTEXT_CHARS;
+  const readableSources = ctx.sources.filter((source) => source.text?.trim());
+  const readableChars = readableSources.reduce(
+    (total, source) => total + normalizeSourceText(source.text || "").length,
+    0
+  );
   const sourceChunks = ctx.sources
     .map((source) => {
-      const text = source.text?.trim();
+      const text = source.text ? normalizeSourceText(source.text) : "";
+      const sourceBudget = broadRequest
+        ? broadSourceBudget(text.length, readableChars, remaining)
+        : Math.min(MAX_SOURCE_CHARS, remaining);
       const snippet = text && remaining > 0
-        ? buildGroundingSnippet(text, query, Math.min(MAX_SOURCE_CHARS, remaining))
+        ? buildGroundingSnippet(text, query, sourceBudget)
         : "";
+      const sourceFullyIncluded = Boolean(text) && text.length <= sourceBudget;
       remaining = Math.max(0, remaining - snippet.length);
       return [
         `FUENTE: ${source.name}`,
         `TIPO: ${source.kind}`,
         snippet
-          ? `FRAGMENTOS RECUPERADOS:\n${snippet}`
+          ? broadRequest
+            ? `TEXTO EXTRAÍDO${sourceFullyIncluded ? " COMPLETO" : " PARA ENSEÑANZA"}:\n${snippet}`
+            : `FRAGMENTOS RECUPERADOS:\n${snippet}`
           : text
-            ? "CONTENIDO: [fuente legible omitida por límite de contexto]"
-            : "CONTENIDO: [sin texto legible]",
+            ? "TEXTO EXTRAÍDO PARA ENSEÑANZA: [detalle cubierto por el índice completo]"
+            : "EXTRACCIÓN FALLIDA: [sin texto legible]",
       ].join("\n");
     })
     .join("\n\n");
@@ -144,18 +166,22 @@ function buildContextBlock(ctx: StudyContext, query: string): string {
 
   return [
     `MATERIA: ${ctx.materiaName}`,
+    broadRequest ? buildMaterialOutline(ctx) : "",
     sourceChunks || "SIN FUENTES",
     examChunks || "SIN EXAMENES CARGADOS",
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 }
 
 export function buildGroundingSnippet(
   text: string,
   query: string,
-  maxChars = MAX_SOURCE_CHARS
+  maxChars = isBroadLearningRequest(query)
+    ? MAX_BROAD_CONTEXT_CHARS
+    : MAX_SOURCE_CHARS
 ): string {
-  const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+  const normalized = normalizeSourceText(text);
   if (normalized.length <= maxChars) return normalized;
+  if (isBroadLearningRequest(query)) return clip(normalized, maxChars);
 
   const chunks = chunkForRetrieval(normalized);
   const selected = selectChunks(chunks, query);
@@ -275,6 +301,67 @@ function selectBroadCoverage(chunks: RetrievalChunk[]): RetrievalChunk[] {
     .map((index) => chunks[index]);
 }
 
+function broadSourceBudget(
+  sourceLength: number,
+  totalReadableChars: number,
+  remaining: number
+): number {
+  if (sourceLength <= 0 || totalReadableChars <= 0 || remaining <= 0) return 0;
+  if (totalReadableChars <= MAX_BROAD_CONTEXT_CHARS) {
+    return Math.min(sourceLength, remaining);
+  }
+  const proportional = Math.floor(
+    (sourceLength / totalReadableChars) * MAX_BROAD_CONTEXT_CHARS
+  );
+  return Math.min(sourceLength, remaining, Math.max(CHUNK_TARGET, proportional));
+}
+
+function buildMaterialOutline(ctx: StudyContext): string {
+  const sourceOutlines = ctx.sources.map((source) => {
+    const text = source.text ? normalizeSourceText(source.text) : "";
+    if (!text) {
+      return [`FUENTE: ${source.name}`, "- [extracción fallida]"].join("\n");
+    }
+
+    const chunks = chunkForOutline(text);
+    const entries = chunks.map((chunk, index) => {
+      const label = outlineLabel(chunk);
+      return `- Sección ${index + 1}/${chunks.length}: ${label}`;
+    });
+    return [`FUENTE: ${source.name}`, ...entries].join("\n");
+  });
+
+  return [
+    "ÍNDICE DEL MATERIAL (completo)",
+    "Generado recorriendo de principio a fin todo el texto extraído.",
+    ...sourceOutlines,
+  ].join("\n");
+}
+
+function chunkForOutline(text: string): string[] {
+  const target = 2_400;
+  const chunks: string[] = [];
+  for (let start = 0; start < text.length; start += target) {
+    chunks.push(text.slice(start, start + target));
+  }
+  return chunks.length ? chunks : [text];
+}
+
+function outlineLabel(chunk: string): string {
+  const lines = chunk
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const heading = lines.find(
+    (line) =>
+      line.length <= 120 &&
+      (/^(?:\d+(?:\.\d+)*[.)-]?\s+|[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 ,:;()/-]{4,})/.test(line) ||
+        (!/[.!?]$/.test(line) && line.split(/\s+/).length <= 12))
+  );
+  const candidate = heading || lines[0] || "[sección sin texto]";
+  return clip(candidate, 140);
+}
+
 function retrievalTerms(query: string): string[] {
   return [
     ...new Set(
@@ -307,11 +394,15 @@ function structuralScore(text: string): number {
   return headingLike * 2 + Math.min(formulaLike, 6) + definitionLike * 2;
 }
 
-function isBroadLearningRequest(query: string): boolean {
+export function isBroadLearningRequest(query: string): boolean {
   const folded = fold(query);
-  return /(?:todo|todos los temas|apunte completo|mapa|indice|programa|desde cero|ruta de estudio)/.test(
+  return /(?:todo(?:s|a)?(?:\s+el|\s+el contenido|\s+el apunte)?|todos los temas|apunte completo|mapa|indice|programa|desde cero|ruta de estudio)/.test(
     folded
   );
+}
+
+function normalizeSourceText(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
 }
 
 function fold(text: string): string {

@@ -19,6 +19,8 @@ const OPENAI_BASE_URL =
   "https://api.openai.com/v1";
 const ANTHROPIC_MODEL =
   process.env.ANTHROPIC_MODEL?.trim() || "claude-3-5-sonnet-latest";
+const OPENAI_TUTOR_MAX_TOKENS = 12_000;
+const ANTHROPIC_TUTOR_MAX_TOKENS = 8_192;
 
 function resolveProviderName(): ProviderName {
   const selected = process.env.AI_PROVIDER?.trim().toLowerCase();
@@ -78,7 +80,7 @@ async function callOpenAI(messages: ProviderMessage[]): Promise<ProviderResult> 
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
-      max_completion_tokens: 3_200,
+      max_completion_tokens: OPENAI_TUTOR_MAX_TOKENS,
       ...(!OPENAI_MODEL.startsWith("gpt-5") ? { temperature: 0.2 } : {}),
       messages,
     }),
@@ -123,7 +125,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: 2_400,
+      max_tokens: ANTHROPIC_TUTOR_MAX_TOKENS,
       temperature: 0.2,
       system,
       messages: chat,

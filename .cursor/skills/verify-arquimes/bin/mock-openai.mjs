@@ -86,7 +86,7 @@ const server = createServer(async (request, response) => {
   const answer = [
     "## Mapa del apunte",
     "",
-    "Con lo que pude recuperar del material, la ruta es:",
+    "El índice completo del material muestra esta ruta:",
     "",
     "1. Valor exacto y valor aproximado.",
     "2. Error absoluto.",

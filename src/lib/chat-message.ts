@@ -69,15 +69,18 @@ export type AssistantContent = {
   citations: string[];
 };
 
-export function parseAssistantContent(content: string): AssistantContent | null {
+export function parseAssistantContent(content: unknown): AssistantContent | null {
+  if (typeof content !== "string") return null;
   const trimmed = content.trim();
   if (!trimmed) return null;
 
   const marker = CITATIONS_MARKER.exec(trimmed);
   if (marker) {
-    const answer = `${trimmed.slice(0, marker.index)}${trimmed.slice(
-      marker.index + marker[0].length
-    )}`.trim();
+    const answer = sanitizeChatText(
+      `${trimmed.slice(0, marker.index)}${trimmed.slice(
+        marker.index + marker[0].length
+      )}`
+    );
     if (!answer) return null;
     return {
       answer,
@@ -97,7 +100,7 @@ export function parseAssistantContent(content: string): AssistantContent | null 
 }
 
 export function normalizeAssistantContent(
-  content: string,
+  content: unknown,
   citations?: string[]
 ): AssistantContent {
   const parsed = parseAssistantContent(content);
@@ -108,7 +111,7 @@ export function normalizeAssistantContent(
     };
   }
 
-  const trimmed = content.trim();
+  const trimmed = sanitizeChatText(content);
   return {
     answer: RAW_ENVELOPE.test(trimmed) ? INVALID_ENVELOPE_COPY : trimmed,
     citations: uniqueCitations(citations ?? []),
@@ -116,7 +119,12 @@ export function normalizeAssistantContent(
 }
 
 export function normalizeChatMessage<T extends ChatMessage>(message: T): T {
-  if (message.role !== "assistant") return message;
+  if (message.role !== "assistant") {
+    return {
+      ...message,
+      content: sanitizeChatText(message.content),
+    };
+  }
   const normalized = normalizeAssistantContent(message.content, message.citations);
   return {
     ...message,
@@ -133,7 +141,9 @@ function assistantContentFromUnknown(value: unknown): AssistantContent | null {
 
   const envelope = value as { answer?: unknown; citations?: unknown };
   const answer =
-    typeof envelope.answer === "string" ? envelope.answer.trim() : "";
+    typeof envelope.answer === "string"
+      ? sanitizeChatText(envelope.answer)
+      : "";
   if (!answer) return null;
 
   return {
@@ -181,6 +191,13 @@ function uniqueCitations(citations: string[]): string[] {
       citations.map((citation) => citation.trim()).filter(Boolean)
     ),
   ];
+}
+
+export function sanitizeChatText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/(?:\r?\n|^)[ \t]*(?:undefined|null)[ \t]*$/i, "")
+    .trim();
 }
 
 function repairTexEscapes(json: string): string {

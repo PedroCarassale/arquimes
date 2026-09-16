@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:chat-format": "node --experimental-strip-types --test src/lib/chat-message.test.ts"
+    "test:chat-format": "node --experimental-strip-types --test src/lib/chat-message.test.ts",
+    "test:chat-grounding": "node --experimental-strip-types --test src/lib/chat-service.test.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
