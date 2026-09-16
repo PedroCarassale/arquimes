@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ChatMarkdown } from "@/components/ChatMarkdown";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
 type ProviderSummary = {
@@ -126,17 +127,33 @@ export function StudyChatWorkspace({
   }
 
   async function sendMessage(content: string) {
-    if (!content.trim() || sending) return;
+    const cleanContent = content.trim();
+    if (!cleanContent || sending) return;
+    const optimisticId = `optimistic-${crypto.randomUUID()}`;
+    const activeSessionId = state.activeSessionId;
+    const optimisticMessage: ChatMessage = {
+      id: optimisticId,
+      role: "user",
+      content: cleanContent,
+      createdAt: new Date().toISOString(),
+    };
+
     setSending(true);
     setError(null);
+    setDraft("");
+    setState((current) => ({
+      ...current,
+      messages: [...current.messages, optimisticMessage],
+    }));
+
     try {
       const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           materiaId,
-          sessionId: state.activeSessionId || undefined,
-          content: content.trim(),
+          sessionId: activeSessionId || undefined,
+          content: cleanContent,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
@@ -147,8 +164,28 @@ export function StudyChatWorkspace({
       if (!response.ok || !payload.turn || !payload.session) {
         throw new Error(payload.error || "No pude enviar el mensaje.");
       }
-      setDraft("");
-      await load(payload.session.id);
+      setState((current) => {
+        const sessions = [
+          payload.session!,
+          ...current.sessions.filter((session) => session.id !== payload.session!.id),
+        ];
+        return {
+          ...current,
+          sessions,
+          activeSessionId: payload.session!.id,
+          messages: [
+            ...current.messages.filter((message) => message.id !== optimisticId),
+            ...payload.turn!,
+          ],
+        };
+      });
+    } catch (sendError) {
+      setState((current) => ({
+        ...current,
+        messages: current.messages.filter((message) => message.id !== optimisticId),
+      }));
+      setDraft((current) => current || cleanContent);
+      throw sendError;
     } finally {
       setSending(false);
     }
@@ -311,7 +348,7 @@ export function StudyChatWorkspace({
           </div>
         </section>
 
-        <section className="border border-border-subtle bg-background">
+        <section className="min-w-0 overflow-hidden border border-border-subtle bg-background">
           <div className="border-b border-border-subtle p-4">
             <div className="text-xs font-mono uppercase tracking-wider text-foreground-muted">
               {loading ? "Cargando…" : state.activeSessionId ? "Sesión activa" : "Listo para estudiar"}
@@ -325,35 +362,80 @@ export function StudyChatWorkspace({
             </p>
           </div>
 
-          <div ref={threadRef} className="h-[420px] overflow-y-auto p-4 space-y-4">
+          <div
+            ref={threadRef}
+            className="h-[min(58vh,620px)] min-h-[420px] space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-4 md:p-6"
+            aria-live="polite"
+          >
             {loading && <p className="text-sm text-foreground-muted">Cargando conversación…</p>}
             {!loading && state.messages.length === 0 && (
-              <p className="text-sm text-foreground-muted">
-                {hasReadable
-                  ? "Preguntá sobre la materia, pedí un resumen completo o simulá un parcial."
-                  : "Todavía no hay material legible para fundamentar respuestas. Cargá apuntes o examen y te acompaño desde ahí."}
-              </p>
-            )}
-            {state.messages.map((message) => (
-              <article key={message.id} className="space-y-1">
-                <div className="text-xs font-mono uppercase text-foreground-muted">
-                  {message.role === "user" ? "Vos" : "Arquimes"}
-                </div>
-                <p
-                  className={`whitespace-pre-wrap text-sm ${
-                    message.isError ? "text-amber-200" : "text-foreground"
-                  }`}
-                  data-chat-role={message.role}
-                >
-                  {message.content}
+              <div className="mx-auto mt-10 max-w-lg border border-border-subtle bg-surface/80 p-5 text-center">
+                <p className="font-serif text-xl text-foreground">
+                  {hasReadable ? "¿Qué necesitás aprender esta noche?" : "Primero, demos contexto al estudio"}
                 </p>
-                {message.citations && message.citations.length > 0 && (
-                  <p className="text-xs font-mono text-foreground-muted">
-                    Fuente: {message.citations.join(", ")}
-                  </p>
-                )}
+                <p className="mt-2 text-sm leading-6 text-foreground-muted">
+                  {hasReadable
+                    ? "Puedo mapear el apunte, enseñarte un tema por vez y chequear si quedó claro antes de avanzar."
+                    : "Todavía no hay material legible. Cargá apuntes o un examen y voy a enseñar desde esas fuentes, sin inventar el programa."}
+                </p>
+              </div>
+            )}
+            {state.messages.map((message) => {
+              const isUser = message.role === "user";
+              return (
+                <article
+                  key={message.id}
+                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={`max-w-[88%] md:max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
+                    <div className="mb-1.5 px-1 text-xs font-mono uppercase tracking-wider text-foreground-muted">
+                      {isUser ? "Vos" : "Arquimes"}
+                    </div>
+                    <div
+                      className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${
+                        isUser
+                          ? "rounded-br-sm bg-accent text-[#17100a]"
+                          : message.isError
+                            ? "rounded-bl-sm border border-amber-400/30 bg-amber-400/10 text-amber-100"
+                            : "rounded-bl-sm border border-border bg-surface-elevated text-foreground"
+                      }`}
+                      data-chat-role={message.role}
+                    >
+                      {isUser ? (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <ChatMarkdown>{message.content}</ChatMarkdown>
+                      )}
+                    </div>
+                    {message.citations && message.citations.length > 0 && (
+                      <p className="mt-2 px-1 text-xs font-mono text-foreground-muted">
+                        Fuente: {message.citations.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {sending && (
+              <article className="flex justify-start" data-chat-thinking="true">
+                <div className="flex max-w-[78%] flex-col items-start">
+                  <div className="mb-1.5 px-1 text-xs font-mono uppercase tracking-wider text-foreground-muted">
+                    Arquimes
+                  </div>
+                  <div
+                    role="status"
+                    className="flex items-center gap-2 rounded-2xl rounded-bl-sm border border-border bg-surface-elevated px-4 py-3 text-sm text-foreground-muted"
+                  >
+                    <span>Pensando</span>
+                    <span className="flex gap-1" aria-hidden="true">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.3s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent" />
+                    </span>
+                  </div>
+                </div>
               </article>
-            ))}
+            )}
           </div>
 
           <div className="border-t border-border-subtle p-4">
@@ -398,7 +480,7 @@ export function StudyChatWorkspace({
                 disabled={sending || !draft.trim()}
                 aria-label="Enviar mensaje"
               >
-                {sending ? "Enviando…" : "Enviar mensaje"}
+                {sending ? "Pensando…" : "Enviar mensaje"}
               </button>
             </div>
           </div>

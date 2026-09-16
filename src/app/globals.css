@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
 
 :root {
   --background: #0a0a0a;
@@ -71,4 +72,118 @@ select {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
+}
+
+.chat-markdown {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  margin: 1.1rem 0 0.45rem;
+  color: var(--foreground);
+  font-family: var(--font-serif), serif;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.chat-markdown h1 {
+  font-size: 1.5rem;
+}
+
+.chat-markdown h2 {
+  font-size: 1.3rem;
+}
+
+.chat-markdown h3 {
+  font-size: 1.12rem;
+}
+
+.chat-markdown p,
+.chat-markdown ul,
+.chat-markdown ol,
+.chat-markdown blockquote,
+.chat-markdown pre,
+.chat-markdown table {
+  margin: 0.65rem 0;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.3rem;
+}
+
+.chat-markdown ul {
+  list-style: disc;
+}
+
+.chat-markdown ol {
+  list-style: decimal;
+}
+
+.chat-markdown li + li {
+  margin-top: 0.25rem;
+}
+
+.chat-markdown strong {
+  color: #fff8ed;
+  font-weight: 650;
+}
+
+.chat-markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chat-markdown blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 0.9rem;
+  color: var(--foreground-muted);
+}
+
+.chat-markdown code:not(pre code) {
+  border: 1px solid var(--border);
+  background: var(--background);
+  padding: 0.1rem 0.3rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.85em;
+}
+
+.chat-markdown pre {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  background: var(--background);
+  padding: 0.8rem;
+}
+
+.chat-markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.chat-markdown th,
+.chat-markdown td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+}
+
+.chat-markdown .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.35rem 0;
 }
