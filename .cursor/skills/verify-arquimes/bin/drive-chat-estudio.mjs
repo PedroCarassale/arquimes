@@ -28,21 +28,33 @@ if (baseUrl.includes("vercel.app")) {
 mkdirSync(evidence, { recursive: true });
 
 const suffix = randomBytes(3).toString("hex");
-const materiaName = `Mecánica del continuo ${suffix}`;
-const apunteFileName = `apunte-cauchy-${suffix}.pdf`;
-const examFileName = `parcial-fluidos-${suffix}.txt`;
-const token = "ARQUIMES-TENSOR-CAUCHY";
-const fileBody = Array.from({ length: 220 })
-  .map(
-    (_, i) =>
-      `Página de apuntes ${i + 1}. El tensor de Cauchy-Stress (σ) describe fuerzas internas por unidad de área. En equilibrio, div σ + ρb = 0. Token: ${token}.`
-  )
-  .join("\n");
-const examBody = `Parcial integrador de mecánica de fluidos. Se evalúa Cauchy-Stress, conservación de masa y energía.`;
-const examNote = "Parcial 2023 de fluidos continuos";
-const tema = "Conservación de masa";
-const question = "¿Qué describe el tensor de Cauchy-Stress?";
-const shortcutPrompt = "Haceme un resumen completo de lo que entra.";
+const materiaName = `Cálculo numérico ${suffix}`;
+const apunteFileName = `teoria-errores-${suffix}.pdf`;
+const examFileName = `parcial-calculo-${suffix}.txt`;
+const token = "ARQUIMES-VALOR-APROXIMADO";
+const filler = (label) =>
+  Array.from(
+    { length: 55 },
+    (_, i) => `${label} ${i + 1}. Ejercicios y observaciones de medición numérica.`
+  );
+const fileBody = [
+  "UNIDAD 1 - TEORIA DE ERRORES",
+  `Valor exacto alpha y valor aproximado a. ${token}.`,
+  ...filler("Notas iniciales"),
+  "ERROR ABSOLUTO",
+  "Delta(a)=abs(alpha-a). ARQUIMES-ERROR-ABSOLUTO.",
+  ...filler("Ejemplos absolutos"),
+  "ERROR RELATIVO",
+  "epsilon(a)=Delta(a)/abs(alpha). ARQUIMES-ERROR-RELATIVO.",
+  ...filler("Ejemplos relativos"),
+  "ERROR PORCENTUAL",
+  "porcentaje=epsilon(a)*100. ARQUIMES-ERROR-PORCENTUAL.",
+].join("\n");
+const examBody = "Parcial integrador de cálculo numérico. Se evalúan error absoluto, relativo y porcentual.";
+const examNote = "Parcial de Teoría de Errores";
+const tema = "Teoría de errores";
+const question = "Necesito aprender todo el apunte. Mapeá los temas y empecemos por el primero.";
+const shortcutPrompt = question;
 
 const apunteFilePath = `${evidence}/${apunteFileName}`;
 const examFilePath = `${evidence}/${examFileName}`;
@@ -97,7 +109,7 @@ function escapePdfText(value) {
     .replaceAll("\n", " ");
 }
 
-async function sendChat(page, text) {
+async function sendChat(page, text, thinkingScreenshotPath) {
   const waitPost = page.waitForResponse(
     (res) =>
       res.url().includes("/api/chat") &&
@@ -107,33 +119,18 @@ async function sendChat(page, text) {
   );
   await page.getByLabel("Escribí un mensaje").fill(text);
   await page.getByRole("button", { name: "Enviar mensaje" }).click();
+  await page.locator('[data-chat-role="user"]').last().filter({ hasText: text }).waitFor();
+  await page.locator('[data-chat-thinking="true"]').waitFor();
+  if (thinkingScreenshotPath) {
+    await page.screenshot({ path: thinkingScreenshotPath });
+  }
   await waitPost;
-  await page.waitForFunction(
-    (message) => {
-      const body = document.body.textContent || "";
-      return (
-        body.includes(message) ||
-        /No hay proveedor de IA configurado|falta OPENAI_API_KEY|falta ANTHROPIC_API_KEY/i.test(
-          body
-        )
-      );
-    },
-    text,
-    { timeout: 45000 }
-  );
+  await page.locator('[data-chat-thinking="true"]').waitFor({ state: "detached" });
+  await page.locator('[data-chat-role="assistant"]').last().waitFor();
 }
 
-function lastAssistantText(html) {
-  const matches = [
-    ...html.matchAll(
-      /data-chat-role="assistant"[^>]*>([\s\S]*?)<\/p>/g
-    ),
-  ];
-  if (matches.length === 0) return "";
-  return matches[matches.length - 1][1]
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&laquo;|&raquo;|&quot;|&#39;/g, " ")
-    .replace(/&amp;/g, "&")
+async function lastAssistantText(page) {
+  return ((await page.locator('[data-chat-role="assistant"]').last().textContent()) || "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -171,7 +168,7 @@ const emptyHtml = await page.content();
 writeFileSync(`${evidence}/chat-empty.html`, emptyHtml);
 await page.screenshot({ path: `${evidence}/chat-empty.png` });
 
-const emptyReply = lastAssistantText(emptyHtml);
+const emptyReply = await lastAssistantText(page);
 if (!emptyReply) {
   throw new Error("empty chat: no assistant reply");
 }
@@ -255,32 +252,43 @@ await page.waitForURL(new RegExp(`/materias/${materiaId}/chat$`), {
   timeout: 20000,
 });
 await page.getByRole("button", { name: "Nuevo chat" }).click();
-await sendChat(page, question);
+await sendChat(page, question, `${evidence}/chat-thinking.png`);
 await page.waitForTimeout(400);
 
 const groundedHtml = await page.content();
 writeFileSync(`${evidence}/chat-grounded.html`, groundedHtml);
 await page.screenshot({ path: `${evidence}/chat-grounded.png` });
 
-const groundedReply = lastAssistantText(groundedHtml);
-const providerMissing =
-  /No hay proveedor de IA configurado|falta OPENAI_API_KEY|falta ANTHROPIC_API_KEY/i.test(
-    groundedReply
-  );
-if (providerMissing) {
-  // Camino válido sin keys en entorno local/verificación.
-} else if (!groundedReply.includes(token)) {
-  throw new Error(`grounded chat missing file token: ${groundedReply}`);
+const groundedReply = await lastAssistantText(page);
+if (groundedReply.length < 450) {
+  throw new Error(`tutor reply is too shallow (${groundedReply.length} chars)`);
+}
+if (!/Mapa del apunte/i.test(groundedReply)) {
+  throw new Error(`tutor reply missing grounded topic map: ${groundedReply}`);
+}
+if (!/Bloque 1|solo el primer bloque/i.test(groundedReply)) {
+  throw new Error(`tutor reply missing progressive next step: ${groundedReply}`);
+}
+if (!/Chequeo rápido/i.test(groundedReply)) {
+  throw new Error(`tutor reply missing comprehension check: ${groundedReply}`);
+}
+if ((groundedReply.match(/\?/g) || []).length < 2) {
+  throw new Error(`tutor reply must close with 2-3 questions: ${groundedReply}`);
+}
+if ((await page.locator(".katex").count()) < 2) {
+  throw new Error("tutor reply did not render inline/block math with KaTeX");
+}
+if (!groundedHtml.includes(apunteFileName)) {
+  throw new Error("tutor reply did not preserve its structured source citation");
 }
 if (!groundedHtml.includes("Nuevo chat")) {
   throw new Error("new session did not appear in list");
 }
-if (
-  !providerMissing &&
-  !groundedHtml.includes(examNote) &&
-  !groundedHtml.includes(apunteFileName)
-) {
-  throw new Error("grounding did not reference exam/apunte context");
+
+const userBubble = await page.locator('[data-chat-role="user"]').last().boundingBox();
+const assistantBubble = await page.locator('[data-chat-role="assistant"]').last().boundingBox();
+if (!userBubble || !assistantBubble || userBubble.x <= assistantBubble.x) {
+  throw new Error("messenger alignment is wrong: user must be right of assistant");
 }
 assertNo(groundedReply, /estás muy preparado|78%/, "fake prepared score");
 

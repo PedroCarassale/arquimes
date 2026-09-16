@@ -27,6 +27,10 @@ if [[ -n "${PID:-}" ]] && kill -0 "$PID" 2>/dev/null; then
   fi
 fi
 
+if [[ -n "${MOCK_PID:-}" ]] && kill -0 "$MOCK_PID" 2>/dev/null; then
+  kill "$MOCK_PID" 2>/dev/null || true
+fi
+
 # child next processes listening on PORT, only if they are children of PID
 if [[ -n "${PORT:-}" ]] && command -v lsof >/dev/null 2>&1; then
   for child in $(lsof -t -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do

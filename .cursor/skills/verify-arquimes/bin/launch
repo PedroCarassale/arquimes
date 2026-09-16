@@ -23,6 +23,7 @@ mkdir -p "$TMP/profile"
 COOKIE_JAR="$TMP/cookies.txt"
 USER_DATA_DIR="$TMP/profile"
 LOG="$TMP/next.log"
+MOCK_LOG="$TMP/mock-openai.log"
 
 if [[ -n "${VERIFY_PORT:-}" ]]; then
   PORT="$VERIFY_PORT"
@@ -43,8 +44,48 @@ fi
 
 BASE_URL="http://127.0.0.1:${PORT}"
 
+MOCK_PORT=""
+for try in $(seq 43231 43289); do
+  if ! ss -ltn 2>/dev/null | grep -q ":$try "; then
+    MOCK_PORT="$try"
+    break
+  fi
+done
+if [[ -z "$MOCK_PORT" ]]; then
+  echo "verify-arquimes: no free mock provider port" >&2
+  exit 1
+fi
+
 cd "$ROOT"
-nohup env PORT="$PORT" npm run dev -- --port "$PORT" --hostname 127.0.0.1 >"$LOG" 2>&1 &
+nohup node "$SKILL/bin/mock-openai.mjs" --port "$MOCK_PORT" >"$MOCK_LOG" 2>&1 &
+MOCK_PID=$!
+
+mock_ready=0
+for _ in $(seq 1 20); do
+  if curl -sf "http://127.0.0.1:$MOCK_PORT/health" >/dev/null; then
+    mock_ready=1
+    break
+  fi
+  if ! kill -0 "$MOCK_PID" 2>/dev/null; then
+    echo "verify-arquimes: mock provider exited. log:" >&2
+    tail -40 "$MOCK_LOG" >&2
+    exit 1
+  fi
+  sleep 0.2
+done
+if [[ "$mock_ready" -ne 1 ]]; then
+  echo "verify-arquimes: mock provider did not become ready" >&2
+  kill "$MOCK_PID" 2>/dev/null || true
+  exit 1
+fi
+
+nohup env \
+  PORT="$PORT" \
+  AI_PROVIDER=openai \
+  OPENAI_API_KEY=verify-local-only \
+  OPENAI_MODEL=gpt-5.4 \
+  OPENAI_BASE_URL="http://127.0.0.1:$MOCK_PORT/v1" \
+  npm run dev -- --port "$PORT" --hostname 127.0.0.1 >"$LOG" 2>&1 &
 PID=$!
 
 {
@@ -55,6 +96,9 @@ PID=$!
   echo "COOKIE_JAR=$COOKIE_JAR"
   echo "USER_DATA_DIR=$USER_DATA_DIR"
   echo "LOG=$LOG"
+  echo "MOCK_PID=$MOCK_PID"
+  echo "MOCK_PORT=$MOCK_PORT"
+  echo "MOCK_LOG=$MOCK_LOG"
   echo "TMP=$TMP"
 } >"$CURRENT"
 
@@ -67,6 +111,7 @@ for _ in $(seq 1 60); do
   if ! kill -0 "$PID" 2>/dev/null; then
     echo "verify-arquimes: dev server exited. log:" >&2
     tail -40 "$LOG" >&2
+    kill "$MOCK_PID" 2>/dev/null || true
     rm -f "$CURRENT"
     exit 1
   fi
@@ -77,6 +122,7 @@ if [[ "$ready" -ne 1 ]]; then
   echo "verify-arquimes: timed out waiting for $BASE_URL" >&2
   tail -40 "$LOG" >&2
   kill "$PID" 2>/dev/null || true
+  kill "$MOCK_PID" 2>/dev/null || true
   rm -f "$CURRENT"
   exit 1
 fi
