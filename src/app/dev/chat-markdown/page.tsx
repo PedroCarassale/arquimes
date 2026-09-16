@@ -48,7 +48,7 @@ $$
 
 ## El documento continúa
 
-Este texto conserva **negrita**, estructura y `$precio literal` aunque KaTeX falle.
+Este texto conserva **negrita**, estructura y un $precio literal aunque KaTeX falle.
 
 ---
 
