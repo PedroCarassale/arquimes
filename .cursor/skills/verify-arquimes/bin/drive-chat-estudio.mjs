@@ -62,24 +62,36 @@ writeFileSync(examFilePath, examBody);
 
 async function writePdfWithText(path, text) {
   const lines = text.split("\n").slice(0, 360);
-  const textOps = [
-    "BT",
-    "/F1 10 Tf",
-    "44 800 Td",
-    "13 TL",
-    ...lines.map((line) => `(${escapePdfText(line)}) Tj T*`),
-    "ET",
-    "",
-  ].join("\n");
-  const stream = Buffer.from(textOps, "latin1");
+  const pages = [];
+  for (let start = 0; start < lines.length; start += 48) {
+    pages.push(lines.slice(start, start + 48));
+  }
 
+  const pageIds = pages.map((_, index) => 4 + index * 2);
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${stream.length} >>\nstream\n${stream.toString("latin1")}endstream`,
   ];
+
+  for (let index = 0; index < pages.length; index += 1) {
+    const pageId = pageIds[index];
+    const contentId = pageId + 1;
+    const textOps = [
+      "BT",
+      "/F1 10 Tf",
+      "44 800 Td",
+      "15 TL",
+      ...pages[index].map((line) => `(${escapePdfText(line)}) Tj T*`),
+      "ET",
+      "",
+    ].join("\n");
+    const stream = Buffer.from(textOps, "latin1");
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentId} 0 R >>`,
+      `<< /Length ${stream.length} >>\nstream\n${stream.toString("latin1")}endstream`
+    );
+  }
 
   let body = "";
   const offsets = [0];
