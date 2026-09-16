@@ -27,7 +27,10 @@ function multiChunkFixture(): string {
 
 test("detecta pedidos de aprendizaje del apunte completo", () => {
   assert.equal(isBroadLearningRequest(BROAD_ASK), true);
+  assert.equal(isBroadLearningRequest("Explicame el apunte entero"), true);
+  assert.equal(isBroadLearningRequest("Recorramos el material de punta a punta"), true);
   assert.equal(isBroadLearningRequest("Explicame la definición de límite"), false);
+  assert.equal(isBroadLearningRequest("Me cuesta, sobre todo, derivadas"), false);
 });
 
 test("un pedido amplio conserva marcadores tempranos y tardíos del PDF", () => {

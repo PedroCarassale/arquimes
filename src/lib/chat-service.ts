@@ -396,9 +396,14 @@ function structuralScore(text: string): number {
 
 export function isBroadLearningRequest(query: string): boolean {
   const folded = fold(query);
-  return /(?:todo(?:s|a)?(?:\s+el|\s+el contenido|\s+el apunte)?|todos los temas|apunte completo|mapa|indice|programa|desde cero|ruta de estudio)/.test(
-    folded
-  );
+  return [
+    /\b(?:todo|toda)(?:\s+(?:el|la))?\s+(?:apunte|material|contenido|temario|programa)\b/,
+    /\btodos? los temas\b/,
+    /\b(?:apunte|material|temario|programa)\s+(?:completo|completa|entero|entera)\b/,
+    /\b(?:mapa|indice|programa|ruta de estudio)\b/,
+    /\b(?:desde cero|de principio a fin|de punta a punta)\b/,
+    /\b(?:aprender|estudiar|recorrer|explica|explicame)\s+(?:todo\s+)?(?:el\s+)?(?:apunte|material|temario)\b/,
+  ].some((pattern) => pattern.test(folded));
 }
 
 function normalizeSourceText(text: string): string {
