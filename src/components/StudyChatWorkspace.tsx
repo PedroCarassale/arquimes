@@ -19,7 +19,6 @@ type ChatState = {
   messages: ChatMessage[];
   grounding: GroundingPayload | null;
   provider: ProviderSummary;
-  suggestedChips: string[];
 };
 
 const emptyState: ChatState = {
@@ -32,7 +31,6 @@ const emptyState: ChatState = {
     selected: null,
     message: "Cargando proveedor…",
   },
-  suggestedChips: [],
 };
 
 export function StudyChatWorkspace({
@@ -71,7 +69,6 @@ export function StudyChatWorkspace({
       messages: Array.isArray(data.messages) ? data.messages : [],
       grounding: data.grounding ?? null,
       provider: data.provider ?? emptyState.provider,
-      suggestedChips: Array.isArray(data.suggestedChips) ? data.suggestedChips : [],
     });
   }, [materiaId]);
 
@@ -221,14 +218,14 @@ export function StudyChatWorkspace({
   }
 
   return (
-    <div className="px-8 pb-8">
-      <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+    <div className="flex min-h-0 flex-col lg:h-full">
+      <div className="mb-3 flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+          <div className="mb-1 font-mono text-xs uppercase tracking-wider text-foreground-muted">
             Chat de estudio
           </div>
-          <h2 className="font-serif text-3xl">Compañero de preparación</h2>
-          <p className="text-sm text-foreground-muted mt-2 max-w-3xl">
+          <h2 className="font-serif text-2xl">Compañero de preparación</h2>
+          <p className="mt-1 max-w-3xl text-sm text-foreground-muted">
             Cargá información del examen y preguntá libremente. El chat usa tus apuntes,
             archivo de examen, nota y temas.
           </p>
@@ -252,8 +249,8 @@ export function StudyChatWorkspace({
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
-        <section className="border border-border-subtle bg-surface">
+      <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-[240px_1fr]">
+        <section className="flex min-h-0 flex-col border border-border-subtle bg-surface">
           <div className="border-b border-border-subtle p-3">
             <button
               type="button"
@@ -264,7 +261,7 @@ export function StudyChatWorkspace({
               + Nuevo chat
             </button>
           </div>
-          <div className="max-h-[560px] overflow-y-auto p-2">
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {state.sessions.length === 0 ? (
               <p className="p-3 text-sm text-foreground-muted">
                 No hay sesiones todavía. Abrí un chat nuevo para arrancar.
@@ -349,8 +346,8 @@ export function StudyChatWorkspace({
           </div>
         </section>
 
-        <section className="min-w-0 overflow-hidden border border-border-subtle bg-background">
-          <div className="border-b border-border-subtle p-4">
+        <section className="flex min-h-[680px] min-w-0 flex-col overflow-hidden border border-border-subtle bg-background lg:min-h-0">
+          <div className="shrink-0 border-b border-border-subtle px-4 py-3">
             <div className="text-xs font-mono uppercase tracking-wider text-foreground-muted">
               {loading ? "Cargando…" : state.activeSessionId ? "Sesión activa" : "Listo para estudiar"}
             </div>
@@ -365,7 +362,7 @@ export function StudyChatWorkspace({
 
           <div
             ref={threadRef}
-            className="h-[min(58vh,620px)] min-h-[420px] space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-4 md:p-6"
+            className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-4 md:p-6"
             aria-live="polite"
           >
             {loading && <p className="text-sm text-foreground-muted">Cargando conversación…</p>}
@@ -454,26 +451,14 @@ export function StudyChatWorkspace({
             )}
           </div>
 
-          <div className="border-t border-border-subtle p-4">
-            <div className="mb-3 flex flex-wrap gap-2">
-              {state.suggestedChips.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  className="border border-border px-2 py-1 text-xs text-foreground-muted hover:border-accent hover:text-foreground"
-                  onClick={() => sendMessage(chip).catch((err) => setError(err.message))}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
+          <div className="shrink-0 border-t border-border-subtle bg-background p-3">
             <label htmlFor="chat-composer" className="sr-only">
               Escribí un mensaje
             </label>
             <textarea
               id="chat-composer"
               aria-label="Escribí un mensaje"
-              rows={4}
+              rows={3}
               className="w-full resize-none border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none"
               placeholder="Preguntá libremente sobre esta materia o pedí un parcial simulado…"
               value={draft}

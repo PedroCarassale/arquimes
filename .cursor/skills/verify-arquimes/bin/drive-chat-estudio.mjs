@@ -174,8 +174,13 @@ await page.waitForURL(new RegExp(`/materias/${materiaId}/chat$`), {
   timeout: 20000,
 });
 await page.getByRole("heading", { name: "Compañero de preparación" }).waitFor();
-await page.getByRole("button", { name: shortcutPrompt }).click();
-await page.waitForTimeout(400);
+if ((await page.getByRole("button", { name: shortcutPrompt }).count()) !== 0) {
+  throw new Error("suggested message chip is still rendered");
+}
+if ((await page.content()).includes(shortcutPrompt)) {
+  throw new Error("suggested message copy is still present before composing");
+}
+await sendChat(page, shortcutPrompt);
 
 const emptyHtml = await page.content();
 writeFileSync(`${evidence}/chat-empty.html`, emptyHtml);
@@ -200,10 +205,6 @@ if (/cómo puedo ayudarte|soy un asistente|generic chatbot/i.test(emptyReply)) {
 if (emptyReply.includes(token) || emptyHtml.includes(apunteFileName)) {
   throw new Error("empty chat leaked file content before upload");
 }
-if (!emptyHtml.includes(shortcutPrompt)) {
-  throw new Error("missing shortcut chip in chat UI");
-}
-
 await page.goto(`${baseUrl}/materias/${materiaId}/cargar`, {
   waitUntil: "networkidle",
 });

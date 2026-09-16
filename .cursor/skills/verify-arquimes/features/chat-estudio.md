@@ -1,11 +1,11 @@
 # Chat de estudio
 
-Chat de estudio lives in `/materias/[id]/chat` as the primary study companion. It supports multi-session chats per materia, shortcut chips, and progressive tutoring grounded in apuntes + archivo del examen + nota + temas. Teaching answers map visible topics, open one block at a time, render KaTeX formulas, and close with a comprehension check. Sessions and messages persist in durable storage.
+Chat de estudio lives in `/materias/[id]/chat` as the primary study companion. It supports multi-session chats and free-form prompts per materia, with progressive tutoring grounded in apuntes + archivo del examen + nota + temas. Teaching answers map visible topics, open one block at a time, render KaTeX formulas, and close with a comprehension check. Sessions and messages persist in durable storage.
 
 ## Sub-features
 
 - `chat-empty-materia` on a materia with no apuntes/exam files answers honestly that there is no material (no fake preparado, no generic chatbot voice).
-- `chat-shortcut` sends at least one atajo chip from the composer.
+- `chat-composer` sends a free-form study request from the composer, without suggested-message chips.
 - `chat-session-create` creates a new chat session and shows it in the left list.
 - `chat-optimistic-messenger` shows the user bubble on the right and a visible assistant-side `Pensando` state before the response.
 - `chat-grounded-tutor` uses the disposable local OpenAI-compatible provider to verify a long grounded response with a topic map, progressive first block, formulas, citations, and 2–3 questions.
@@ -16,7 +16,7 @@ Chat de estudio lives in `/materias/[id]/chat` as the primary study companion. I
 - Open a materia and enter tab `Chat`.
 - The left panel button `+ Nuevo chat` creates sessions.
 - Composer accessible name: `Escribí un mensaje`. Send: `Enviar mensaje`.
-- Use the learning shortcut chip (`Necesito aprender todo el apunte...`).
+- Type the study request directly in the composer.
 
 ## Driving it with verify-arquimes
 
@@ -30,7 +30,7 @@ Preconditions:
 .cursor/skills/verify-arquimes/bin/drive-chat-estudio
 ```
 
-- **Empty + atajo.** From `/` create a materia, open `Chat`, click one atajo chip and verify the answer is honest when material is missing. Capture `artifacts/verify-arquimes/chat-empty.html`.
+- **Empty + composer.** From `/` create a materia, open `Chat`, verify there are no suggested-message chips, type a request, and verify the answer is honest when material is missing. Capture `artifacts/verify-arquimes/chat-empty.html`.
 - **Load exam info.** Upload one apunte PDF en `/cargar`, verificar `grounding.readableCount > 0` en `/api/chat`, luego crear examen en `/examen` con nota y agregar un tema desde el detalle.
 - **New session + send.** Back in `Chat`, click `+ Nuevo chat`, send `¿Qué describe el tensor de Cauchy-Stress?` and capture `artifacts/verify-arquimes/chat-grounded.html`.
 - **Expected response.** The local mock rejects the request unless the server prompt contains all four concepts recovered from the beginning, middle, and end of the disposable PDF plus the tutor contract. The rendered answer must have a topic map, one progressive block, at least two checks, KaTeX, and the exact source citation. Never allow fake readiness claims.

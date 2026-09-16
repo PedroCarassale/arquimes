@@ -70,7 +70,7 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
 4. Resumen honesto: si no hay examen, temas o práctica, lo dice
 5. Chat multi-sesión por materia (`/materias/[id]/chat`):
    - crear, abrir, renombrar y borrar sesiones
-   - atajos para aprender el apunte progresivamente, trazar una ruta, abrir un tema y simular
+   - compositor libre y área de conversación amplia para estudiar sin distracciones
    - tutoría progresiva con mapa de temas, fórmulas KaTeX, ejemplos y chequeos de comprensión
    - recuperación por consulta sobre apuntes, archivo de examen, nota y temas
    - extracción robusta de PDF con `pdf-parse` (capa de texto)

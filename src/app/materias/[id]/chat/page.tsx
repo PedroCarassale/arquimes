@@ -20,6 +20,7 @@ export default async function MateriaChatPage({ params }: PageProps) {
       materiaId={id}
       materiaName={materia.name}
       materiaInfo={materiaInfo || "Privada"}
+      immersive
     >
       <StudyChatWorkspace materiaId={id} />
     </MateriaLayout>

@@ -8,6 +8,7 @@ interface MateriaLayoutProps {
   materiaId: string;
   materiaName: string;
   materiaInfo?: string;
+  immersive?: boolean;
   children: React.ReactNode;
 }
 
@@ -25,6 +26,7 @@ export function MateriaLayout({
   materiaId,
   materiaName,
   materiaInfo,
+  immersive = false,
   children,
 }: MateriaLayoutProps) {
   const pathname = usePathname();
@@ -32,14 +34,26 @@ export function MateriaLayout({
 
   return (
     <AppShell>
-      <div className="p-8">
-        <div className="mb-6">
-          <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
+      <div
+        className={
+          immersive
+            ? "flex min-h-screen flex-col p-4 lg:h-screen lg:min-h-[640px] lg:overflow-hidden lg:p-5"
+            : "p-8"
+        }
+      >
+        <div className={immersive ? "mb-3 shrink-0" : "mb-6"}>
+          <div
+            className={`font-mono text-xs uppercase tracking-wider text-foreground-muted ${
+              immersive ? "mb-1" : "mb-2"
+            }`}
+          >
             Materias / {materiaName}
           </div>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="font-serif text-3xl mb-1">{materiaName}</h1>
+              <h1 className={`mb-1 font-serif ${immersive ? "text-2xl" : "text-3xl"}`}>
+                {materiaName}
+              </h1>
               {materiaInfo && (
                 <p className="text-sm text-foreground-muted">{materiaInfo}</p>
               )}
@@ -47,7 +61,11 @@ export function MateriaLayout({
           </div>
         </div>
 
-        <nav className="flex gap-6 border-b border-border-subtle mb-8">
+        <nav
+          className={`flex shrink-0 gap-6 overflow-x-auto border-b border-border-subtle ${
+            immersive ? "mb-3" : "mb-8"
+          }`}
+        >
           {tabs.map((tab) => {
             const href = `${basePath}${tab.href}`;
             const isActive = tab.href === ""
@@ -81,7 +99,7 @@ export function MateriaLayout({
           })}
         </nav>
 
-        {children}
+        <div className={immersive ? "min-h-0 flex-1" : undefined}>{children}</div>
       </div>
     </AppShell>
   );
