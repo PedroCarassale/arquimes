@@ -157,11 +157,15 @@ export function buildGroundingSnippet(
 
   const chunks = chunkForRetrieval(normalized);
   const selected = selectChunks(chunks, query);
+  const perChunkBudget = Math.max(
+    400,
+    Math.floor((maxChars - selected.length * 80) / selected.length)
+  );
   const rendered = selected
     .sort((a, b) => a.index - b.index)
     .map(
       ({ index, text: chunk }) =>
-        `[fragmento ${index + 1} de ${chunks.length}]\n${chunk}`
+        `[fragmento ${index + 1} de ${chunks.length}]\n${clip(chunk, perChunkBudget)}`
     )
     .join("\n\n");
 
