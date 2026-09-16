@@ -1,0 +1,29 @@
+{
+  "resting": {
+    "textarea": 28,
+    "composer": 42
+  },
+  "multiline": {
+    "textarea": 46,
+    "composer": 60
+  },
+  "capped": {
+    "textarea": 112,
+    "composer": 126
+  },
+  "reset": {
+    "textarea": 28,
+    "composer": 42
+  },
+  "shiftedValue": "Primera línea\nSegunda línea",
+  "postsAfterShiftEnter": 0,
+  "chatPosts": 2,
+  "assertions": {
+    "compactAtRest": true,
+    "shiftEnterAddsNewline": true,
+    "textareaGrows": true,
+    "textareaCaps": true,
+    "textareaResets": true,
+    "enterAndClickSend": true
+  }
+}
