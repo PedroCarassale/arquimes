@@ -27,11 +27,14 @@ export async function GET(
       { status: 404 }
     );
   }
+  const url = new URL(request.url);
+  const download = url.searchParams.get("download") === "1";
+  const disposition = download ? "attachment" : "inline";
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type":
         persisted?.type || material.type || "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(material.name)}"`,
+      "Content-Disposition": `${disposition}; filename="${encodeURIComponent(material.name)}"`,
     },
   });
 }

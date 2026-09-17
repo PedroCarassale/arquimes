@@ -15,6 +15,7 @@ export type StudySource = {
   name: string;
   kind: StudySourceKind;
   text: string | null;
+  materialId?: string;
   unreadableHint?: string;
 };
 
@@ -133,6 +134,7 @@ export function groundingFromContext(ctx: StudyContext): GroundingPayload {
       name: s.name,
       kind: s.kind,
       readable: Boolean(s.text?.trim()),
+      materialId: s.materialId,
     })),
     exams: ctx.exams,
   };
@@ -155,6 +157,7 @@ export async function sourcesFromMateriales(
           name: material.name,
           kind: material.kind === "examen" ? "examen" : "apunte",
           text: storageMeta.extractedText,
+          materialId: material.id,
           unreadableHint: unreadableHintFromStatus(
             storageMeta.extractionStatus,
             storageMeta.extractionDetail
@@ -172,6 +175,7 @@ export async function sourcesFromMateriales(
         name: material.name,
         kind: material.kind === "examen" ? "examen" : "apunte",
         text: legacyText,
+        materialId: material.id,
       } as StudySource;
     })
   );
@@ -201,6 +205,7 @@ export async function sourcesFromExamen(
       name: examen.fileName || `Archivo · ${examName}`,
       kind: "examen",
       text: extracted,
+      materialId: examen.materialId,
     });
   }
   return sources;

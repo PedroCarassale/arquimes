@@ -5,7 +5,7 @@ import { readStudyFileContent } from "@/lib/file-store";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -35,11 +35,14 @@ export async function GET(
     );
   }
   const fileName = examen.fileName || material.name || "examen";
+  const url = new URL(request.url);
+  const download = url.searchParams.get("download") === "1";
+  const disposition = download ? "attachment" : "inline";
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type":
         persisted?.type || material.type || "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
+      "Content-Disposition": `${disposition}; filename="${encodeURIComponent(fileName)}"`,
     },
   });
 }

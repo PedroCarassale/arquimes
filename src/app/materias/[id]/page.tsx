@@ -5,6 +5,7 @@ import { getMateria, getMateriales, getExamenes, getTemas } from "@/lib/db";
 import { examDisplayName } from "@/lib/format";
 import { calculatePreparation } from "@/lib/mastery";
 import { MASTERY_LABELS, type MasteryState } from "@/lib/types";
+import { materialViewerRoute } from "@/lib/material-viewer";
 
 export const dynamic = "force-dynamic";
 
@@ -159,10 +160,19 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                     </>
                   ) : (
                     <Link
-                      href={`/materias/${id}/examenes/${nextExamen.id}`}
+                      href={
+                        nextExamen.materialId
+                          ? materialViewerRoute({
+                              materiaId: id,
+                              materialId: nextExamen.materialId,
+                              volver: `/materias/${id}`,
+                              etiqueta: "Volver al resumen",
+                            })
+                          : `/materias/${id}/examenes/${nextExamen.id}`
+                      }
                       className="text-accent text-sm hover:underline"
                     >
-                      Ver archivo →
+                      Ver archivo online →
                     </Link>
                   )}
                 </div>
@@ -251,10 +261,19 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                     </>
                   ) : (
                     <Link
-                      href={`/materias/${id}/examenes/${nextExamen.id}`}
+                      href={
+                        nextExamen.materialId
+                          ? materialViewerRoute({
+                              materiaId: id,
+                              materialId: nextExamen.materialId,
+                              volver: `/materias/${id}`,
+                              etiqueta: "Volver al resumen",
+                            })
+                          : `/materias/${id}/examenes/${nextExamen.id}`
+                      }
                       className="text-accent text-sm hover:underline"
                     >
-                      Ver archivo →
+                      Ver archivo online →
                     </Link>
                   )}
                 </div>
@@ -407,13 +426,22 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                 ) : (
                   <div className="border border-border-subtle divide-y divide-border-subtle">
                     {materiales.slice(0, 3).map((material) => (
-                      <div key={material.id} className="p-3 flex items-center gap-3">
+                      <Link
+                        key={material.id}
+                        href={materialViewerRoute({
+                          materiaId: id,
+                          materialId: material.id,
+                          volver: `/materias/${id}`,
+                          etiqueta: "Volver al resumen",
+                        })}
+                        className="p-3 flex items-center gap-3 hover:bg-surface transition-colors"
+                      >
                         <span className="text-xs font-mono text-foreground-muted w-8">
                           {material.type.includes("pdf") ? "PDF" : material.type.includes("image") ? "IMG" : "DOC"}
                         </span>
                         <span className="flex-1 text-sm truncate">{material.name}</span>
-                        <span className="text-xs text-foreground-muted">Abrir →</span>
-                      </div>
+                        <span className="text-xs text-accent">Ver →</span>
+                      </Link>
                     ))}
                     {materiales.length > 3 && (
                       <Link

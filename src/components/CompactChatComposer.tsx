@@ -25,6 +25,8 @@ type CompactChatComposerProps = {
   onAttachFiles?: (files: File[]) => void;
   uploadChip?: ComposerUploadChip | null;
   uploadFeedback?: ComposerUploadFeedback | null;
+  uploadChipHref?: string | null;
+  uploadChipActionLabel?: string;
 };
 
 export function CompactChatComposer({
@@ -37,6 +39,8 @@ export function CompactChatComposer({
   onAttachFiles,
   uploadChip,
   uploadFeedback,
+  uploadChipHref,
+  uploadChipActionLabel = "Ver",
 }: CompactChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [draggingFiles, setDraggingFiles] = useState(false);
@@ -71,6 +75,14 @@ export function CompactChatComposer({
           <span className="text-[11px] text-foreground-muted">
             {formatFileSize(uploadChip.size)} · {uploadLabel}
           </span>
+          {uploadChipHref && uploadChip.status === "saved" && (
+            <a
+              href={uploadChipHref}
+              className="text-[11px] text-accent hover:underline"
+            >
+              {uploadChipActionLabel} →
+            </a>
+          )}
         </div>
       )}
       {uploadFeedback && (

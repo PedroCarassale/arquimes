@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { Material, Materia } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { materialViewerRoute } from "@/lib/material-viewer";
 
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -263,12 +265,15 @@ export function ApuntesLibrary({
                     {formatRelativeDate(material.addedAt)}
                   </div>
                   <div className="text-right flex items-center justify-end gap-3">
-                    <a
-                      href={`/api/materiales/${material.id}`}
+                    <Link
+                      href={materialViewerRoute({
+                        materiaId: materia.id,
+                        materialId: material.id,
+                      })}
                       className="text-xs text-accent hover:underline"
                     >
-                      Abrir →
-                    </a>
+                      Ver →
+                    </Link>
                     <button
                       onClick={() => handleDelete(material.id)}
                       className="text-xs text-foreground-muted hover:text-red-500"

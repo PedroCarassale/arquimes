@@ -120,7 +120,12 @@ export type GroundingPayload = {
   materiaName: string;
   sourceCount: number;
   readableCount: number;
-  sources: { name: string; kind: StudySourceKind; readable: boolean }[];
+  sources: {
+    name: string;
+    kind: StudySourceKind;
+    readable: boolean;
+    materialId?: string;
+  }[];
   exams: StudyExamSummary[];
 };
 

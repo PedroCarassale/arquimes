@@ -3,8 +3,15 @@ import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { EliminarExamen } from "@/components/EliminarExamen";
 import { AgregarTema } from "@/components/AgregarTema";
-import { getExamen, getMateria, getMaterial, getTemas } from "@/lib/db";
+import {
+  getExamen,
+  getMateria,
+  getMaterial,
+  getTemas,
+  materialHasContent,
+} from "@/lib/db";
 import { examDisplayName, formatFileSize } from "@/lib/format";
+import { materialViewerRoute } from "@/lib/material-viewer";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +30,7 @@ export default async function ExamenDetailPage({ params }: PageProps) {
   const material = examen.materialId
     ? await getMaterial(examen.materialId)
     : undefined;
-  const hasFile = Boolean(material?.contentBase64);
+  const hasFile = material ? materialHasContent(material) : false;
   const temas = await getTemas(examen.id);
   const materiaInfo = [materia.faculty, materia.catedra]
     .filter(Boolean)
@@ -53,12 +60,19 @@ export default async function ExamenDetailPage({ params }: PageProps) {
           <p className="text-sm text-foreground-muted mb-4">
             {formatFileSize(examen.fileSize ?? material?.size ?? 0)}
           </p>
-          <a
-            href={`/api/examenes/${examen.id}/archivo`}
-            className="text-accent text-sm hover:underline"
-          >
-            Descargar archivo →
-          </a>
+          {material && (
+            <Link
+              href={materialViewerRoute({
+                materiaId: id,
+                materialId: material.id,
+                volver: `/materias/${id}/examenes/${examId}`,
+                etiqueta: "Volver al examen",
+              })}
+              className="text-accent text-sm hover:underline"
+            >
+              Ver archivo online →
+            </Link>
+          )}
         </div>
       ) : (
         <p className="text-sm text-foreground-muted mb-8">

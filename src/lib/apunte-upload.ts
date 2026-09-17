@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
+import type { Material } from "@/lib/types";
 
 const SUPPORTED_EXTENSIONS = new Set([
   "pdf",
@@ -33,7 +34,12 @@ export function validateApunteFile(file: File): string | null {
   return null;
 }
 
-export async function uploadApunteFile(materiaId: string, file: File): Promise<void> {
+type UploadedMaterial = Pick<Material, "id" | "name" | "type" | "size">;
+
+export async function uploadApunteFile(
+  materiaId: string,
+  file: File
+): Promise<UploadedMaterial> {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -41,8 +47,15 @@ export async function uploadApunteFile(materiaId: string, file: File): Promise<v
     method: "POST",
     body: formData,
   });
-  const payload = (await response.json().catch(() => ({}))) as { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || `No pude guardar “${file.name}”.`);
+  const payload = (await response.json().catch(() => ({}))) as
+    | UploadedMaterial
+    | { error?: string };
+  if (!response.ok || !("id" in payload)) {
+    const errorMessage =
+      typeof (payload as { error?: unknown }).error === "string"
+        ? (payload as { error?: string }).error
+        : undefined;
+    throw new Error(errorMessage || `No pude guardar “${file.name}”.`);
   }
+  return payload;
 }

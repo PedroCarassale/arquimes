@@ -8,6 +8,7 @@ import { CompactChatComposer } from "@/components/CompactChatComposer";
 import type { ComposerUploadChip } from "@/components/CompactChatComposer";
 import { normalizeChatMessage } from "@/lib/chat-message";
 import { uploadApunteFile, validateApunteFile } from "@/lib/apunte-upload";
+import { materialViewerRoute } from "@/lib/material-viewer";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
 type ProviderSummary = {
@@ -47,6 +48,7 @@ export function StudyChatWorkspace({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadChip, setUploadChip] = useState<ComposerUploadChip | null>(null);
+  const [uploadChipHref, setUploadChipHref] = useState<string | null>(null);
   const [uploadFeedback, setUploadFeedback] = useState<{
     tone: "success" | "error";
     text: string;
@@ -111,6 +113,15 @@ export function StudyChatWorkspace({
     () => (state.grounding?.readableCount ?? 0) > 0,
     [state.grounding]
   );
+  const citationMaterialMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const source of state.grounding?.sources || []) {
+      if (source.materialId && !map.has(source.name)) {
+        map.set(source.name, source.materialId);
+      }
+    }
+    return map;
+  }, [state.grounding]);
 
   async function createSession() {
     setError(null);
@@ -249,10 +260,11 @@ export function StudyChatWorkspace({
         type: file.type,
         status: "saving",
       });
+      setUploadChipHref(null);
       setUploadFeedback(null);
 
       try {
-        await uploadApunteFile(materiaId, file);
+        const uploaded = await uploadApunteFile(materiaId, file);
         savedCount += 1;
         setUploadChip({
           name: file.name,
@@ -260,6 +272,14 @@ export function StudyChatWorkspace({
           type: file.type,
           status: "saved",
         });
+        setUploadChipHref(
+          materialViewerRoute({
+            materiaId,
+            materialId: uploaded.id,
+            volver: `/materias/${materiaId}/chat`,
+            etiqueta: "Volver al chat",
+          })
+        );
         setUploadFeedback({
           tone: "success",
           text: `Apunte guardado: ${file.name}`,
@@ -271,6 +291,7 @@ export function StudyChatWorkspace({
           type: file.type,
           status: "error",
         });
+        setUploadChipHref(null);
         setUploadFeedback({
           tone: "error",
           text:
@@ -486,14 +507,33 @@ export function StudyChatWorkspace({
                         <span className="font-mono uppercase tracking-wider">
                           Fuentes
                         </span>
-                        {renderedMessage.citations.map((citation) => (
-                          <span
-                            key={citation}
-                            className="rounded-full border border-border bg-surface px-2 py-0.5"
-                          >
-                            {citation}
-                          </span>
-                        ))}
+                        {renderedMessage.citations.map((citation) => {
+                          const materialId = citationMaterialMap.get(citation);
+                          if (!materialId) {
+                            return (
+                              <span
+                                key={citation}
+                                className="rounded-full border border-border bg-surface px-2 py-0.5"
+                              >
+                                {citation}
+                              </span>
+                            );
+                          }
+                          return (
+                            <Link
+                              key={citation}
+                              href={materialViewerRoute({
+                                materiaId,
+                                materialId,
+                                volver: `/materias/${materiaId}/chat`,
+                                etiqueta: "Volver al chat",
+                              })}
+                              className="rounded-full border border-border bg-surface px-2 py-0.5 text-accent hover:underline"
+                            >
+                              {citation}
+                            </Link>
+                          );
+                        })}
                       </footer>
                     )}
                   </div>
@@ -542,6 +582,8 @@ export function StudyChatWorkspace({
               }}
               uploadChip={uploadChip}
               uploadFeedback={uploadFeedback}
+              uploadChipHref={uploadChipHref}
+              uploadChipActionLabel="Abrir"
               onSend={() =>
                 sendMessage(draft).catch((err) => setError(err.message))
               }
