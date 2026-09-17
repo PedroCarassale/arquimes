@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { formatFileSize } from "@/lib/format";
 import {
   inferMaterialViewerKind,
@@ -74,44 +74,6 @@ function ViewerContent({
   kind: MaterialViewerKind;
   inlineUrl: string;
 }) {
-  const [text, setText] = useState<string>("");
-  const [loadingText, setLoadingText] = useState(false);
-  const [textError, setTextError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (kind !== "text") return;
-    let cancelled = false;
-
-    setLoadingText(true);
-    setTextError(null);
-
-    fetch(inlineUrl)
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("No pude cargar el texto de este archivo.");
-        }
-        const content = await response.text();
-        if (!cancelled) setText(content);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setTextError(error instanceof Error ? error.message : "No pude abrir este texto.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingText(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [inlineUrl, kind]);
-
-  const textBody = useMemo(() => {
-    if (!text) return "";
-    return text.replace(/^\uFEFF/, "");
-  }, [text]);
-
   if (kind === "pdf") {
     return (
       <iframe
@@ -125,9 +87,12 @@ function ViewerContent({
   if (kind === "image") {
     return (
       <div className="flex min-h-[40vh] items-center justify-center bg-surface p-2">
-        <img
+        <Image
           src={inlineUrl}
           alt="Vista previa del material"
+          width={1600}
+          height={1200}
+          unoptimized
           className="max-h-[70vh] max-w-full object-contain"
         />
       </div>
@@ -135,24 +100,12 @@ function ViewerContent({
   }
 
   if (kind === "text") {
-    if (loadingText) {
-      return (
-        <p className="py-8 text-center text-sm text-foreground-muted">
-          Cargando texto…
-        </p>
-      );
-    }
-    if (textError) {
-      return (
-        <p role="alert" className="py-8 text-center text-sm text-red-400">
-          {textError}
-        </p>
-      );
-    }
     return (
-      <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words bg-surface p-4 text-sm leading-6 text-foreground">
-        {textBody || "Este archivo no tiene texto visible."}
-      </pre>
+      <iframe
+        src={inlineUrl}
+        title="Visor de texto"
+        className="h-[70vh] w-full border border-border-subtle bg-white"
+      />
     );
   }
 

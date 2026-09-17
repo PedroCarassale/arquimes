@@ -4,15 +4,15 @@ import { readStudyFileContent } from "@/lib/file-store";
 
 export const dynamic = "force-dynamic";
 
-type Params = { materiaId: string; materialId: string };
+type Params = { id: string; materialId: string };
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<Params> }
 ) {
-  const { materiaId, materialId } = await params;
+  const { id, materialId } = await params;
   const material = await getMaterial(materialId);
-  if (!material || material.materiaId !== materiaId) {
+  if (!material || material.materiaId !== id) {
     return NextResponse.json(
       { error: "Archivo no encontrado en esta materia." },
       { status: 404 }
