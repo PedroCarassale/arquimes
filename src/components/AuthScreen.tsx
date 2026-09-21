@@ -7,6 +7,36 @@ import { authClient } from "@/lib/auth-client";
 
 type AuthMode = "login" | "register";
 
+function GoogleGIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0"
+    >
+      <path
+        fill="#4285F4"
+        d="M17.64 9.20455C17.64 8.56637 17.5827 7.95273 17.4764 7.36364H9V10.8455H13.8436C13.635 11.9705 13.0009 12.9236 12.0468 13.561V15.8191H14.9555C16.6573 14.2527 17.64 11.9455 17.64 9.20455Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18C11.43 18 13.4673 17.1945 14.9555 15.8191L12.0468 13.561C11.2418 14.1019 10.2118 14.4209 9 14.4209C6.65591 14.4209 4.67182 12.8373 3.96409 10.7091H0.957275V13.0409C2.43727 15.9809 5.47909 18 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.96409 10.7091C3.78409 10.1682 3.68182 9.59091 3.68182 9C3.68182 8.40909 3.78409 7.83182 3.96409 7.29091V4.95909H0.957273C0.348182 6.17273 0 7.54545 0 9C0 10.4545 0.348182 11.8273 0.957273 13.0409L3.96409 10.7091Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.57909C10.3227 3.57909 11.51 4.03364 12.4436 4.92545L15.0205 2.34864C13.4632 0.894545 11.4259 0 9 0C5.47909 0 2.43727 2.01909 0.957275 4.95909L3.96409 7.29091C4.67182 5.16273 6.65591 3.57909 9 3.57909Z"
+      />
+    </svg>
+  );
+}
+
 export function AuthScreen({
   mode,
   googleEnabled,
@@ -193,13 +223,16 @@ export function AuthScreen({
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleBusy || !googleEnabled}
-          className="mt-3 h-11 w-full border border-border text-sm transition-colors hover:border-accent disabled:opacity-60"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 border border-border bg-[#0c0d10] px-3 text-sm font-mono transition-colors hover:border-accent disabled:opacity-60"
         >
-          {!googleEnabled
-            ? "Google no configurado en este entorno"
-            : googleBusy
-              ? "Redirigiendo..."
-              : "Continuar con Google"}
+          {googleEnabled && <GoogleGIcon />}
+          <span>
+            {!googleEnabled
+              ? "Google no configurado en este entorno"
+              : googleBusy
+                ? "Redirigiendo..."
+                : "Continuar con Google"}
+          </span>
         </button>
 
         <p className="mt-6 text-sm text-foreground-muted">
