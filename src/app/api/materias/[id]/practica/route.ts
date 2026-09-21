@@ -11,6 +11,8 @@ import {
   pickPracticeTema,
 } from "@/lib/practice";
 import { MASTERY_LABELS, type PracticeOutcome } from "@/lib/types";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id: materiaId } = await params;
     const materia = await getMateria(materiaId);
     if (!materia) {
@@ -85,10 +88,7 @@ export async function POST(
       preparation: calculatePreparation(temas),
       nextItem,
     });
-  } catch {
-    return NextResponse.json(
-      { error: "No se pudo guardar la práctica." },
-      { status: 500 }
-    );
+  } catch (error) {
+    return apiErrorResponse(error, "No se pudo guardar la práctica.");
   }
 }

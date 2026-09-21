@@ -1,0 +1,18 @@
+{
+  "baseUrl": "http://127.0.0.1:43167",
+  "userA": {
+    "email": "usuario-a-1790001319385@example.com",
+    "materiaName": "Materia Aislada 1790001319385",
+    "materiaId": "7d2a5772-1c6e-42c3-b7a4-986e7ed70e8d"
+  },
+  "userB": {
+    "email": "usuario-b-1790001319385@example.com"
+  },
+  "screenshots": [
+    "01-register-screen.png",
+    "02-user-a-home-with-materia.png",
+    "03-login-screen.png",
+    "04-user-b-home-empty.png",
+    "05-user-b-cannot-open-a-materia.png"
+  ]
+}

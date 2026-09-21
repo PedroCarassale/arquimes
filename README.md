@@ -9,8 +9,8 @@ No hay comunidad en este corte.
 ## Stack
 
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS 4
-- Materias y metadatos en cookies httpOnly por sesión
-- Archivos (bytes + texto extraído) en SQLite/libSQL owner-scoped
+- Better Auth (email+contraseña + Google OAuth)
+- Materias, exámenes, temas, chats y archivos en SQLite/libSQL (Turso) con scope por `user_id`
 - **Chat multi-sesión durable** con SQLite/libSQL (`@libsql/client`) para Vercel Serverless (Turso/libSQL)
 - Providers de IA compatibles: OpenAI y Anthropic
 
@@ -27,6 +27,10 @@ Abrí `http://127.0.0.1:43131`. Un puerto distinto es una sesión vacía.
 
 Copiá `.env.example` a `.env.local` y completá según necesites:
 
+- `BETTER_AUTH_SECRET`: secreto de sesión (obligatorio en producción).
+- `BETTER_AUTH_URL`: URL base de auth (ej. `http://127.0.0.1:43131` en local, `https://arquimes-app.vercel.app` en prod).
+- `GOOGLE_CLIENT_ID`: client id OAuth de Google.
+- `GOOGLE_CLIENT_SECRET`: client secret OAuth de Google.
 - `LIBSQL_URL`: URL de Turso/libSQL (obligatoria en producción para guardar chats y archivos).
 - `LIBSQL_AUTH_TOKEN`: token de Turso/libSQL (si aplica).
 - `AI_PROVIDER`: opcional (`openai` o `anthropic`).
@@ -38,13 +42,29 @@ Copiá `.env.example` a `.env.local` y completá según necesites:
 - `PDF_OCR_API_URL`: endpoint opcional para OCR de PDFs escaneados.
 - `PDF_OCR_API_KEY`: bearer token opcional para ese endpoint OCR.
 
+### Google OAuth redirect URI
+
+Configurá en Google Cloud Console:
+
+- Producción: `https://arquimes-app.vercel.app/api/auth/callback/google`
+- Local: `http://127.0.0.1:43131/api/auth/callback/google` (o tu puerto local actual)
+
 Si no hay key de IA, la UI sigue funcionando pero el envío de mensajes responde con un error honesto en español.
 Si no hay `PDF_OCR_API_URL`, los PDFs escaneados se detectan como no legibles y el chat lo explica sin inventar contenido.
+Si faltan `GOOGLE_CLIENT_ID/SECRET`, la app sigue funcionando con email+contraseña (Google queda deshabilitado en ese entorno).
 
-## Límites actuales
+## Seguridad y límites actuales
 
 - Límite de subida: **15 MB por archivo**.
-- Los bytes del archivo ya no quedan en cookies; se guardan en libSQL con scope privado por owner cookie.
+- Sesiones con cookie httpOnly segura (Better Auth) + protección CSRF integrada.
+- Passwords hasheadas por Better Auth (nunca plaintext).
+- Todas las queries sensibles filtran por `user_id` en backend.
+- Los bytes del archivo se guardan en libSQL con scope privado por usuario autenticado.
+
+## Migración de datos locales
+
+Antes de auth multiusuario, el proyecto guardaba parte del estado en cookies de sesión/owner anónimo.
+En este corte se usan tablas nuevas con `user_id`; ese estado antiguo puede quedar inaccesible, lo cual es intencional para evitar mezclas entre usuarios.
 
 ## Verificar en local
 

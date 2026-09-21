@@ -1,24 +1,24 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createMateria, getMaterias } from "@/lib/db";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    await requireServerSession();
     const materias = await getMaterias();
     return NextResponse.json(materias);
   } catch (error) {
-    console.error("GET /api/materias error:", error);
-    return NextResponse.json(
-      { error: "Error interno", details: String(error) },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error interno");
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await requireServerSession();
     const body = await request.json();
     const { name, faculty, catedra } = body;
 
@@ -39,10 +39,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(materia, { status: 201 });
   } catch (error) {
-    console.error("POST /api/materias error:", error);
-    return NextResponse.json(
-      { error: "Error al crear la materia", details: String(error) },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, "Error al crear la materia");
   }
 }

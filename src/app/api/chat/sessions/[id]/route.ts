@@ -4,6 +4,8 @@ import {
   renameChatSession,
   StorageConfigError,
 } from "@/lib/chat-store";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id } = await params;
     const body = await request.json();
     const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -33,9 +36,7 @@ export async function PATCH(
     if (error instanceof StorageConfigError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    const message =
-      error instanceof Error ? error.message : "No pude renombrar el chat.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "No pude renombrar el chat.");
   }
 }
 
@@ -44,6 +45,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id } = await params;
     const deleted = await deleteChatSession(id);
     if (!deleted) {
@@ -57,8 +59,6 @@ export async function DELETE(
     if (error instanceof StorageConfigError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    const message =
-      error instanceof Error ? error.message : "No pude eliminar el chat.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "No pude eliminar el chat.");
   }
 }

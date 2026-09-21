@@ -1,23 +1,31 @@
 import { NextResponse } from "next/server";
 import { getMateria, updateMateriaPreparacion } from "@/lib/db";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: Params) {
-  const { id } = await params;
-  const materia = await getMateria(id);
-  if (!materia) {
-    return NextResponse.json({ error: "No encuentro esa materia." }, { status: 404 });
+  try {
+    await requireServerSession();
+    const { id } = await params;
+    const materia = await getMateria(id);
+    if (!materia) {
+      return NextResponse.json({ error: "No encuentro esa materia." }, { status: 404 });
+    }
+    return NextResponse.json({
+      preparacion: materia.preparacion || null,
+    });
+  } catch (error) {
+    return apiErrorResponse(error, "No pude leer la preparación.");
   }
-  return NextResponse.json({
-    preparacion: materia.preparacion || null,
-  });
 }
 
 export async function PUT(request: Request, { params }: Params) {
   try {
+    await requireServerSession();
     const { id } = await params;
     const materia = await getMateria(id);
     if (!materia) {
@@ -66,9 +74,7 @@ export async function PUT(request: Request, { params }: Params) {
 
     return NextResponse.json({ preparacion: updated.preparacion });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "No pude guardar la preparación.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "No pude guardar la preparación.");
   }
 }
 

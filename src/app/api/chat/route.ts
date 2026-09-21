@@ -14,22 +14,25 @@ import {
 import { providerStatus, ProviderConfigError } from "@/lib/ai-providers";
 import { getSuggestedChips, runGroundedChat } from "@/lib/chat-service";
 import { composeStudyReply } from "@/lib/study-chat";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const materiaId = url.searchParams.get("materiaId")?.trim();
-  if (!materiaId) {
-    return NextResponse.json(
-      { error: "Falta la materia para abrir el chat." },
-      { status: 400 }
-    );
-  }
-  const examenId = url.searchParams.get("examenId")?.trim() || undefined;
-  const requestedSessionId = url.searchParams.get("sessionId")?.trim() || undefined;
-
   try {
+    await requireServerSession();
+    const url = new URL(request.url);
+    const materiaId = url.searchParams.get("materiaId")?.trim();
+    if (!materiaId) {
+      return NextResponse.json(
+        { error: "Falta la materia para abrir el chat." },
+        { status: 400 }
+      );
+    }
+    const examenId = url.searchParams.get("examenId")?.trim() || undefined;
+    const requestedSessionId =
+      url.searchParams.get("sessionId")?.trim() || undefined;
     const ctx = await getStudyContext(materiaId);
     if (!ctx) {
       return NextResponse.json(
@@ -57,14 +60,13 @@ export async function GET(request: Request) {
     if (error instanceof StorageConfigError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    const message =
-      error instanceof Error ? error.message : "No pude abrir el chat.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "No pude abrir el chat.");
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await requireServerSession();
     const body = await request.json();
     const content =
       typeof body.content === "string" ? body.content.trim() : "";
@@ -163,9 +165,7 @@ export async function POST(request: Request) {
     if (error instanceof StorageConfigError || error instanceof ProviderConfigError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    const message =
-      error instanceof Error ? error.message : "Error al enviar el mensaje";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "Error al enviar el mensaje");
   }
 }
 

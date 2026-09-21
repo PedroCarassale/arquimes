@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 const navItems = [
   { href: "/", label: "Inicio", icon: "◇", enabled: true },
@@ -14,12 +15,24 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
   const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
   const chatHref = materiaId ? `/materias/${materiaId}/chat` : "/materias";
   const items = [
     ...navItems,
     { href: chatHref, label: "Chats", icon: "○", enabled: true },
   ];
+
+  const profileName = session?.user?.name?.trim() || "Cuenta";
+  const profileInitial = profileName[0]?.toUpperCase() || "U";
+  const profileEmail = session?.user?.email || "Sesión activa";
+
+  async function handleSignOut() {
+    await authClient.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[180px] bg-background border-r border-border-subtle flex flex-col">
@@ -70,13 +83,22 @@ export function Sidebar() {
       <div className="p-4 border-t border-border-subtle">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-surface-elevated flex items-center justify-center text-sm font-medium">
-            P
+            {profileInitial}
           </div>
           <div>
-            <div className="text-sm font-medium">Pedro</div>
-            <div className="text-xs text-foreground-muted">Mi perfil →</div>
+            <div className="text-sm font-medium truncate">{profileName}</div>
+            <div className="text-xs text-foreground-muted truncate">{profileEmail}</div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            void handleSignOut();
+          }}
+          className="mt-3 text-xs text-foreground-muted hover:text-foreground"
+        >
+          Cerrar sesión
+        </button>
       </div>
     </aside>
   );

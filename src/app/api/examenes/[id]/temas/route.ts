@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createTema, getTemas, getExamen } from "@/lib/db";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -8,9 +10,14 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const temas = await getTemas(id);
-  return NextResponse.json(temas);
+  try {
+    await requireServerSession();
+    const { id } = await params;
+    const temas = await getTemas(id);
+    return NextResponse.json(temas);
+  } catch (error) {
+    return apiErrorResponse(error, "No pude leer los temas del examen.");
+  }
 }
 
 export async function POST(
@@ -18,6 +25,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id: examenId } = await params;
 
     const examen = await getExamen(examenId);
@@ -41,10 +49,7 @@ export async function POST(
     const tema = await createTema(uuid(), examenId, name.trim());
 
     return NextResponse.json(tema, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Error al crear el tema" },
-      { status: 500 }
-    );
+  } catch (error) {
+    return apiErrorResponse(error, "Error al crear el tema");
   }
 }

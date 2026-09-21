@@ -8,6 +8,8 @@ import {
   generatePlanPreparacion,
   getPlanPreparacionSchema,
 } from "@/lib/preparacion-plan";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id } = await params;
     const materia = await getMateria(id);
     if (!materia) {
@@ -48,10 +51,6 @@ export async function POST(
     if (error instanceof ProviderConfigError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    const message =
-      error instanceof Error
-        ? error.message
-        : "No pude generar el plan de preparación.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "No pude generar el plan de preparación.");
   }
 }

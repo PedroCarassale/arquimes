@@ -4,6 +4,8 @@ import { createExamenWithFile, getExamenes, getMateria } from "@/lib/db";
 import { storeStudyFile } from "@/lib/file-store";
 import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
 import { extractTextFromBuffer } from "@/lib/study-chat";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +13,14 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const examenes = await getExamenes(id);
-  return NextResponse.json(examenes);
+  try {
+    await requireServerSession();
+    const { id } = await params;
+    const examenes = await getExamenes(id);
+    return NextResponse.json(examenes);
+  } catch (error) {
+    return apiErrorResponse(error, "No pude leer los exámenes.");
+  }
 }
 
 export async function POST(
@@ -21,6 +28,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id: materiaId } = await params;
 
     const materia = await getMateria(materiaId);
@@ -93,8 +101,6 @@ export async function POST(
 
     return NextResponse.json(examen, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "No pude guardar el examen.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(error, "No pude guardar el examen.");
   }
 }

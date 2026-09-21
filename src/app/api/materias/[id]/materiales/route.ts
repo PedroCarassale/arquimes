@@ -4,6 +4,8 @@ import { createMaterial, getMateriales, getMateria } from "@/lib/db";
 import { storeStudyFile } from "@/lib/file-store";
 import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
 import { extractTextFromBuffer } from "@/lib/study-chat";
+import { requireServerSession } from "@/lib/auth-session";
+import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -11,14 +13,19 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const materiales = await getMateriales(id);
-  return NextResponse.json(
-    materiales.map(({ contentBase64, ...rest }) => ({
-      ...rest,
-      hasContent: Boolean(contentBase64 || rest.storageKey?.startsWith("libsql:")),
-    }))
-  );
+  try {
+    await requireServerSession();
+    const { id } = await params;
+    const materiales = await getMateriales(id);
+    return NextResponse.json(
+      materiales.map(({ contentBase64, ...rest }) => ({
+        ...rest,
+        hasContent: Boolean(contentBase64 || rest.storageKey?.startsWith("libsql:")),
+      }))
+    );
+  } catch (error) {
+    return apiErrorResponse(error, "No pude leer los materiales.");
+  }
 }
 
 export async function POST(
@@ -26,6 +33,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireServerSession();
     const { id: materiaId } = await params;
 
     const materia = await getMateria(materiaId);
@@ -88,9 +96,7 @@ export async function POST(
       { ...material, contentBase64: undefined, hasContent: true },
       { status: 201 }
     );
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Error al subir el archivo";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    return apiErrorResponse(error, "Error al subir el archivo");
   }
 }

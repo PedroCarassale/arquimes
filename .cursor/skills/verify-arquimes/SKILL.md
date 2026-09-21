@@ -5,7 +5,7 @@ description: Drive the Arquimes Next.js web UI locally the way a student does. U
 
 # verify-arquimes
 
-Arquimes is a private exam-prep Next.js app. Students create a materia, upload files, declare an exam, configure optional preparación, and read an honest resumen. Persistence is an httpOnly cookie store on the **browser origin** (`127.0.0.1:<port>`), so two windows on the same origin share data. Isolation is a unique port **and** a disposable browser profile (cookie jar or Chromium `user-data-dir`).
+Arquimes is a private exam-prep Next.js app. Students must authenticate first (email+password; optionally Google), then create a materia, upload files, declare an exam, configure optional preparación, and read an honest resumen. Persistence is now user-scoped in libSQL/Turso with Better Auth sessions.
 
 **One Next.js dev server per checkout.** Next 16 refuses a second `npm run dev` in the same `/workspace` (lock in `.next`). Two isolated Next processes are therefore **not** possible here. Do not start another. If `run/current` is green, reuse it. If some other `next dev` owns the repo, stop that run only if it is this verification PID; otherwise refuse rather than hijacking a stranger's server. Isolate browser data with `USER_DATA_DIR` / cookie jar even when the port is unique.
 
@@ -31,7 +31,7 @@ What it does:
 
 Teardown: `.cursor/skills/verify-arquimes/bin/cleanup` (kills **that PID only**; does not delete evidence).
 
-There is no auth. Empty cookie jar = empty materias list.
+Auth gate is mandatory. Empty browser profile lands on `/login` (not directly on `Tus materias`).
 
 ## Doctor
 
@@ -60,6 +60,9 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | Handle | Kind |
 | --- | --- |
 | `Tus materias` | visible heading, route `/` |
+| `Iniciar sesión` / `Crear cuenta` | auth entry routes `/login`, `/register` |
+| `Nombre`, `Email`, `Contraseña` | auth form fields |
+| `Entrar` / `Crear cuenta` | auth submit buttons |
 | `Crear materia` / `+ Crear materia` | link/button name, route `/materias/nueva` |
 | `Empezá tu propio espacio` | heading on create |
 | `Nombre de la materia` | textbox accessible name |
@@ -84,7 +87,7 @@ Stable handles (prefer these, never generated CSS hashes, child indexes, or coor
 | `Así lo explicaría` / `Todavía no` | practice submit |
 | `Practicar ahora →` | Resumen link into práctica |
 
-One mapped feature per drive unless the task names more. Start from `/` unless the feature file says otherwise. A toast or `Creando...` is not proof: reopen from **Tus materias** (or Apuntes list) after refresh.
+One mapped feature per drive unless the task names more. Start from `/login`, authenticate, and only then continue with the feature flow. A toast or `Creando...` is not proof: reopen from **Tus materias** (or Apuntes list) after refresh.
 
 ```bash
 .cursor/skills/verify-arquimes/bin/drive-crear-materia

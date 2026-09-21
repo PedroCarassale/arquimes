@@ -20,6 +20,9 @@
       }
     ],
     "paths": {
+      "@/lib/db": ["./src/lib/db-auth.ts"],
+      "@/lib/file-store": ["./src/lib/file-store-auth.ts"],
+      "@/lib/chat-store": ["./src/lib/chat-store-auth.ts"],
       "@/*": ["./src/*"]
     }
   },
