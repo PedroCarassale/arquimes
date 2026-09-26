@@ -329,7 +329,7 @@ export function AuthScreen({
           {error && (
             <p
               key={errorPulse}
-              className="t-toast is-open t-input is-shaking text-sm text-red-300"
+              className="t-toast is-open t-input is-shaking break-words text-sm text-red-300"
               role="alert"
             >
               {error}
