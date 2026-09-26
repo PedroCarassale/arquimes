@@ -26,7 +26,7 @@ export function ChatMarkdown({
     <div className="chat-markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeInvalidMathFallback, rehypeKatex]}
+        rehypePlugins={[rehypeInvalidMathFallback, rehypeKatex, rehypeKatexA11y]}
         components={{
           a: ({ children: linkChildren, ...props }) => (
             <a {...props} target="_blank" rel="noreferrer">
@@ -44,6 +44,12 @@ export function ChatMarkdown({
 function rehypeInvalidMathFallback() {
   return (tree: HastNode) => {
     isolateInvalidMath(tree);
+  };
+}
+
+function rehypeKatexA11y() {
+  return (tree: HastNode) => {
+    annotateKatexAccessibility(tree);
   };
 }
 
@@ -81,6 +87,24 @@ function isolateInvalidMath(node: HastNode): void {
   });
 }
 
+function annotateKatexAccessibility(node: HastNode): void {
+  if (node.type === "element" && node.tagName === "span") {
+    const classes = classNames(node.properties?.className);
+    if (classes.includes("katex")) {
+      const expression = extractKatexExpression(node);
+      if (expression) {
+        node.properties = {
+          ...node.properties,
+          role: "math",
+          "aria-label": expression,
+        };
+      }
+    }
+  }
+
+  node.children?.forEach(annotateKatexAccessibility);
+}
+
 function invalidMathClasses(node: HastNode): string[] {
   if (node.type === "element" && node.tagName === "code") {
     const classes = classNames(node.properties?.className);
@@ -113,4 +137,24 @@ function classNames(value: unknown): string[] {
 function textContent(node: HastNode): string {
   if (node.type === "text") return node.value || "";
   return node.children?.map(textContent).join("") || "";
+}
+
+function extractKatexExpression(node: HastNode): string {
+  const annotation = findFirst(node, (candidate) => {
+    return candidate.type === "element" && candidate.tagName === "annotation";
+  });
+  const rawExpression = annotation ? textContent(annotation) : textContent(node);
+  return rawExpression.replace(/\s+/g, " ").trim();
+}
+
+function findFirst(
+  node: HastNode,
+  predicate: (candidate: HastNode) => boolean
+): HastNode | null {
+  if (predicate(node)) return node;
+  for (const child of node.children || []) {
+    const match = findFirst(child, predicate);
+    if (match) return match;
+  }
+  return null;
 }

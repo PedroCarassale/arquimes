@@ -130,7 +130,8 @@ export function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
-  const chatHref = materiaId ? `/materias/${materiaId}/chat` : "/materias";
+  const isMateriasChatPicker = pathname === "/materias/chats";
+  const chatHref = materiaId ? `/materias/${materiaId}/chat` : "/materias/chats";
 
   const items = useMemo(
     () => [
@@ -185,12 +186,17 @@ export function Sidebar() {
       <nav className="flex-1 px-3">
         {items.map((item) => {
           const isChatItem = item.label === "Chats";
+          const isMateriasItem = item.label === "Materias";
           const isActive =
             item.href === "/"
               ? pathname === "/"
               : isChatItem
-                ? pathname.includes("/chat")
-                : pathname.startsWith(item.href) && !pathname.includes("/chat");
+                ? pathname.includes("/chat") || isMateriasChatPicker
+                : isMateriasItem
+                  ? pathname.startsWith("/materias") &&
+                    !pathname.includes("/chat") &&
+                    !isMateriasChatPicker
+                  : pathname.startsWith(item.href);
           return (
             <Link
               key={item.label}
