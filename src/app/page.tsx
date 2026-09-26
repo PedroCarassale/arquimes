@@ -78,18 +78,59 @@ export default async function HomePage() {
         </div>
 
         {materias.length === 0 ? (
-          <div className="border border-border p-12 text-center">
-            <p className="text-foreground-muted mb-6">
-              No tenés materias todavía.
-            </p>
-            <Link
-              href="/materias/nueva"
-              aria-label="Crear materia"
-              className="inline-flex items-center gap-2 bg-accent text-background px-4 py-2 text-sm font-medium hover:bg-accent/90 transition-colors"
-            >
-              + Crear materia
-            </Link>
-          </div>
+          <section className="mx-auto max-w-4xl border border-border-subtle bg-surface/50 p-8 md:p-12 t-reveal-in">
+            <div className="mb-10">
+              <p className="text-xs font-mono uppercase tracking-[0.24em] text-foreground-muted">
+                Primera noche en Arquimes
+              </p>
+              <h2 className="mt-3 max-w-3xl font-serif text-4xl leading-tight md:text-5xl">
+                Tu espacio para estudiar con foco, sin sentirte solo.
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-foreground-muted">
+                Acá convertís apuntes sueltos en un plan claro para llegar al examen
+                con más calma.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="mb-4 text-sm font-mono uppercase tracking-[0.22em] text-foreground-muted">
+                Cómo usarlo
+              </h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {[
+                  "Subí tus apuntes y el material del examen.",
+                  "Charlá con el tutor para destrabar temas difíciles.",
+                  "Practicá pregunta por pregunta, tema por tema.",
+                  "Medí qué tan preparado estás antes de rendir.",
+                ].map((step, index) => (
+                  <div
+                    key={step}
+                    className="border border-border-subtle bg-background/40 p-4"
+                  >
+                    <p className="text-xs font-mono text-accent">
+                      0{index + 1}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-foreground-muted">
+                      {step}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-10 border-t border-border-subtle pt-8">
+              <Link
+                href="/materias/nueva"
+                aria-label="Agregar materia"
+                className="inline-flex items-center justify-center bg-accent px-6 py-3 text-sm font-mono uppercase tracking-[0.12em] text-background transition-colors hover:bg-accent/90"
+              >
+                Agregar materia
+              </Link>
+              <p className="mt-3 text-sm text-foreground-muted">
+                Empezá por una sola materia. El resto se va ordenando con vos.
+              </p>
+            </div>
+          </section>
         ) : (
           <>
             <div className="border-b border-border-subtle mb-6">
