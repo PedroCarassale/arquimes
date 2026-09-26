@@ -1,0 +1,11 @@
+{
+  "baseUrl": "http://127.0.0.1:43167",
+  "invalidMessage": "Ingresá un email válido, por ejemplo nombre@universidad.edu.",
+  "entrar": "pointer",
+  "google": "not-allowed",
+  "googleWhenEnabled": "pointer",
+  "screenshots": [
+    "auth-invalid-es.png",
+    "auth-pointer-buttons.png"
+  ]
+}

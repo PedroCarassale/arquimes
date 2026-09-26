@@ -75,6 +75,39 @@ export function CompactChatComposer({
           <span className="text-[11px] text-foreground-muted">
             {formatFileSize(uploadChip.size)} · {uploadLabel}
           </span>
+          {uploadChip.status === "saving" && (
+            <span
+              className="inline-flex size-3.5 items-center justify-center text-accent"
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                className="t-spinner size-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M8 2.25a5.75 5.75 0 1 1-5.66 4.75" strokeLinecap="round" />
+              </svg>
+            </span>
+          )}
+          {uploadChip.status === "saved" && (
+            <span
+              className="t-success-check text-emerald-300"
+              data-state="in"
+              aria-hidden="true"
+            >
+              <svg viewBox="0 0 16 16" className="size-3.5" fill="none">
+                <path
+                  d="m3.25 8.4 3 3.1 6.5-6.8"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          )}
           {uploadChipHref && uploadChip.status === "saved" && (
             <a
               href={uploadChipHref}
@@ -87,8 +120,9 @@ export function CompactChatComposer({
       )}
       {uploadFeedback && (
         <p
+          key={uploadFeedback.text}
           role={uploadFeedback.tone === "error" ? "alert" : undefined}
-          className={`mb-1.5 text-xs ${
+          className={`t-toast is-open mb-1.5 text-xs ${
             uploadFeedback.tone === "error" ? "text-red-300" : "text-emerald-300"
           }`}
         >

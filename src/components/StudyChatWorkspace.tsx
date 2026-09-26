@@ -334,7 +334,10 @@ export function StudyChatWorkspace({
       </div>
 
       {error && (
-        <p role="alert" className="mb-4 border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <p
+          role="alert"
+          className="t-toast is-open mb-4 border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+        >
           {error}
         </p>
       )}
@@ -454,10 +457,24 @@ export function StudyChatWorkspace({
 
           <div
             ref={threadRef}
-            className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-4 md:p-6"
+            className={`min-h-0 flex-1 space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-4 md:p-6 ${
+              !loading ? "t-reveal-in" : ""
+            }`}
             aria-live="polite"
           >
-            {loading && <p className="text-sm text-foreground-muted">Cargando conversación…</p>}
+            {loading && (
+              <div aria-label="Cargando conversación" className="space-y-4">
+                <div className="max-w-[72%] rounded-2xl border border-border bg-surface-elevated p-4">
+                  <div className="t-skeleton-line h-3 w-24 rounded-full" />
+                  <div className="mt-3 t-skeleton-line h-2.5 w-full rounded-full" />
+                  <div className="mt-2 t-skeleton-line h-2.5 w-5/6 rounded-full" />
+                </div>
+                <div className="ml-auto max-w-[66%] rounded-2xl bg-accent/20 p-4">
+                  <div className="t-skeleton-line h-2.5 w-full rounded-full" />
+                  <div className="mt-2 t-skeleton-line h-2.5 w-3/4 rounded-full" />
+                </div>
+              </div>
+            )}
             {!loading && state.messages.length === 0 && (
               <div className="mx-auto mt-10 max-w-lg border border-border-subtle bg-surface/80 p-5 text-center">
                 <p className="font-serif text-xl text-foreground">

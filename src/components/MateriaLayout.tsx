@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "./AppShell";
 
 interface MateriaLayoutProps {
@@ -28,6 +29,36 @@ export function MateriaLayout({
 }: MateriaLayoutProps) {
   const pathname = usePathname();
   const basePath = `/materias/${materiaId}`;
+  const tabRefs = useRef<Array<HTMLAnchorElement | null>>([]);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+  const activeIndex = useMemo(() => {
+    const index = tabs.findIndex((tab) => {
+      const href = `${basePath}${tab.href}`;
+      return tab.href === ""
+        ? pathname === basePath || pathname === `${basePath}/`
+        : pathname.startsWith(href);
+    });
+    return index >= 0 ? index : 0;
+  }, [basePath, pathname]);
+
+  useEffect(() => {
+    const updateIndicator = () => {
+      const activeTab = tabRefs.current[activeIndex];
+      if (!activeTab) return;
+      setIndicator({
+        left: activeTab.offsetLeft,
+        width: activeTab.offsetWidth,
+        ready: true,
+      });
+    };
+
+    const raf = requestAnimationFrame(updateIndicator);
+    window.addEventListener("resize", updateIndicator);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updateIndicator);
+    };
+  }, [activeIndex, pathname]);
 
   return (
     <AppShell>
@@ -65,24 +96,34 @@ export function MateriaLayout({
         </div>
 
         <nav
-          className={`flex shrink-0 gap-6 overflow-x-auto border-b border-border-subtle ${
+          className={`t-tabs relative flex shrink-0 gap-6 overflow-x-auto border-b border-border-subtle ${
             immersive ? "mb-2" : "mb-8"
           }`}
         >
-          {tabs.map((tab) => {
+          <span
+            aria-hidden="true"
+            className={`t-tabs-pill ${indicator.ready ? "is-ready" : ""}`}
+            style={{
+              transform: `translateX(${indicator.left}px)`,
+              width: `${indicator.width}px`,
+            }}
+          />
+          {tabs.map((tab, index) => {
             const href = `${basePath}${tab.href}`;
-            const isActive = tab.href === ""
-              ? pathname === basePath || pathname === `${basePath}/`
-              : pathname.startsWith(href);
+            const isActive = tabs[activeIndex]?.label === tab.label;
 
             return (
               <Link
                 key={tab.label}
                 href={href}
-                className={`${immersive ? "pb-2" : "pb-3"} -mb-[1px] border-b-2 text-sm transition-colors ${
+                ref={(node) => {
+                  tabRefs.current[index] = node;
+                }}
+                aria-current={isActive ? "page" : undefined}
+                className={`t-tab relative z-[1] whitespace-nowrap ${immersive ? "pb-2" : "pb-3"} -mb-[1px] text-sm transition-colors ${
                   isActive
-                    ? "text-foreground border-foreground"
-                    : "text-foreground-muted border-transparent hover:text-foreground"
+                    ? "text-foreground"
+                    : "text-foreground-muted hover:text-foreground"
                 }`}
               >
                 {tab.label}

@@ -168,19 +168,34 @@ export function PreparacionClient({
           </div>
 
           {error && (
-            <p role="alert" className="text-sm text-red-500">
+            <p role="alert" className="t-toast is-open text-sm text-red-500">
               {error}
             </p>
           )}
 
-          {notice && <p className="text-sm text-accent">{notice}</p>}
+          {notice && (
+            <p className="t-toast is-open inline-flex items-center gap-2 text-sm text-accent">
+              <span className="t-success-check" data-state="in" aria-hidden="true">
+                <svg viewBox="0 0 16 16" className="size-3.5" fill="none">
+                  <path
+                    d="m3.25 8.4 3 3.1 6.5-6.8"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              {notice}
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="button"
               onClick={() => void savePreparacion(true)}
               disabled={saving}
-              className="border border-accent px-4 py-2 text-xs font-mono uppercase tracking-wider text-accent hover:bg-accent hover:text-background transition-colors disabled:opacity-60"
+              className="border border-accent px-4 py-2 text-xs font-mono uppercase tracking-wider text-accent hover:bg-accent hover:text-background transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Guardando..." : "Guardar configuración"}
             </button>
@@ -188,7 +203,7 @@ export function PreparacionClient({
               type="button"
               onClick={() => void handleGenerate()}
               disabled={generating || saving || !hasConfig}
-              className="bg-accent px-4 py-2 text-xs font-mono uppercase tracking-wider text-background hover:bg-accent/90 transition-colors disabled:opacity-60"
+              className="bg-accent px-4 py-2 text-xs font-mono uppercase tracking-wider text-background hover:bg-accent/90 transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {generating
                 ? "Generando..."

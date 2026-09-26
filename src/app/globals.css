@@ -12,6 +12,27 @@
   --border-subtle: rgba(255, 255, 255, 0.06);
   --surface: #111111;
   --surface-elevated: #1a1a1a;
+  --shake-distance: 6px;
+  --shake-overshoot: 4px;
+  --shake-dur-a: 80ms;
+  --shake-dur-b: 60ms;
+  --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --revert-dur: 280ms;
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tabs-pill-bg: rgb(243, 164, 75);
+  --toast-open: 350ms;
+  --toast-close: 250ms;
+  --toast-distance: 12px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --reveal-dur: 400ms;
+  --reveal-blur: 2px;
+  --reveal-ease: ease-in-out;
+  --check-opacity-dur: 500ms;
+  --check-path-dur: 500ms;
+  --check-path-delay: 80ms;
 }
 
 @theme inline {
@@ -47,6 +68,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+a[href],
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="tab"]:not([aria-disabled="true"]),
+label[for],
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -64,6 +99,201 @@ body {
 
 input[type="file"] {
   display: none;
+}
+
+.t-input {
+  transition: border-color 150ms ease-out;
+  will-change: transform;
+}
+
+.t-input.is-shaking {
+  animation: t-input-shake
+    calc(var(--shake-dur-a) * 2 + var(--shake-dur-b) * 2) linear;
+}
+
+.t-error-msg {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-2px);
+  transition:
+    opacity var(--revert-dur) ease-out,
+    max-height var(--revert-dur) ease-out,
+    transform var(--revert-dur) ease-out;
+}
+
+.t-input-wrap.is-error .t-error-msg {
+  max-height: 32px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes t-input-shake {
+  0% {
+    transform: translateX(0);
+    animation-timing-function: var(--shake-ease);
+  }
+  28.57% {
+    transform: translateX(var(--shake-distance));
+    animation-timing-function: var(--shake-ease);
+  }
+  57.14% {
+    transform: translateX(calc(var(--shake-distance) * -1));
+    animation-timing-function: var(--shake-ease);
+  }
+  78.57% {
+    transform: translateX(var(--shake-overshoot));
+    animation-timing-function: var(--shake-ease);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.t-tabs {
+  position: relative;
+}
+
+.t-tab {
+  transition: color var(--tabs-dur) var(--tabs-ease);
+}
+
+.t-tabs-pill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  border-radius: 999px;
+  background: var(--tabs-pill-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--tabs-dur) var(--tabs-ease),
+    width var(--tabs-dur) var(--tabs-ease),
+    opacity 120ms ease-out;
+  will-change: transform, width;
+}
+
+.t-tabs-pill.is-ready {
+  opacity: 1;
+}
+
+.t-toast {
+  opacity: 0;
+  transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+  filter: blur(var(--toast-blur));
+  transition:
+    opacity var(--toast-close) var(--toast-ease),
+    transform var(--toast-close) var(--toast-ease),
+    filter var(--toast-close) var(--toast-ease);
+}
+
+.t-toast.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--toast-open) var(--toast-ease),
+    transform var(--toast-open) var(--toast-ease),
+    filter var(--toast-open) var(--toast-ease);
+}
+
+.t-skeleton-line {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.t-skeleton-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.22) 48%,
+    transparent 100%
+  );
+  animation: t-skeleton-shimmer 1200ms ease-in-out infinite;
+}
+
+@keyframes t-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.t-reveal-in {
+  animation: t-reveal-in var(--reveal-dur) var(--reveal-ease);
+}
+
+@keyframes t-reveal-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--reveal-blur));
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.t-success-check {
+  display: inline-block;
+  opacity: 0;
+}
+
+.t-success-check svg {
+  display: block;
+  overflow: visible;
+}
+
+.t-success-check svg path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+}
+
+.t-success-check[data-state="in"] {
+  animation: t-check-fade var(--check-opacity-dur)
+    cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.t-success-check[data-state="in"] svg path {
+  animation: t-check-draw var(--check-path-dur)
+    cubic-bezier(0.22, 1, 0.36, 1) var(--check-path-delay) forwards;
+}
+
+@keyframes t-check-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes t-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.t-spinner {
+  animation: t-spin 800ms linear infinite;
+}
+
+@keyframes t-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 select {

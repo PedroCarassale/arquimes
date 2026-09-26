@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 type AuthMode = "login" | "register";
+type AuthField = "name" | "email" | "password";
 
 function GoogleGIcon() {
   return (
@@ -53,17 +54,100 @@ export function AuthScreen({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [errorPulse, setErrorPulse] = useState(0);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<AuthField, string>>
+  >({});
+  const [shakingField, setShakingField] = useState<AuthField | null>(null);
 
   const isRegister = mode === "register";
+
+  function showError(message: string) {
+    setError(message);
+    setErrorPulse((current) => current + 1);
+  }
+
+  function clearFieldError(field: AuthField) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function triggerFieldShake(field: AuthField) {
+    setShakingField(null);
+    requestAnimationFrame(() => {
+      setShakingField(field);
+      window.setTimeout(() => {
+        setShakingField((current) => (current === field ? null : current));
+      }, 320);
+    });
+  }
+
+  function getValidationMessage(
+    field: AuthField,
+    input: HTMLInputElement
+  ): string {
+    if (input.validity.valueMissing) {
+      if (field === "name") return "Ingresá tu nombre.";
+      if (field === "email") return "Ingresá tu email.";
+      return "Ingresá tu contraseña.";
+    }
+    if (field === "email" && input.validity.typeMismatch) {
+      return "Ingresá un email válido, por ejemplo nombre@universidad.edu.";
+    }
+    if (field === "password" && input.validity.tooShort) {
+      return "La contraseña debe tener al menos 8 caracteres.";
+    }
+    return "Revisá este campo.";
+  }
+
+  function invalidHandler(field: AuthField) {
+    return (event: React.InvalidEvent<HTMLInputElement>) => {
+      const message = getValidationMessage(field, event.currentTarget);
+      event.currentTarget.setCustomValidity(message);
+      setFieldErrors((current) => ({ ...current, [field]: message }));
+      triggerFieldShake(field);
+    };
+  }
+
+  function inputHandler(field: AuthField) {
+    return (event: React.FormEvent<HTMLInputElement>) => {
+      event.currentTarget.setCustomValidity("");
+      clearFieldError(field);
+    };
+  }
 
   async function handleEmailAuth(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     if (!email.trim() || !password.trim() || (isRegister && !name.trim())) {
-      setError("Completá todos los campos requeridos.");
+      showError("Completá todos los campos requeridos.");
+      if (isRegister && !name.trim()) {
+        setFieldErrors((current) => ({
+          ...current,
+          name: "Ingresá tu nombre.",
+        }));
+        triggerFieldShake("name");
+      } else if (!email.trim()) {
+        setFieldErrors((current) => ({
+          ...current,
+          email: "Ingresá tu email.",
+        }));
+        triggerFieldShake("email");
+      } else if (!password.trim()) {
+        setFieldErrors((current) => ({
+          ...current,
+          password: "Ingresá tu contraseña.",
+        }));
+        triggerFieldShake("password");
+      }
       return;
     }
 
@@ -76,7 +160,7 @@ export function AuthScreen({
           password: password.trim(),
         });
         if (registerError) {
-          setError(registerError.message || "No pude crear tu cuenta.");
+          showError(registerError.message || "No pude crear tu cuenta.");
           return;
         }
       } else {
@@ -85,14 +169,14 @@ export function AuthScreen({
           password: password.trim(),
         });
         if (loginError) {
-          setError(loginError.message || "No pude iniciar sesión.");
+          showError(loginError.message || "No pude iniciar sesión.");
           return;
         }
       }
       router.push(redirectTo);
       router.refresh();
     } catch (authError) {
-      setError(
+      showError(
         authError instanceof Error
           ? authError.message
           : "No pude completar la autenticación."
@@ -105,7 +189,7 @@ export function AuthScreen({
   async function handleGoogleSignIn() {
     setError(null);
     if (!googleEnabled) {
-      setError(
+      showError(
         "Google OAuth todavía no está configurado en este entorno. Podés entrar con email y contraseña."
       );
       return;
@@ -118,10 +202,10 @@ export function AuthScreen({
         callbackURL: redirectTo,
       });
       if (googleError) {
-        setError(googleError.message || "No pude iniciar con Google.");
+        showError(googleError.message || "No pude iniciar con Google.");
       }
     } catch (authError) {
-      setError(
+      showError(
         authError instanceof Error
           ? authError.message
           : "No pude iniciar con Google."
@@ -148,7 +232,11 @@ export function AuthScreen({
 
         <form className="mt-8 space-y-5" onSubmit={handleEmailAuth}>
           {isRegister && (
-            <div>
+            <div
+              className={`t-input-wrap ${
+                fieldErrors.name ? "is-error" : ""
+              }`}
+            >
               <label
                 htmlFor="auth-name"
                 className="mb-2 block text-xs font-mono uppercase tracking-wider text-foreground-muted"
@@ -159,14 +247,25 @@ export function AuthScreen({
                 id="auth-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onInput={inputHandler("name")}
+                onInvalid={invalidHandler("name")}
                 autoComplete="name"
-                className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+                required
+                aria-invalid={Boolean(fieldErrors.name)}
+                className={`t-input h-11 w-full border bg-background px-3 text-sm outline-none transition-colors focus:border-accent ${
+                  fieldErrors.name ? "is-error border-red-400" : "border-border"
+                } ${shakingField === "name" ? "is-shaking" : ""}`}
                 placeholder="Pedro"
               />
+              <p className="t-error-msg mt-1 text-xs text-red-300">
+                {fieldErrors.name || ""}
+              </p>
             </div>
           )}
 
-          <div>
+          <div
+            className={`t-input-wrap ${fieldErrors.email ? "is-error" : ""}`}
+          >
             <label
               htmlFor="auth-email"
               className="mb-2 block text-xs font-mono uppercase tracking-wider text-foreground-muted"
@@ -178,13 +277,26 @@ export function AuthScreen({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onInput={inputHandler("email")}
+              onInvalid={invalidHandler("email")}
               autoComplete="email"
-              className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+              required
+              aria-invalid={Boolean(fieldErrors.email)}
+              className={`t-input h-11 w-full border bg-background px-3 text-sm outline-none transition-colors focus:border-accent ${
+                fieldErrors.email ? "is-error border-red-400" : "border-border"
+              } ${shakingField === "email" ? "is-shaking" : ""}`}
               placeholder="vos@universidad.edu"
             />
+            <p className="t-error-msg mt-1 text-xs text-red-300">
+              {fieldErrors.email || ""}
+            </p>
           </div>
 
-          <div>
+          <div
+            className={`t-input-wrap ${
+              fieldErrors.password ? "is-error" : ""
+            }`}
+          >
             <label
               htmlFor="auth-password"
               className="mb-2 block text-xs font-mono uppercase tracking-wider text-foreground-muted"
@@ -196,18 +308,38 @@ export function AuthScreen({
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onInput={inputHandler("password")}
+              onInvalid={invalidHandler("password")}
               autoComplete={isRegister ? "new-password" : "current-password"}
-              className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+              required
+              minLength={8}
+              aria-invalid={Boolean(fieldErrors.password)}
+              className={`t-input h-11 w-full border bg-background px-3 text-sm outline-none transition-colors focus:border-accent ${
+                fieldErrors.password
+                  ? "is-error border-red-400"
+                  : "border-border"
+              } ${shakingField === "password" ? "is-shaking" : ""}`}
               placeholder="Mínimo 8 caracteres"
             />
+            <p className="t-error-msg mt-1 text-xs text-red-300">
+              {fieldErrors.password || ""}
+            </p>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <p
+              key={errorPulse}
+              className="t-toast is-open t-input is-shaking text-sm text-red-300"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
             disabled={busy}
-            className="h-11 w-full bg-accent text-background text-sm font-mono uppercase tracking-wider transition-colors hover:bg-accent/90 disabled:opacity-60"
+            className="h-11 w-full bg-accent text-background text-sm font-mono uppercase tracking-wider transition-colors hover:bg-accent/90 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy
               ? isRegister
@@ -223,7 +355,7 @@ export function AuthScreen({
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleBusy || !googleEnabled}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 border border-border bg-[#0c0d10] px-3 text-sm font-mono transition-colors hover:border-accent disabled:opacity-60"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 border border-border bg-[#0c0d10] px-3 text-sm font-mono transition-colors hover:border-accent enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {googleEnabled && <GoogleGIcon />}
           <span>
