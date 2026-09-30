@@ -81,7 +81,6 @@ async function callOpenAI(messages: ProviderMessage[]): Promise<ProviderResult> 
     body: JSON.stringify({
       model: OPENAI_MODEL,
       max_completion_tokens: OPENAI_TUTOR_MAX_TOKENS,
-      ...(!OPENAI_MODEL.startsWith("gpt-5") ? { temperature: 0.2 } : {}),
       messages,
     }),
   });

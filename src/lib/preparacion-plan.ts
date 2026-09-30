@@ -134,7 +134,6 @@ export async function generatePlanPreparacion(input: {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       max_completion_tokens: OPENAI_PLAN_MAX_TOKENS,
-      ...(!OPENAI_MODEL.startsWith("gpt-5") ? { temperature: 0.3 } : {}),
       response_format: {
         type: "json_schema",
         json_schema: {
