@@ -55,3 +55,5 @@ artifacts/verify-arquimes/teoria-errores-*.pdf
 
 # verification run state (keep evidence in artifacts/)
 .cursor/skills/verify-arquimes/run/current
+.arquimes-data.db-shm
+.arquimes-data.db-wal

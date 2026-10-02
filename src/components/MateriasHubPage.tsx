@@ -4,6 +4,7 @@ import { examDisplayName } from "@/lib/format";
 import { getMaterias, getExamenes, getTemas } from "@/lib/db";
 import { calculatePreparation } from "@/lib/mastery";
 import { type MasteryState } from "@/lib/types";
+import { RememberMaterias } from "@/lib/materia-snapshot";
 
 type MateriasHubMode = "inicio" | "selector-chat";
 
@@ -76,6 +77,21 @@ export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps)
 
   return (
     <AppShell>
+      <RememberMaterias
+        items={materiasWithData.map((materia) => ({
+          id: materia.id,
+          snapshot: {
+            name: materia.name,
+            info: [materia.faculty, materia.catedra].filter(Boolean).join(" · ") || "Privada",
+            resumenVariant: !materia.nextExamen
+              ? "sin_examen"
+              : materia.temas.length === 0
+                ? "sin_temas"
+                : "con_temas",
+            temasCount: materia.temas.length,
+          },
+        }))}
+      />
       <div className="p-8">
         <div className="mb-8 flex items-start justify-between">
           <h1 className="font-serif text-4xl">

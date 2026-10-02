@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { MASTERY_LABELS } from "@/lib/types";
 import type { PracticeItem } from "@/lib/practice";
+import { useRememberMateria } from "@/lib/materia-snapshot";
 
 type EmptyKind = "no_temas_no_files" | "no_temas_with_files";
 
@@ -37,6 +38,15 @@ export function PracticaClient({
     preparation: number;
     nextItem: PracticeItem | null;
   } | null>(null);
+
+  useRememberMateria(materiaId, {
+    practicaVariant:
+      empty === "no_temas_no_files"
+        ? "sin_temas_sin_archivos"
+        : empty === "no_temas_with_files"
+          ? "sin_temas_con_archivos"
+          : "pregunta",
+  });
 
   async function submit(outcome: "lo_tengo" | "todavia_no") {
     if (!item) return;

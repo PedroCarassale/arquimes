@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { getMateria } from "@/lib/db";
 import { PreparacionClient } from "./PreparacionClient";
+import { RememberMateria } from "@/lib/materia-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,14 @@ export default async function MateriaPreparacionPage({ params }: PageProps) {
       materiaName={materia.name}
       materiaInfo={materiaInfo || "Privada"}
     >
+      <RememberMateria
+        id={id}
+        snapshot={{
+          hasPreparacionConfig: Boolean(
+            materia.preparacion?.fechaParcial && materia.preparacion.temas.length > 0
+          ),
+        }}
+      />
       <PreparacionClient
         materiaId={id}
         initialPreparacion={materia.preparacion || null}

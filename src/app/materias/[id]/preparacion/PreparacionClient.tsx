@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import type { Materia } from "@/lib/types";
+import { useRememberMateria } from "@/lib/materia-snapshot";
 
 type PreparacionState = NonNullable<Materia["preparacion"]>;
 
@@ -27,6 +28,8 @@ export function PreparacionClient({
 
   const temas = useMemo(() => normalizeTemas(temasInput), [temasInput]);
   const hasConfig = temas.length > 0 && Boolean(fechaParcial);
+
+  useRememberMateria(materiaId, { hasPlan: Boolean(plan) });
 
   const signature = JSON.stringify({
     temas,

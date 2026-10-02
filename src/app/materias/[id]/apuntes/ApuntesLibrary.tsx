@@ -7,6 +7,7 @@ import { Material, Materia } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { materialViewerRoute } from "@/lib/material-viewer";
+import { useRememberMateria } from "@/lib/materia-snapshot";
 
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -40,6 +41,8 @@ export function ApuntesLibrary({
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useRememberMateria(materia.id, { materialesCount: materiales.length });
 
   const loadMateriales = useCallback(async () => {
     const res = await apiFetch(`/api/materias/${materia.id}/materiales`);

@@ -6,6 +6,7 @@ import { examDisplayName } from "@/lib/format";
 import { calculatePreparation } from "@/lib/mastery";
 import { MASTERY_LABELS, type MasteryState } from "@/lib/types";
 import { materialViewerRoute } from "@/lib/material-viewer";
+import { RememberMateria } from "@/lib/materia-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -47,14 +48,16 @@ function getMasteryColor(state: MasteryState): string {
 
 export default async function MateriaResumenPage({ params }: PageProps) {
   const { id } = await params;
-  const materia = await getMateria(id);
+  const [materia, materiales, examenes] = await Promise.all([
+    getMateria(id),
+    getMateriales(id),
+    getExamenes(id),
+  ]);
 
   if (!materia) {
     notFound();
   }
 
-  const materiales = await getMateriales(id);
-  const examenes = await getExamenes(id);
   const nextExamen = examenes[0];
 
   const temas = nextExamen ? await getTemas(nextExamen.id) : [];
@@ -80,6 +83,16 @@ export default async function MateriaResumenPage({ params }: PageProps) {
       materiaName={materia.name}
       materiaInfo={materiaInfo || "Privada"}
     >
+      <RememberMateria
+        id={id}
+        snapshot={{
+          resumenVariant: noExam ? "sin_examen" : noTopics ? "sin_temas" : "con_temas",
+          hasPreparacionConfig,
+          temasCount,
+          materialesCount: materiales.length,
+          examenesCount: examenes.length,
+        }}
+      />
       {!hasPreparacionConfig ? (
         <div className="mb-8 border border-dashed border-border-subtle p-4">
           <p className="text-sm text-foreground-muted">

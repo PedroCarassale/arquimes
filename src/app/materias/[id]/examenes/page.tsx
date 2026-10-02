@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { getExamenes, getMateria } from "@/lib/db";
 import { examDisplayName, formatFileSize } from "@/lib/format";
+import { RememberMateria } from "@/lib/materia-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function ExamenesPage({ params }: PageProps) {
       materiaName={materia.name}
       materiaInfo={materiaInfo || "Privada"}
     >
+      <RememberMateria id={id} snapshot={{ examenesCount: examenes.length }} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="font-serif text-2xl mb-1">Exámenes</h2>

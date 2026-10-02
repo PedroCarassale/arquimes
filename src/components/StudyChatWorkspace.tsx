@@ -9,6 +9,8 @@ import type { ComposerUploadChip } from "@/components/CompactChatComposer";
 import { normalizeChatMessage } from "@/lib/chat-message";
 import { uploadApunteFile, validateApunteFile } from "@/lib/apunte-upload";
 import { materialViewerRoute } from "@/lib/material-viewer";
+import { rememberMateria, useMateriaSnapshot } from "@/lib/materia-snapshot";
+import { StudyChatLoadingSessions, StudyChatLoadingThread } from "@/components/StudyChatLoading";
 import type { ChatMessage, ChatSession, GroundingPayload } from "@/lib/types";
 
 type ProviderSummary = {
@@ -57,6 +59,14 @@ export function StudyChatWorkspace({
   const [renameValue, setRenameValue] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
   const loadSequence = useRef(0);
+  const snapshot = useMateriaSnapshot(materiaId);
+  const skeletonSessions = Math.min(snapshot?.chatSessionsCount ?? 2, 8);
+
+  useEffect(() => {
+    if (!loading) {
+      rememberMateria(materiaId, { chatSessionsCount: state.sessions.length });
+    }
+  }, [loading, materiaId, state.sessions.length]);
 
   const load = useCallback(async (sessionId?: string) => {
     const seq = ++loadSequence.current;
@@ -355,7 +365,9 @@ export function StudyChatWorkspace({
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            {state.sessions.length === 0 ? (
+            {loading && state.sessions.length === 0 ? (
+              <StudyChatLoadingSessions count={skeletonSessions} />
+            ) : state.sessions.length === 0 ? (
               <p className="p-3 text-sm text-foreground-muted">
                 No hay sesiones todavía. Abrí un chat nuevo para arrancar.
               </p>
@@ -462,19 +474,7 @@ export function StudyChatWorkspace({
             }`}
             aria-live="polite"
           >
-            {loading && (
-              <div aria-label="Cargando conversación" className="space-y-4">
-                <div className="max-w-[72%] rounded-2xl border border-border bg-surface-elevated p-4">
-                  <div className="t-skeleton-line h-3 w-24 rounded-full" />
-                  <div className="mt-3 t-skeleton-line h-2.5 w-full rounded-full" />
-                  <div className="mt-2 t-skeleton-line h-2.5 w-5/6 rounded-full" />
-                </div>
-                <div className="ml-auto max-w-[66%] rounded-2xl bg-accent/20 p-4">
-                  <div className="t-skeleton-line h-2.5 w-full rounded-full" />
-                  <div className="mt-2 t-skeleton-line h-2.5 w-3/4 rounded-full" />
-                </div>
-              </div>
-            )}
+            {loading && <StudyChatLoadingThread />}
             {!loading && state.messages.length === 0 && (
               <div className="mx-auto mt-10 max-w-lg border border-border-subtle bg-surface/80 p-5 text-center">
                 <p className="font-serif text-xl text-foreground">

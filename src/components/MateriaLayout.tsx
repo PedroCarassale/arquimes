@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "./AppShell";
+import { useRememberMateria } from "@/lib/materia-snapshot";
 
 interface MateriaLayoutProps {
   materiaId: string;
-  materiaName: string;
-  materiaInfo?: string;
+  materiaName: React.ReactNode;
+  materiaInfo?: React.ReactNode;
   immersive?: boolean;
   children: React.ReactNode;
 }
@@ -20,6 +21,15 @@ const tabs: { href: string; label: string }[] = [
   { href: "/preparacion", label: "Preparación" },
 ];
 
+type Indicator = { left: number; width: number; ready: boolean };
+
+let lastIndicator: Indicator | null = null;
+
+function RememberHeader({ id, name, info }: { id: string; name: string; info?: string }) {
+  useRememberMateria(id, info === undefined ? { name } : { name, info });
+  return null;
+}
+
 export function MateriaLayout({
   materiaId,
   materiaName,
@@ -30,7 +40,9 @@ export function MateriaLayout({
   const pathname = usePathname();
   const basePath = `/materias/${materiaId}`;
   const tabRefs = useRef<Array<HTMLAnchorElement | null>>([]);
-  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+  const [indicator, setIndicator] = useState<Indicator>(
+    () => lastIndicator ?? { left: 0, width: 0, ready: false }
+  );
   const activeIndex = useMemo(() => {
     const index = tabs.findIndex((tab) => {
       const href = `${basePath}${tab.href}`;
@@ -41,20 +53,32 @@ export function MateriaLayout({
     return index >= 0 ? index : 0;
   }, [basePath, pathname]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    let active = true;
     const updateIndicator = () => {
       const activeTab = tabRefs.current[activeIndex];
-      if (!activeTab) return;
-      setIndicator({
+      if (!active || !activeTab) return;
+      const next = {
         left: activeTab.offsetLeft,
         width: activeTab.offsetWidth,
         ready: true,
-      });
+      };
+      lastIndicator = next;
+      setIndicator((current) =>
+        current.left === next.left &&
+        current.width === next.width &&
+        current.ready
+          ? current
+          : next
+      );
     };
 
+    updateIndicator();
     const raf = requestAnimationFrame(updateIndicator);
+    void document.fonts?.ready.then(updateIndicator);
     window.addEventListener("resize", updateIndicator);
     return () => {
+      active = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", updateIndicator);
     };
@@ -62,6 +86,13 @@ export function MateriaLayout({
 
   return (
     <AppShell>
+      {typeof materiaName === "string" && (
+        <RememberHeader
+          id={materiaId}
+          name={materiaName}
+          info={typeof materiaInfo === "string" ? materiaInfo : undefined}
+        />
+      )}
       <div
         className={
           immersive
@@ -81,7 +112,7 @@ export function MateriaLayout({
               immersive ? "shrink-0" : "mb-2"
             }`}
           >
-            {immersive ? "Materia" : `Materias / ${materiaName}`}
+            {immersive ? "Materia" : <>Materias / {materiaName}</>}
           </div>
           <div className="flex items-start justify-between">
             <div>
