@@ -137,7 +137,7 @@ export async function generatePlanPreparacion(input: {
       response_format: {
         type: "json_schema",
         json_schema: {
-          name: "arquimes_plan_preparacion_v1",
+          name: "arquimedes_plan_preparacion_v1",
           strict: true,
           schema: PLAN_RESPONSE_SCHEMA,
         },
@@ -188,7 +188,7 @@ function buildPlanMessages(input: {
   temas: string[];
 }) {
   const system = [
-    "Sos un planificador académico de Arquimes.",
+    "Sos un planificador académico de Arquimedes.",
     "Tu tarea: devolver solo JSON válido y útil para renderizar un plan realista.",
     "No agregues texto fuera del JSON. No uses markdown. No inventes campos.",
     "Usá español rioplatense claro y accionable.",

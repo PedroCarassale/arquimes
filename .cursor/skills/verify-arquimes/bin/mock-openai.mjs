@@ -32,7 +32,7 @@ const server = createServer(async (request, response) => {
     body?.response_format?.json_schema?.name ||
     body?.response_format?.json_schema?.schema?.title;
 
-  if (schemaName === "arquimes_plan_preparacion_v1") {
+  if (schemaName === "arquimedes_plan_preparacion_v1") {
     const messages = Array.isArray(body?.messages) ? body.messages : [];
     const userText = String(messages.at(-1)?.content || "");
     const plan = buildPreparationPlan(userText);

@@ -45,8 +45,8 @@ if command -v lsof >/dev/null 2>&1; then
 fi
 
 body="$(curl -sf "$BASE_URL/" || true)"
-if [[ "$body" != *"Arquimes"* ]]; then
-  echo "doctor: $BASE_URL did not return Arquimes chrome" >&2
+if [[ "$body" != *"Arquimedes"* ]]; then
+  echo "doctor: $BASE_URL did not return Arquimedes chrome" >&2
   exit 1
 fi
 

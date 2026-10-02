@@ -1,4 +1,4 @@
-# Arquimes — Product Vision
+# Arquimedes — Product Vision
 
 > Canonical source of truth for this product. Do not contradict.
 
@@ -6,7 +6,7 @@
 
 Help a student constantly answer: **¿Qué tan preparado estoy para rendir este examen?**
 
-Arquimes is NOT a PDF library, flashcard app, generic chatbot, or study calendar. Those may exist later only in service of exam prep.
+Arquimedes is NOT a PDF library, flashcard app, generic chatbot, or study calendar. Those may exist later only in service of exam prep.
 
 ## Locked Product Sequence (Pedro, 2026-09-02)
 

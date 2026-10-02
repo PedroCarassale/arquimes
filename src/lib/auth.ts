@@ -49,7 +49,7 @@ if (appUrl) trustedOriginSet.add(appUrl);
 export const isGoogleAuthEnabled = hasGoogleSecrets;
 
 export const auth = betterAuth({
-  appName: "Arquimes",
+  appName: "Arquimedes",
   baseURL: betterAuthUrl,
   basePath: "/api/auth",
   secret:

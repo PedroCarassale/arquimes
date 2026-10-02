@@ -1,8 +1,8 @@
-# Arquimes
+# Arquimedes
 
 **¿Qué tan preparado estoy para rendir este examen?**
 
-Arquimes es una app privada de preparación de exámenes universitarios. Creás una materia, cargás la info del examen (apuntes + archivo + temas), practicás y estudiás con chat multi-sesión.
+Arquimedes es una app privada de preparación de exámenes universitarios. Creás una materia, cargás la info del examen (apuntes + archivo + temas), practicás y estudiás con chat multi-sesión.
 
 No hay comunidad en este corte.
 

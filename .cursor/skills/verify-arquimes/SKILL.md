@@ -1,11 +1,11 @@
 ---
 name: verify-arquimes
-description: Drive the Arquimes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen, chat de estudio, práctica) or after changing those screens. Never use this skill against the Vercel production deploy.
+description: Drive the Arquimedes Next.js web UI locally the way a student does. Use when proving slice-1 flows (Tus materias, crear materia, resumen, apuntes, cargar examen, chat de estudio, práctica) or after changing those screens. Never use this skill against the Vercel production deploy.
 ---
 
 # verify-arquimes
 
-Arquimes is a private exam-prep Next.js app. Students must authenticate first (email+password; optionally Google), then create a materia, upload files, declare an exam, configure optional preparación, and read an honest resumen. Persistence is now user-scoped in libSQL/Turso with Better Auth sessions.
+Arquimedes is a private exam-prep Next.js app. Students must authenticate first (email+password; optionally Google), then create a materia, upload files, declare an exam, configure optional preparación, and read an honest resumen. Persistence is now user-scoped in libSQL/Turso with Better Auth sessions.
 
 **One Next.js dev server per checkout.** Next 16 refuses a second `npm run dev` in the same `/workspace` (lock in `.next`). Two isolated Next processes are therefore **not** possible here. Do not start another. If `run/current` is green, reuse it. If some other `next dev` owns the repo, stop that run only if it is this verification PID; otherwise refuse rather than hijacking a stranger's server. Isolate browser data with `USER_DATA_DIR` / cookie jar even when the port is unique.
 
@@ -26,7 +26,7 @@ What it does:
 - Picks a free port in `43131–43189` (or uses `VERIFY_PORT`).
 - Writes run state to `.cursor/skills/verify-arquimes/run/current` (`PORT`, `PID`, `BASE_URL`, `COOKIE_JAR`, `USER_DATA_DIR`, `LOG`).
 - Starts Next.js from the repo root with that port, bound to `127.0.0.1` only.
-- Ready when `GET $BASE_URL/` returns HTTP 200 and the HTML contains `Arquimes` and `Tus materias`.
+- Ready when `GET $BASE_URL/` returns HTTP 200 and the HTML contains `Arquimedes` and `Tus materias`.
 - Browser profile / cookie jar live under `/tmp/arquimes-verify-<run-id>/` (disposable).
 
 Teardown: `.cursor/skills/verify-arquimes/bin/cleanup` (kills **that PID only**; does not delete evidence).
@@ -47,7 +47,7 @@ It answers: is **this** run worth driving?
 - `PID` is alive.
 - `BASE_URL` is `http://127.0.0.1:<port>` (fails if the host is Vercel or not loopback).
 - That PID owns `PORT` (`lsof` / `/proc/net`).
-- `GET $BASE_URL/` is 200 and the body contains `Arquimes`.
+- `GET $BASE_URL/` is 200 and the body contains `Arquimedes`.
 
 Exit `0` only if all pass. Distinguishes this instance from another local window and from production.
 
@@ -117,7 +117,7 @@ Proof standards:
 
 - Exercise the real UI path (click, type, submit). Do not POST `/api/*` as a substitute for the button, inject DOM, or call test-only endpoints.
 - Capture the action and the resulting state (HTML or screenshot **before** and **after**).
-- Screenshots must show Arquimes chrome (wordmark or `Tus materias` / create heading).
+- Screenshots must show Arquimedes chrome (wordmark or `Tus materias` / create heading).
 - Mutations need a second view: after crear materia, open `/` (or go **Tus materias**) and see the name. After cargar examen, open `/materias/[id]/examenes`, reload, and see the note plus filename; then open the row and verify `Ver archivo online →` opens the in-app viewer (download is optional inside viewer). After práctica, answer one item then open Resumen and refresh: mastery and preparación estimada must change. After upload, open Apuntes and see the filename.
 - File upload: a real file on disk, then the name on Apuntes after reload.
 

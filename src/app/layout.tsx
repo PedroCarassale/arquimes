@@ -22,7 +22,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Arquimes",
+  title: "Arquimedes",
   description: "¿Qué tan preparado estoy para rendir este examen?",
 };
 

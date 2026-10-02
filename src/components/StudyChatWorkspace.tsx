@@ -520,7 +520,7 @@ export function StudyChatWorkspace({
                 >
                   <div className={`min-w-0 max-w-[92%] sm:max-w-[88%] md:max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
                     <div className="mb-1.5 px-1 text-xs font-mono uppercase tracking-wider text-foreground-muted">
-                      {isUser ? "Vos" : "Arquimes"}
+                      {isUser ? "Vos" : "Arquimedes"}
                     </div>
                     <div
                       className={`min-w-0 max-w-full rounded-2xl px-3.5 py-3 text-sm leading-6 shadow-lg sm:px-4 ${
@@ -584,7 +584,7 @@ export function StudyChatWorkspace({
               <article className="flex justify-start" data-chat-thinking="true">
                 <div className="flex max-w-[78%] flex-col items-start">
                   <div className="mb-1.5 px-1 text-xs font-mono uppercase tracking-wider text-foreground-muted">
-                    Arquimes
+                    Arquimedes
                   </div>
                   <div
                     role="status"

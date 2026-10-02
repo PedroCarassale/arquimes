@@ -14,9 +14,9 @@ pixels = list(image.get_flattened_data())
 ink_mask = [red < 128 and blue > 128 and alpha > 0 for red, _, blue, alpha in pixels]
 
 variants = {
-    "arquimes-archimedes-yellow-on-black.png": ((243, 164, 75, 255), (9, 9, 9, 255)),
-    "arquimes-archimedes-white-on-black.png": ((255, 255, 255, 255), (0, 0, 0, 255)),
-    "arquimes-archimedes-black-on-white.png": ((0, 0, 0, 255), (255, 255, 255, 255)),
+    "arquimedes-archimedes-yellow-on-black.png": ((243, 164, 75, 255), (9, 9, 9, 255)),
+    "arquimedes-archimedes-white-on-black.png": ((255, 255, 255, 255), (0, 0, 0, 255)),
+    "arquimedes-archimedes-black-on-white.png": ((0, 0, 0, 255), (255, 255, 255, 255)),
 }
 
 print(f"source={image.size} ink={sum(ink_mask)} background={len(ink_mask) - sum(ink_mask)}")

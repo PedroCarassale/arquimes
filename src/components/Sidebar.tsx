@@ -217,7 +217,7 @@ export function Sidebar() {
     <>
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-subtle bg-background/95 px-4 backdrop-blur lg:hidden">
         <Link href="/" className="font-serif text-xl tracking-tight">
-          Arquimes
+          Arquimedes
         </Link>
         <button
           type="button"
@@ -245,7 +245,7 @@ export function Sidebar() {
       >
         <div className="flex items-center justify-between p-6 max-lg:px-4 max-lg:py-3">
           <Link href="/" className="font-serif text-xl tracking-tight">
-            Arquimes
+            Arquimedes
           </Link>
           <button
             type="button"

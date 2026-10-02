@@ -104,7 +104,7 @@ export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps)
           <section className="t-reveal-in mx-auto max-w-4xl border border-border-subtle bg-surface/50 p-5 sm:p-8 md:p-12">
             <div className="mb-8 sm:mb-10">
               <p className="text-xs font-mono uppercase tracking-[0.24em] text-foreground-muted">
-                Primera noche en Arquimes
+                Primera noche en Arquimedes
               </p>
               <h2 className="mt-3 max-w-3xl font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
                 {isChatPicker

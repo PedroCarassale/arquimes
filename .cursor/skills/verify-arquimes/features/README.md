@@ -1,10 +1,10 @@
-# Arquimes verification map
+# Arquimedes verification map
 
 This directory is the maintained source for verifying slice-1 user-facing behavior. Read this index before driving, then use the matching feature file.
 
 ## Baseline preconditions
 
-- Launch Arquimes with `.cursor/skills/verify-arquimes/bin/launch` from the repo root.
+- Launch Arquimedes with `.cursor/skills/verify-arquimes/bin/launch` from the repo root.
 - Drive only `$BASE_URL` from `.cursor/skills/verify-arquimes/run/current` (`http://127.0.0.1:<port>`).
 - Run `.cursor/skills/verify-arquimes/bin/doctor` and require a live PID that owns that port.
 - Use the run's cookie jar / Chromium `USER_DATA_DIR`. Do not reuse a personal browser profile.
@@ -22,7 +22,7 @@ This directory is the maintained source for verifying slice-1 user-facing behavi
 ## Proof and skip reporting
 
 - Capture action + resulting state, not only the last screen.
-- UI proof: HTML snapshot or screenshot with Arquimes identity visible.
+- UI proof: HTML snapshot or screenshot with Arquimedes identity visible.
 - Persistence proof: the same name still visible after a full page reload.
 - Report an unreachable path with the command and the unmet precondition.
 - Do not report a skipped entry point as verified through a different path.

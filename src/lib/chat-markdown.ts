@@ -209,14 +209,14 @@ function withProtectedInlineCode(
   const protectedMarkdown = markdown.replace(
     /(`+)([\s\S]*?)\1/g,
     (codeSpan) => {
-      const placeholder = `\u0000ARQUIMES_CODE_${codeSpans.length}\u0000`;
+      const placeholder = `\u0000ARQUIMEDES_CODE_${codeSpans.length}\u0000`;
       codeSpans.push(codeSpan);
       return placeholder;
     }
   );
 
   return transform(protectedMarkdown).replace(
-    /\u0000ARQUIMES_CODE_(\d+)\u0000/g,
+    /\u0000ARQUIMEDES_CODE_(\d+)\u0000/g,
     (_, index: string) => codeSpans[Number(index)]
   );
 }

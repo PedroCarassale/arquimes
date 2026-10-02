@@ -104,7 +104,7 @@ PID=$!
 
 ready=0
 for _ in $(seq 1 60); do
-  if curl -sf "$BASE_URL/" | grep -q "Arquimes"; then
+  if curl -sf "$BASE_URL/" | grep -q "Arquimedes"; then
     ready=1
     break
   fi

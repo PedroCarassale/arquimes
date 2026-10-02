@@ -1,20 +1,20 @@
-# Plan (pendiente): Arquimes Desktop + chat vía CLI de suscripción
+# Plan (pendiente): Arquimedes Desktop + chat vía CLI de suscripción
 
 **Status: PENDING — no implementar salvo que Pedro lo pida explícitamente.**  
 Fecha: 2026-09-26
 
 ## Objetivo
 
-Correr Arquimes como **desktop app** donde el alumno ve el **chat de Arquimes** (UI messenger), **no** la terminal.
+Correr Arquimedes como **desktop app** donde el alumno ve el **chat de Arquimedes** (UI messenger), **no** la terminal.
 
-Por detrás, un proceso oculto usa el **CLI del modelo** (Claude Code, Codex, ChatGPT CLI, u otro) autenticado con la **suscripción** del alumno, para no gastar tokens de API de Arquimes/Vercel cuando ese camino exista.
+Por detrás, un proceso oculto usa el **CLI del modelo** (Claude Code, Codex, ChatGPT CLI, u otro) autenticado con la **suscripción** del alumno, para no gastar tokens de API de Arquimedes/Vercel cuando ese camino exista.
 
 La web en Vercel **no puede** spawnear CLIs locales del alumno. Este plan solo aplica a un shell desktop.
 
 ## No-objetivos
 
 - No construir esto ahora.
-- No reescribir Arquimes offline/local-first.
+- No reescribir Arquimedes offline/local-first.
 - No “convertir” llamadas API en suscripción por magia.
 - No mostrar la terminal cruda al alumno.
 - No inventar un inbox global de chats distinto al modelo actual (chat siempre atado a una materia).
@@ -30,7 +30,7 @@ La web en Vercel **no puede** spawnear CLIs locales del alumno. Este plan solo a
 
 ```
 ┌─────────────────────────────────────┐
-│  UI Arquimes (chat messenger)       │
+│  UI Arquimedes (chat messenger)       │
 │  — sin terminal visible             │
 └──────────────▲──────────────────────┘
                │ prompts / stream / cancel
@@ -49,11 +49,11 @@ La web en Vercel **no puede** spawnear CLIs locales del alumno. Este plan solo a
 ### Piezas
 
 1. **Shell:** Electron (más ecosistema) o Tauri (más liviano). Elegir en el spike.
-2. **UI:** reutilizar el chat de Arquimes (embed de la web con bridge, o empaquetar la UI).
+2. **UI:** reutilizar el chat de Arquimedes (embed de la web con bridge, o empaquetar la UI).
 3. **Bridge:** proceso hijo oculto; streamear salida al bubble del tutor; cancelar/matar proceso; mapear errores (“CLI no instalado”, “no hay sesión”).
-4. **Contexto de materia:** carpeta de trabajo por materia con apuntes (copy/symlink) + preamble de sistema para que se sienta tutor Arquimes, no agente de código pelado.
+4. **Contexto de materia:** carpeta de trabajo por materia con apuntes (copy/symlink) + preamble de sistema para que se sienta tutor Arquimedes, no agente de código pelado.
 5. **Auth:** la del CLI (login suscripción). `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` ≠ Plus/Pro. Verificar al implementar qué CLI acepta login de suscripción hoy.
-6. **Fallback:** si no hay CLI/sesión, mensaje claro en el UI (no caer callado a API de Arquimes salvo decisión explícita de producto).
+6. **Fallback:** si no hay CLI/sesión, mensaje claro en el UI (no caer callado a API de Arquimedes salvo decisión explícita de producto).
 
 ## Matriz de proveedores (verificar al implementar)
 
@@ -74,9 +74,9 @@ Marcar cada celda como **verify-at-build-time**: los productos cambian auth y To
 - Una ventana mínima con UI de chat.
 - Un solo proveedor.
 - Proceso oculto + stream + cancel.
-- Criterio de éxito: respuesta sin API key de Arquimes, sin terminal visible, auth de sub del CLI OK.
+- Criterio de éxito: respuesta sin API key de Arquimedes, sin terminal visible, auth de sub del CLI OK.
 
-### Fase 1 — Contexto Arquimes
+### Fase 1 — Contexto Arquimedes
 
 - Workdir por materia + apuntes.
 - Preamble de tutor (español, grounded en materiales).
@@ -108,8 +108,8 @@ Retomar **solo** si Pedro prioriza explícitamente desktop + chat por suscripci�
 
 El spike solo “aprueba” el camino si cumple:
 
-- [ ] Auth sin API key de Arquimes
-- [ ] Stream en el UI de Arquimes
+- [ ] Auth sin API key de Arquimedes
+- [ ] Stream en el UI de Arquimedes
 - [ ] Terminal no visible
 - [ ] Al menos un apunte grounded en la respuesta
 

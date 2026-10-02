@@ -1,6 +1,6 @@
 ---
 name: paper-design
-description: Use Paper MCP to inspect, create, duplicate, edit, or review Arquimes designs in Paper. Trigger when the user asks to use Paper, Paper Design, the Paper project, a Paper frame, or the Paper MCP; do not use desktop UI automation to edit the canvas.
+description: Use Paper MCP to inspect, create, duplicate, edit, or review Arquimedes designs in Paper. Trigger when the user asks to use Paper, Paper Design, the Paper project, a Paper frame, or the Paper MCP; do not use desktop UI automation to edit the canvas.
 ---
 
 # Paper Design
@@ -19,7 +19,7 @@ Use Paper's MCP tools as the only editing surface. Paper Desktop may host the lo
 ## Choose And Inspect The File
 
 - Resolve the actual file with `list_files`, `open_file`, or the user's active Paper file. Use an explicit `fileId` when several files may be open.
-- The known Arquimes design file is `01M06BPAQH6X2QXAMYX64KN7W6`; verify its name and active page before mutating it.
+- The known Arquimedes design file is `01M06BPAQH6X2QXAMYX64KN7W6`; verify its name and active page before mutating it.
 - Start with `get_basic_info`, then `get_selection`.
 - Before editing an existing design, inspect its hierarchy with `get_tree_summary` or `get_children`, capture `get_screenshot`, and use `get_computed_styles`, `get_node_info`, or `get_jsx` when exact values matter.
 - Call `get_font_family_info` before introducing or changing typographic styles.

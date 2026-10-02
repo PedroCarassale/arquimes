@@ -18,7 +18,7 @@ export interface MateriaSnapshot {
   practicaVariant?: "sin_temas_sin_archivos" | "sin_temas_con_archivos" | "pregunta";
 }
 
-const STORAGE_KEY = "arquimes:materia-snapshots";
+const STORAGE_KEY = "arquimedes:materia-snapshots";
 
 export const HUB_KEY = "__hub";
 

@@ -254,7 +254,7 @@ export function ChatRail() {
           return (
             <div key={renderedMessage.id}>
               <div className="text-xs font-mono text-foreground-muted uppercase mb-1">
-                {renderedMessage.role === "user" ? "Vos" : "Arquimes"}
+                {renderedMessage.role === "user" ? "Vos" : "Arquimedes"}
               </div>
               <div
                 className="text-sm"

@@ -219,7 +219,7 @@ export function AuthScreen({
     <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <section className="w-full max-w-md border border-border bg-surface p-6 sm:p-8">
         <Link href="/" className="font-serif text-2xl tracking-tight">
-          Arquimes
+          Arquimedes
         </Link>
         <h1 className="mt-4 font-serif text-3xl">
           {isRegister ? "Crear cuenta" : "Iniciar sesión"}
