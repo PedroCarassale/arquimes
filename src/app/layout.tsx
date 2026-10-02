@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { IBM_Plex_Mono } from "next/font/google";
 import { Cormorant_Garamond } from "next/font/google";
@@ -24,6 +24,13 @@ const cormorant = Cormorant_Garamond({
 export const metadata: Metadata = {
   title: "Arquimes",
   description: "¿Qué tan preparado estoy para rendir este examen?",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

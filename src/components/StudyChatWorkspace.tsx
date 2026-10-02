@@ -57,6 +57,7 @@ export function StudyChatWorkspace({
   } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const loadSequence = useRef(0);
   const snapshot = useMateriaSnapshot(materiaId);
@@ -318,9 +319,9 @@ export function StudyChatWorkspace({
   }, [load, materiaId, state.activeSessionId]);
 
   return (
-    <div className="flex min-h-0 flex-col lg:h-full">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="mb-2 flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <div>
+        <div className="hidden md:block">
           <div className="mb-1 font-mono text-xs uppercase tracking-wider text-foreground-muted">
             Chat de estudio
           </div>
@@ -330,14 +331,14 @@ export function StudyChatWorkspace({
             archivo de examen, nota y temas.
           </p>
         </div>
-        <div className="flex gap-3 text-xs font-mono uppercase tracking-wider">
-          <Link href={`/materias/${materiaId}/cargar`} className="border border-border px-3 py-2 hover:border-accent">
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 text-xs font-mono uppercase tracking-wider [scrollbar-width:none] sm:mx-0 sm:gap-3 sm:px-0">
+          <Link href={`/materias/${materiaId}/cargar`} className="shrink-0 whitespace-nowrap border border-border px-3 py-2 hover:border-accent">
             1) Cargar apuntes
           </Link>
-          <Link href={`/materias/${materiaId}/examen`} className="border border-border px-3 py-2 hover:border-accent">
+          <Link href={`/materias/${materiaId}/examen`} className="shrink-0 whitespace-nowrap border border-border px-3 py-2 hover:border-accent">
             2) Cargar examen
           </Link>
-          <Link href={`/materias/${materiaId}/examenes`} className="border border-border px-3 py-2 hover:border-accent">
+          <Link href={`/materias/${materiaId}/examenes`} className="shrink-0 whitespace-nowrap border border-border px-3 py-2 hover:border-accent">
             3) Definir temas
           </Link>
         </div>
@@ -346,25 +347,44 @@ export function StudyChatWorkspace({
       {error && (
         <p
           role="alert"
-          className="t-toast is-open mb-4 border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          className="t-toast is-open mb-2 shrink-0 border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
         >
           {error}
         </p>
       )}
 
-      <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-[240px_1fr]">
-        <section className="flex min-h-0 flex-col border border-border-subtle bg-surface">
-          <div className="border-b border-border-subtle p-3">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-2 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-3">
+        <section
+          className={`flex min-h-0 flex-col border border-border-subtle bg-surface max-lg:shrink-0 ${
+            sessionsOpen ? "max-lg:absolute max-lg:inset-0 max-lg:z-20" : ""
+          }`}
+        >
+          <div className="flex gap-2 border-b border-border-subtle p-2 lg:p-3">
             <button
               type="button"
-              className="w-full bg-accent px-3 py-2 text-sm text-background hover:bg-accent/90"
-              onClick={() => createSession().catch((err) => setError(err.message))}
+              className="flex-1 bg-accent px-3 py-2 text-sm text-background hover:bg-accent/90"
+              onClick={() => {
+                setSessionsOpen(false);
+                createSession().catch((err) => setError(err.message));
+              }}
               aria-label="Nuevo chat"
             >
               + Nuevo chat
             </button>
+            <button
+              type="button"
+              className="border border-border px-3 py-2 text-sm text-foreground-muted hover:border-accent hover:text-foreground lg:hidden"
+              onClick={() => setSessionsOpen((open) => !open)}
+              aria-expanded={sessionsOpen}
+              aria-controls="chat-sessions-list"
+            >
+              {sessionsOpen ? "Cerrar" : `Historial${state.sessions.length ? ` (${state.sessions.length})` : ""}`}
+            </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          <div
+            id="chat-sessions-list"
+            className={`min-h-0 flex-1 overflow-y-auto p-2 ${sessionsOpen ? "" : "max-lg:hidden"}`}
+          >
             {loading && state.sessions.length === 0 ? (
               <StudyChatLoadingSessions count={skeletonSessions} />
             ) : state.sessions.length === 0 ? (
@@ -416,7 +436,10 @@ export function StudyChatWorkspace({
                         <button
                           type="button"
                           className="w-full text-left"
-                          onClick={() => load(session.id).catch((err) => setError(err.message))}
+                          onClick={() => {
+                            setSessionsOpen(false);
+                            load(session.id).catch((err) => setError(err.message));
+                          }}
                         >
                           <div className="text-sm">{session.title}</div>
                           <div className="text-xs font-mono text-foreground-muted mt-1">
@@ -451,32 +474,32 @@ export function StudyChatWorkspace({
           </div>
         </section>
 
-        <section className="flex min-h-[680px] min-w-0 flex-col overflow-hidden border border-border-subtle bg-background lg:min-h-0">
-          <div className="flex shrink-0 items-end justify-between gap-4 border-b border-border-subtle px-4 py-2">
-            <div>
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border border-border-subtle bg-background">
+          <div className="flex shrink-0 items-end justify-between gap-4 border-b border-border-subtle px-3 py-2 sm:px-4">
+            <div className="min-w-0">
               <div className="font-mono text-xs uppercase tracking-wider text-foreground-muted">
                 {loading ? "Cargando…" : state.activeSessionId ? "Sesión activa" : "Listo para estudiar"}
               </div>
-              <h3 className="mt-1 font-serif text-xl">
+              <h3 className="mt-1 truncate font-serif text-lg sm:text-xl">
                 {state.sessions.find((session) => session.id === state.activeSessionId)?.title ||
                   "Nuevo chat de examen"}
               </h3>
             </div>
-            <p className="max-w-64 text-right text-xs text-foreground-muted">
+            <p className="hidden max-w-64 text-right text-xs text-foreground-muted sm:block">
               {state.provider.message}
             </p>
           </div>
 
           <div
             ref={threadRef}
-            className={`min-h-0 flex-1 space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-4 md:p-6 ${
+            className={`min-h-0 flex-1 space-y-5 overflow-y-auto bg-[radial-gradient(circle_at_top,rgba(243,164,75,0.05),transparent_42%)] p-3 sm:p-4 md:p-6 ${
               !loading ? "t-reveal-in" : ""
             }`}
             aria-live="polite"
           >
             {loading && <StudyChatLoadingThread />}
             {!loading && state.messages.length === 0 && (
-              <div className="mx-auto mt-10 max-w-lg border border-border-subtle bg-surface/80 p-5 text-center">
+              <div className="mx-auto mt-4 max-w-lg border border-border-subtle bg-surface/80 p-5 text-center sm:mt-10">
                 <p className="font-serif text-xl text-foreground">
                   {hasReadable ? "¿Qué necesitás aprender esta noche?" : "Primero, demos contexto al estudio"}
                 </p>
@@ -495,12 +518,12 @@ export function StudyChatWorkspace({
                   key={renderedMessage.id}
                   className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                 >
-                  <div className={`max-w-[88%] md:max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
+                  <div className={`min-w-0 max-w-[92%] sm:max-w-[88%] md:max-w-[78%] ${isUser ? "items-end" : "items-start"} flex flex-col`}>
                     <div className="mb-1.5 px-1 text-xs font-mono uppercase tracking-wider text-foreground-muted">
                       {isUser ? "Vos" : "Arquimes"}
                     </div>
                     <div
-                      className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg ${
+                      className={`min-w-0 max-w-full rounded-2xl px-3.5 py-3 text-sm leading-6 shadow-lg sm:px-4 ${
                         isUser
                           ? "rounded-br-sm bg-accent text-[#17100a]"
                           : renderedMessage.isError
@@ -579,7 +602,7 @@ export function StudyChatWorkspace({
             )}
           </div>
 
-          <div className="shrink-0 border-t border-border-subtle bg-background p-2">
+          <div className="shrink-0 border-t border-border-subtle bg-background p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <CompactChatComposer
               id="chat-composer"
               value={draft}

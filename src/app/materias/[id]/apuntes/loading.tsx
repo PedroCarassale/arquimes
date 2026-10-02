@@ -24,7 +24,7 @@ export default function ApuntesLoading() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] gap-6">
               <div className="space-y-6">
                 <div>
                   <h3 className="font-serif text-lg mb-3">Colecciones</h3>
@@ -63,7 +63,7 @@ export default function ApuntesLoading() {
               </div>
 
               <div>
-                <div className="border-2 border-dashed border-border p-8 mb-6 text-center">
+                <div className="border-2 border-dashed border-border p-5 sm:p-8 mb-6 text-center">
                   <h3 className="font-serif text-lg mb-2">Soltá archivos para cargarlos</h3>
                   <p className="text-sm text-foreground-muted mb-4">
                     PDF, texto o imágenes · Hasta 15 MB por archivo
@@ -77,8 +77,8 @@ export default function ApuntesLoading() {
                     &quot;Cargar apuntes&quot;.
                   </div>
                 ) : (
-                  <div className="border border-border-subtle overflow-x-auto">
-                    <div className="grid grid-cols-[1fr_80px_120px_80px] gap-4 px-4 py-2 text-xs font-mono text-foreground-muted uppercase tracking-wider border-b border-border-subtle min-w-[480px]">
+                  <div className="border border-border-subtle">
+                    <div className="hidden sm:grid grid-cols-[1fr_80px_120px_auto] gap-4 px-4 py-2 text-xs font-mono text-foreground-muted uppercase tracking-wider border-b border-border-subtle">
                       <div>Archivo</div>
                       <div>Tamaño</div>
                       <div>Subido</div>
@@ -87,7 +87,7 @@ export default function ApuntesLoading() {
                     {Array.from({ length: Math.min(count, 12) }, (_, i) => (
                       <div
                         key={i}
-                        className="grid grid-cols-[1fr_80px_120px_80px] gap-4 px-4 py-3 items-center border-b border-border-subtle last:border-b-0 min-w-[480px]"
+                        className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[1fr_80px_120px_auto] gap-x-4 gap-y-1 px-4 py-3 items-center border-b border-border-subtle last:border-b-0"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="text-xs font-mono text-foreground-muted w-8 shrink-0">
@@ -97,10 +97,10 @@ export default function ApuntesLoading() {
                             <Bone className={i % 2 === 0 ? "w-48" : "w-36"} />
                           </div>
                         </div>
-                        <div className="text-sm text-foreground-muted">
+                        <div className="hidden sm:block text-sm text-foreground-muted">
                           <Bone className="w-12" />
                         </div>
-                        <div className="text-sm text-foreground-muted">
+                        <div className="hidden sm:block text-sm text-foreground-muted">
                           <Bone className="w-16" />
                         </div>
                         <div className="text-right flex items-center justify-end gap-3">

@@ -108,7 +108,7 @@ export function PracticaClient({
         </p>
 
         {empty === "no_temas_no_files" && (
-          <div className="border border-border-subtle p-8 text-center">
+          <div className="border border-border-subtle p-5 sm:p-8 text-center">
             <p className="text-foreground-muted mb-4">
               No hay temas ni archivos para practicar.
             </p>
@@ -125,7 +125,7 @@ export function PracticaClient({
               </Link>
               <Link
                 href={`/materias/${materiaId}/examen`}
-                className="bg-accent text-background px-4 py-2 text-sm hover:bg-accent/90 transition-colors"
+                className="bg-accent text-background px-4 py-3 sm:py-2 text-sm hover:bg-accent/90 transition-colors"
               >
                 Cargar examen →
               </Link>
@@ -134,7 +134,7 @@ export function PracticaClient({
         )}
 
         {empty === "no_temas_with_files" && (
-          <div className="border border-border-subtle p-8 text-center">
+          <div className="border border-border-subtle p-5 sm:p-8 text-center">
             <p className="text-foreground-muted mb-4">
               Tenés material, pero sin temas no hay práctica que alimente tu
               preparación.
@@ -145,7 +145,7 @@ export function PracticaClient({
             </p>
             <Link
               href={examHref || `/materias/${materiaId}/examen`}
-              className="bg-accent text-background px-4 py-2 text-sm hover:bg-accent/90 transition-colors inline-block"
+              className="bg-accent text-background px-4 py-3 sm:py-2 text-sm hover:bg-accent/90 transition-colors inline-block"
             >
               {examHref ? "Agregar temas →" : "Cargar examen →"}
             </Link>
@@ -153,7 +153,7 @@ export function PracticaClient({
         )}
 
         {!empty && result && (
-          <div className="border border-accent p-6">
+          <div className="border border-accent p-5 sm:p-6">
             <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
               Práctica guardada
             </div>
@@ -169,7 +169,7 @@ export function PracticaClient({
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
                 href={`/materias/${materiaId}`}
-                className="bg-accent text-background px-4 py-2 text-sm text-center hover:bg-accent/90 transition-colors"
+                className="bg-accent text-background px-4 py-3 sm:py-2 text-sm text-center hover:bg-accent/90 transition-colors"
               >
                 Ver preparación en Resumen →
               </Link>
@@ -177,7 +177,7 @@ export function PracticaClient({
                 <button
                   type="button"
                   onClick={continuePractice}
-                  className="border border-border px-4 py-2 text-sm hover:bg-surface transition-colors"
+                  className="border border-border px-4 py-3 sm:py-2 text-sm hover:bg-surface transition-colors"
                 >
                   Seguir practicando
                 </button>
@@ -187,7 +187,7 @@ export function PracticaClient({
         )}
 
         {!empty && !result && item && (
-          <div className="border border-border-subtle p-6">
+          <div className="border border-border-subtle p-5 sm:p-6">
             <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
               Tema · {MASTERY_LABELS[item.masteryState]}
             </div>
@@ -226,7 +226,7 @@ export function PracticaClient({
                 type="button"
                 onClick={() => submit("lo_tengo")}
                 disabled={saving}
-                className="bg-accent text-background px-4 py-2 text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
+                className="bg-accent text-background px-4 py-3 sm:py-2 text-sm hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {saving ? "Guardando..." : "Así lo explicaría"}
               </button>
@@ -234,7 +234,7 @@ export function PracticaClient({
                 type="button"
                 onClick={() => submit("todavia_no")}
                 disabled={saving}
-                className="border border-border px-4 py-2 text-sm hover:bg-surface transition-colors disabled:opacity-50"
+                className="border border-border px-4 py-3 sm:py-2 text-sm hover:bg-surface transition-colors disabled:opacity-50"
               >
                 Todavía no
               </button>

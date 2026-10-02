@@ -22,12 +22,12 @@ function todayLabel() {
 
 function EmptyState({ isChatPicker }: { isChatPicker: boolean }) {
   return (
-    <section className="mx-auto max-w-4xl border border-border-subtle bg-surface/50 p-8 md:p-12">
-      <div className="mb-10">
+    <section className="mx-auto max-w-4xl border border-border-subtle bg-surface/50 p-5 sm:p-8 md:p-12">
+      <div className="mb-8 sm:mb-10">
         <p className="text-xs font-mono uppercase tracking-[0.24em] text-foreground-muted">
           Primera noche en Arquimes
         </p>
-        <h2 className="mt-3 max-w-3xl font-serif text-4xl leading-tight md:text-5xl">
+        <h2 className="mt-3 max-w-3xl font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
           {isChatPicker
             ? "Cada chat empieza con una materia."
             : "Tu espacio para estudiar con foco, sin sentirte solo."}
@@ -51,8 +51,8 @@ function EmptyState({ isChatPicker }: { isChatPicker: boolean }) {
           ))}
         </div>
       </div>
-      <div className="mt-10 border-t border-border-subtle pt-8">
-        <span className="inline-flex items-center justify-center bg-accent px-6 py-3 text-sm font-mono uppercase tracking-[0.12em] text-background">
+      <div className="mt-8 border-t border-border-subtle pt-6 sm:mt-10 sm:pt-8">
+        <span className="inline-flex w-full items-center justify-center bg-accent px-6 py-3 sm:w-auto text-sm font-mono uppercase tracking-[0.12em] text-background">
           Agregar materia
         </span>
         <p className="mt-3 text-sm text-foreground-muted">
@@ -73,9 +73,9 @@ export function MateriasHubSkeleton({ mode }: { mode: "inicio" | "selector-chat"
 
   return (
     <AppShell>
-      <SkeletonRegion className="p-8">
-        <div className="mb-8 flex items-start justify-between">
-          <h1 className="font-serif text-4xl">
+      <SkeletonRegion className="px-4 py-6 sm:p-6 lg:p-8">
+        <div className="mb-6 flex flex-col gap-1 sm:mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <h1 className="font-serif text-3xl leading-tight sm:text-4xl">
             {isChatPicker ? "Elegí una materia para chatear" : "Tus materias"}
           </h1>
           <div className="text-sm text-foreground-muted capitalize" suppressHydrationWarning>
@@ -93,7 +93,7 @@ export function MateriasHubSkeleton({ mode }: { mode: "inicio" | "selector-chat"
               </p>
             )}
 
-            <div className="mb-6 border-b border-border-subtle">
+            <div className="mb-6 hidden border-b border-border-subtle lg:block">
               <table className="w-full">
                 <thead>
                   <tr className="text-xs font-mono uppercase tracking-wider text-foreground-muted">
@@ -116,18 +116,18 @@ export function MateriasHubSkeleton({ mode }: { mode: "inicio" | "selector-chat"
                 return (
                   <div
                     key={id}
-                    className="mx-[-1rem] block border-b border-border-subtle px-4 py-5"
+                    className="mx-[-1rem] block border-b border-border-subtle px-4 py-4 lg:py-5"
                   >
-                    <div className="grid grid-cols-[1fr_200px_80px_100px_200px] items-center gap-4">
-                      <div>
-                        <div className="mb-1 font-serif text-xl">
+                    <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 lg:grid-cols-[1fr_200px_80px_100px_200px] lg:gap-4">
+                      <div className="min-w-0">
+                        <div className="mb-1 font-serif text-xl leading-tight">
                           {materia?.name ?? <Bone className="w-48" />}
                         </div>
                         <div className="text-sm text-foreground-muted">
                           {info ?? <Bone className="w-32" />}
                         </div>
                       </div>
-                      <div>
+                      <div className="order-3 lg:order-none">
                         <div className="text-sm">
                           <Bone className="w-28" />
                         </div>
@@ -135,17 +135,17 @@ export function MateriasHubSkeleton({ mode }: { mode: "inicio" | "selector-chat"
                           <Bone className="w-20" />
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="order-4 text-right lg:order-none lg:text-center">
                         <div className="font-serif text-2xl">
                           <Bone className="w-8" />
                         </div>
                       </div>
-                      <div className="text-center">
+                      <div className="text-right lg:text-center">
                         <div className="font-serif text-2xl">
                           <Bone className="w-12" />
                         </div>
                       </div>
-                      <div className="text-right text-sm">
+                      <div className="order-5 col-span-2 text-sm lg:order-none lg:col-span-1 lg:text-right">
                         {isChatPicker ? (
                           <span className="text-accent">Abrir chat →</span>
                         ) : (

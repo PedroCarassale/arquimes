@@ -198,7 +198,7 @@ export function PreparacionClient({
               type="button"
               onClick={() => void savePreparacion(true)}
               disabled={saving}
-              className="border border-accent px-4 py-2 text-xs font-mono uppercase tracking-wider text-accent hover:bg-accent hover:text-background transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full border border-accent px-4 py-3 text-xs sm:w-auto sm:py-2 font-mono uppercase tracking-wider text-accent hover:bg-accent hover:text-background transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Guardando..." : "Guardar configuración"}
             </button>
@@ -206,7 +206,7 @@ export function PreparacionClient({
               type="button"
               onClick={() => void handleGenerate()}
               disabled={generating || saving || !hasConfig}
-              className="bg-accent px-4 py-2 text-xs font-mono uppercase tracking-wider text-background hover:bg-accent/90 transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full bg-accent px-4 py-3 text-xs sm:w-auto sm:py-2 font-mono uppercase tracking-wider text-background hover:bg-accent/90 transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
             >
               {generating
                 ? "Generando..."

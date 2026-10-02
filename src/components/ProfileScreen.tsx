@@ -216,10 +216,10 @@ export function ProfileScreen({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl p-6 md:p-10">
+    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:p-6 md:p-10">
       <header className="mb-8 border-b border-border-subtle pb-5">
         <p className="font-mono text-xs uppercase tracking-wider text-foreground-muted">Perfil</p>
-        <h1 className="mt-2 font-serif text-4xl">Configuración de cuenta</h1>
+        <h1 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">Configuración de cuenta</h1>
         <p className="mt-2 text-sm text-foreground-muted">
           Actualizá tu identidad, tu contraseña y tu avatar.
         </p>

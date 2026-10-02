@@ -50,11 +50,11 @@ export default async function ExamenDetailPage({ params }: PageProps) {
       </div>
 
       {hasFile ? (
-        <div className="border border-border-subtle p-6 mb-8">
+        <div className="border border-border-subtle p-5 sm:p-6 mb-8">
           <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
             Archivo
           </div>
-          <p className="font-serif text-xl mb-1">
+          <p className="font-serif text-xl mb-1 [overflow-wrap:anywhere]">
             {examen.fileName || material?.name}
           </p>
           <p className="text-sm text-foreground-muted mb-4">

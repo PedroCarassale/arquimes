@@ -163,8 +163,8 @@ export function ApuntesLibrary({
         </label>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] gap-6">
+        <div className="order-2 space-y-6 md:order-none">
           <div>
             <h3 className="font-serif text-lg mb-3">Colecciones</h3>
             <div className="text-xs text-foreground-muted mb-3">
@@ -207,14 +207,21 @@ export function ApuntesLibrary({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed p-8 mb-6 text-center transition-colors ${
+            className={`border-2 border-dashed p-5 sm:p-8 mb-6 text-center transition-colors ${
               isDragging
                 ? "border-accent bg-accent-muted/10"
                 : "border-border hover:border-foreground-muted"
             }`}
           >
             <h3 className="font-serif text-lg mb-2">
-              {uploading ? "Subiendo..." : "Soltá archivos para cargarlos"}
+              {uploading ? (
+                "Subiendo..."
+              ) : (
+                <>
+                  <span className="sm:hidden">Sumá archivos a esta materia</span>
+                  <span className="hidden sm:inline">Soltá archivos para cargarlos</span>
+                </>
+              )}
             </h3>
             <p className="text-sm text-foreground-muted mb-4">
               PDF, texto o imágenes · Hasta 15 MB por archivo
@@ -243,8 +250,8 @@ export function ApuntesLibrary({
               &quot;Cargar apuntes&quot;.
             </div>
           ) : (
-            <div className="border border-border-subtle overflow-x-auto">
-              <div className="grid grid-cols-[1fr_80px_120px_80px] gap-4 px-4 py-2 text-xs font-mono text-foreground-muted uppercase tracking-wider border-b border-border-subtle min-w-[480px]">
+            <div className="border border-border-subtle">
+              <div className="hidden sm:grid grid-cols-[1fr_80px_120px_auto] gap-4 px-4 py-2 text-xs font-mono text-foreground-muted uppercase tracking-wider border-b border-border-subtle">
                 <div>Archivo</div>
                 <div>Tamaño</div>
                 <div>Subido</div>
@@ -253,18 +260,23 @@ export function ApuntesLibrary({
               {materiales.map((material) => (
                 <div
                   key={material.id}
-                  className="grid grid-cols-[1fr_80px_120px_80px] gap-4 px-4 py-3 items-center border-b border-border-subtle last:border-b-0 hover:bg-surface transition-colors group min-w-[480px]"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[1fr_80px_120px_auto] gap-x-4 gap-y-1 px-4 py-3 items-center border-b border-border-subtle last:border-b-0 hover:bg-surface transition-colors group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xs font-mono text-foreground-muted w-8 shrink-0">
                       {getFileIcon(material.type)}
                     </span>
-                    <div className="text-sm truncate">{material.name}</div>
+                    <div className="min-w-0">
+                      <div className="text-sm truncate">{material.name}</div>
+                      <div className="text-xs text-foreground-muted sm:hidden">
+                        {formatFileSize(material.size)} · {formatRelativeDate(material.addedAt)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-foreground-muted">
+                  <div className="hidden sm:block text-sm text-foreground-muted">
                     {formatFileSize(material.size)}
                   </div>
-                  <div className="text-sm text-foreground-muted">
+                  <div className="hidden sm:block text-sm text-foreground-muted">
                     {formatRelativeDate(material.addedAt)}
                   </div>
                   <div className="text-right flex items-center justify-end gap-3">
@@ -273,13 +285,13 @@ export function ApuntesLibrary({
                         materiaId: materia.id,
                         materialId: material.id,
                       })}
-                      className="text-xs text-accent hover:underline"
+                      className="py-2 text-xs text-accent hover:underline sm:py-0"
                     >
                       Ver →
                     </Link>
                     <button
                       onClick={() => handleDelete(material.id)}
-                      className="text-xs text-foreground-muted hover:text-red-500"
+                      className="py-2 text-xs text-foreground-muted hover:text-red-500 sm:py-0"
                     >
                       Eliminar
                     </button>

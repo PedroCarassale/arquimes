@@ -23,7 +23,7 @@ export default function PracticaLoading() {
             </p>
 
             {variant === "sin_temas_sin_archivos" && (
-              <div className="border border-border-subtle p-8 text-center">
+              <div className="border border-border-subtle p-5 sm:p-8 text-center">
                 <p className="text-foreground-muted mb-4">
                   No hay temas ni archivos para practicar.
                 </p>
@@ -41,7 +41,7 @@ export default function PracticaLoading() {
             )}
 
             {variant === "sin_temas_con_archivos" && (
-              <div className="border border-border-subtle p-8 text-center">
+              <div className="border border-border-subtle p-5 sm:p-8 text-center">
                 <p className="text-foreground-muted mb-4">
                   Tenés material, pero sin temas no hay práctica que alimente tu
                   preparación.

@@ -97,6 +97,14 @@ button:disabled,
   color: var(--foreground);
 }
 
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 input[type="file"] {
   display: none;
 }

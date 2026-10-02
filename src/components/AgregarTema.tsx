@@ -61,8 +61,8 @@ export function AgregarTema({
               key={tema.id}
               className="p-3 flex items-center justify-between gap-3 text-sm"
             >
-              <span>{tema.name}</span>
-              <span className="text-xs font-mono uppercase text-foreground-muted">
+              <span className="min-w-0">{tema.name}</span>
+              <span className="shrink-0 text-right text-xs font-mono uppercase text-foreground-muted">
                 {MASTERY_LABELS[tema.masteryState]}
               </span>
             </li>
@@ -85,14 +85,14 @@ export function AgregarTema({
           }}
           placeholder="Espacios vectoriales"
           aria-label="Agregar otro tema"
-          className="flex-1 px-3 py-2 bg-surface border border-border text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent"
+          className="flex-1 px-3 py-3 sm:py-2 bg-surface border border-border text-sm text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent"
         />
         <button
           type="button"
           onClick={addTema}
           disabled={saving || !draft.trim()}
           aria-label="Agregar tema"
-          className="px-4 py-2 bg-accent text-background text-sm hover:bg-accent/90 disabled:opacity-50"
+          className="px-4 py-3 sm:py-2 bg-accent text-background text-sm hover:bg-accent/90 disabled:opacity-50"
         >
           {saving ? "Agregando…" : "Agregar tema"}
         </button>

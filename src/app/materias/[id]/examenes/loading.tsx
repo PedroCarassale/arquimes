@@ -23,7 +23,7 @@ export default function ExamenesLoading() {
             </div>
 
             {count === 0 ? (
-              <div className="border border-border-subtle p-8 text-center">
+              <div className="border border-border-subtle p-5 sm:p-8 text-center">
                 <p className="text-foreground-muted mb-4">
                   Todavía no cargaste un examen para esta materia.
                 </p>

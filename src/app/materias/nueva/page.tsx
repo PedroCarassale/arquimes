@@ -50,24 +50,24 @@ export default function CrearMateriaPage() {
 
   return (
     <AppShell>
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="px-4 py-6 sm:p-6 lg:p-8">
+        <div className="mb-6 flex items-start justify-between gap-4 sm:mb-8 sm:items-center">
           <div>
             <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
               Materias
             </div>
-            <h1 className="font-serif text-3xl">Crear o unirse a una materia</h1>
+            <h1 className="font-serif text-2xl leading-tight sm:text-3xl">Crear o unirse a una materia</h1>
           </div>
           <Link
             href="/"
-            className="text-sm border border-border px-4 py-2 hover:bg-surface transition-colors"
+            className="shrink-0 text-sm border border-border px-3 py-2 hover:bg-surface transition-colors sm:px-4"
           >
             Entrada
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-12">
-          <div className="border border-border p-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-12">
+          <div className="border border-border p-5 sm:p-8">
             <div className="text-xs font-mono text-accent uppercase tracking-wider mb-4">
               Crear una materia
             </div>
@@ -96,7 +96,7 @@ export default function CrearMateriaPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label
                     htmlFor="universidad"
@@ -168,7 +168,7 @@ export default function CrearMateriaPage() {
             </div>
           </div>
 
-          <div className="border border-border-subtle p-8 opacity-40">
+          <div className="border border-border-subtle p-5 opacity-40 sm:p-8">
             <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-4">
               Unirme a una materia
             </div>

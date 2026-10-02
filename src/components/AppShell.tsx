@@ -4,7 +4,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <Sidebar />
-      <main className="ml-[208px] min-h-screen">{children}</main>
+      <main className="min-w-0 lg:ml-[208px] lg:min-h-screen">{children}</main>
     </div>
   );
 }

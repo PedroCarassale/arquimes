@@ -78,6 +78,22 @@ function ChatIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+function MenuIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CloseIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function DotsIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
@@ -128,6 +144,8 @@ export function Sidebar() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerPath, setDrawerPath] = useState(pathname);
   const menuRef = useRef<HTMLDivElement>(null);
   const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
   const isMateriasChatPicker = pathname === "/materias/chats";
@@ -169,6 +187,26 @@ export function Sidebar() {
     };
   }, [menuOpen]);
 
+  if (drawerPath !== pathname) {
+    setDrawerPath(pathname);
+    setDrawerOpen(false);
+    setMenuOpen(false);
+  }
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setDrawerOpen(false);
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [drawerOpen]);
+
   async function handleSignOut() {
     await authClient.signOut();
     router.push("/login");
@@ -176,106 +214,143 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[208px] bg-background border-r border-border-subtle flex flex-col">
-      <div className="p-6">
+    <>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-subtle bg-background/95 px-4 backdrop-blur lg:hidden">
         <Link href="/" className="font-serif text-xl tracking-tight">
           Arquimes
         </Link>
-      </div>
-
-      <nav className="flex-1 px-3">
-        {items.map((item) => {
-          const isChatItem = item.label === "Chats";
-          const isMateriasItem = item.label === "Materias";
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : isChatItem
-                ? pathname.includes("/chat") || isMateriasChatPicker
-                : isMateriasItem
-                  ? pathname.startsWith("/materias") &&
-                    !pathname.includes("/chat") &&
-                    !isMateriasChatPicker
-                  : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 transition-colors ${
-                isActive
-                  ? "bg-surface-elevated text-foreground"
-                  : "text-foreground-muted hover:text-foreground hover:bg-surface"
-              }`}
-            >
-              <item.Icon className="h-4 w-4 shrink-0" />
-              <span className="text-sm">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="relative border-t border-border-subtle p-4" ref={menuRef}>
-        <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface px-2 py-2">
-          {profileImage ? (
-            <img
-              src={profileImage}
-              alt={`Avatar de ${profileName}`}
-              className="h-10 w-10 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-10 w-10 shrink-0 rounded-full bg-surface-elevated flex items-center justify-center text-sm font-medium">
-              {profileInitial}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium" title={profileName}>
-              {profileName}
-            </div>
-            <div className="truncate text-xs text-foreground-muted" title={profileEmail}>
-              {profileEmail}
-            </div>
-          </div>
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Abrir menú"
+          aria-expanded={drawerOpen}
+          aria-controls="app-sidebar"
+          className="-mr-2 flex h-10 w-10 items-center justify-center text-foreground-muted transition-colors hover:text-foreground"
+        >
+          <MenuIcon />
+        </button>
+      </header>
+      {drawerOpen && (
+        <div
+          aria-hidden="true"
+          onClick={() => setDrawerOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+        />
+      )}
+      <aside
+        id="app-sidebar"
+        className={`fixed left-0 top-0 bottom-0 z-50 flex w-[260px] max-w-[85vw] flex-col border-r border-border-subtle bg-background transition-transform duration-200 ease-out lg:z-auto lg:w-[208px] lg:translate-x-0 ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full max-lg:invisible"
+        }`}
+      >
+        <div className="flex items-center justify-between p-6 max-lg:px-4 max-lg:py-3">
+          <Link href="/" className="font-serif text-xl tracking-tight">
+            Arquimes
+          </Link>
           <button
             type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-label="Abrir menú de cuenta"
-            className="shrink-0 rounded-md border border-border-subtle p-2 text-foreground-muted transition-colors hover:border-border hover:text-foreground"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Cerrar menú"
+            className="-mr-2 flex h-10 w-10 items-center justify-center text-foreground-muted transition-colors hover:text-foreground lg:hidden"
           >
-            <DotsIcon />
+            <CloseIcon />
           </button>
         </div>
 
-        {menuOpen && (
-          <div
-            role="menu"
-            className="absolute bottom-[78px] right-4 z-10 w-44 overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-lg"
-          >
-            <Link
-              href="/perfil"
-              role="menuitem"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
-            >
-              <UserIcon />
-              Ver perfil
-            </Link>
+        <nav className="flex-1 px-3">
+          {items.map((item) => {
+            const isChatItem = item.label === "Chats";
+            const isMateriasItem = item.label === "Materias";
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : isChatItem
+                  ? pathname.includes("/chat") || isMateriasChatPicker
+                  : isMateriasItem
+                    ? pathname.startsWith("/materias") &&
+                      !pathname.includes("/chat") &&
+                      !isMateriasChatPicker
+                    : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-3 transition-colors lg:py-2 ${
+                  isActive
+                    ? "bg-surface-elevated text-foreground"
+                    : "text-foreground-muted hover:text-foreground hover:bg-surface"
+                }`}
+              >
+                <item.Icon className="h-4 w-4 shrink-0" />
+                <span className="text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="relative border-t border-border-subtle p-4" ref={menuRef}>
+          <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface px-2 py-2">
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt={`Avatar de ${profileName}`}
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-10 w-10 shrink-0 rounded-full bg-surface-elevated flex items-center justify-center text-sm font-medium">
+                {profileInitial}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium" title={profileName}>
+                {profileName}
+              </div>
+              <div className="truncate text-xs text-foreground-muted" title={profileEmail}>
+                {profileEmail}
+              </div>
+            </div>
             <button
               type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                void handleSignOut();
-              }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Abrir menú de cuenta"
+              className="shrink-0 rounded-md border border-border-subtle p-2 text-foreground-muted transition-colors hover:border-border hover:text-foreground"
             >
-              <LogoutIcon />
-              Cerrar sesión
+              <DotsIcon />
             </button>
           </div>
-        )}
-      </div>
-    </aside>
+
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-[78px] right-4 z-10 w-44 overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-lg"
+            >
+              <Link
+                href="/perfil"
+                role="menuitem"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
+              >
+                <UserIcon />
+                Ver perfil
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void handleSignOut();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
+              >
+                <LogoutIcon />
+                Cerrar sesión
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }

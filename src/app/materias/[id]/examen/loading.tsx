@@ -11,17 +11,17 @@ export default function CargarExamenLoading() {
 
   return (
     <AppShell>
-      <SkeletonRegion className="p-8 max-w-2xl">
+      <SkeletonRegion className="px-4 py-6 sm:p-6 lg:p-8 max-w-2xl">
         <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
           {snapshot?.name ?? <Bone className="w-32" />}
         </div>
-        <h1 className="font-serif text-3xl mb-2">Cargar examen</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl mb-2">Cargar examen</h1>
         <p className="text-sm text-foreground-muted mb-8">
           Paso 2 de 3: subí el archivo del próximo examen. Sumá una nota corta
           de contexto y después agregá temas para practicar.
         </p>
 
-        <div className="border-2 border-dashed p-10 mb-6 text-center border-border">
+        <div className="border-2 border-dashed p-6 sm:p-10 mb-6 text-center border-border">
           <h2 className="font-serif text-xl mb-2">Arrastrá el archivo acá</h2>
           <p className="text-sm text-foreground-muted mb-6">
             PDF, imagen o documento. Hasta 15 MB por archivo.

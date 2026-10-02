@@ -96,27 +96,31 @@ export function MateriaLayout({
       <div
         className={
           immersive
-            ? "flex min-h-screen flex-col p-4 lg:h-screen lg:min-h-[640px] lg:overflow-hidden lg:p-5"
-            : "p-8"
+            ? "flex h-[calc(100dvh-3.5rem)] min-h-[480px] flex-col overflow-hidden p-3 sm:p-4 lg:h-screen lg:min-h-[640px] lg:p-5"
+            : "px-4 py-6 sm:p-6 lg:p-8"
         }
       >
         <div
           className={
             immersive
-              ? "mb-2 flex shrink-0 items-baseline gap-3"
-              : "mb-6"
+              ? "mb-2 flex min-w-0 shrink-0 items-baseline gap-3"
+              : "mb-5 sm:mb-6"
           }
         >
           <div
             className={`font-mono text-xs uppercase tracking-wider text-foreground-muted ${
-              immersive ? "shrink-0" : "mb-2"
+              immersive ? "shrink-0" : "mb-2 truncate"
             }`}
           >
             {immersive ? "Materia" : <>Materias / {materiaName}</>}
           </div>
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className={`font-serif ${immersive ? "text-xl" : "mb-1 text-3xl"}`}>
+          <div className="flex min-w-0 items-start justify-between">
+            <div className="min-w-0">
+              <h1
+                className={`font-serif break-words ${
+                  immersive ? "truncate text-xl" : "mb-1 text-2xl leading-tight sm:text-3xl"
+                }`}
+              >
                 {materiaName}
               </h1>
               {materiaInfo && !immersive && (
@@ -127,8 +131,8 @@ export function MateriaLayout({
         </div>
 
         <nav
-          className={`t-tabs relative flex shrink-0 gap-6 overflow-x-auto border-b border-border-subtle ${
-            immersive ? "mb-2" : "mb-8"
+          className={`t-tabs relative flex shrink-0 gap-5 overflow-x-auto border-b [scrollbar-width:none] sm:gap-6 border-border-subtle ${
+            immersive ? "mb-2" : "mb-6 sm:mb-8"
           }`}
         >
           <span

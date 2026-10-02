@@ -192,7 +192,7 @@ export function CompactChatComposer({
         />
         <button
           type="submit"
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-background transition-[background-color,transform,opacity] hover:bg-accent/90 enabled:active:scale-95 disabled:opacity-35"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent sm:size-7 text-background transition-[background-color,transform,opacity] hover:bg-accent/90 enabled:active:scale-95 disabled:opacity-35"
           disabled={!canSend}
           aria-label="Enviar mensaje"
           title="Enviar"

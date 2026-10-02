@@ -37,14 +37,14 @@ export default async function ExamenesPage({ params }: PageProps) {
         </div>
         <Link
           href={`/materias/${id}/examen`}
-          className="text-sm bg-accent text-background px-4 py-2 hover:bg-accent/90 transition-colors uppercase tracking-wider"
+          className="text-center text-sm bg-accent text-background px-4 py-3 sm:py-2 hover:bg-accent/90 transition-colors uppercase tracking-wider"
         >
           Cargar examen →
         </Link>
       </div>
 
       {examenes.length === 0 ? (
-        <div className="border border-border-subtle p-8 text-center">
+        <div className="border border-border-subtle p-5 sm:p-8 text-center">
           <p className="text-foreground-muted mb-4">
             Todavía no cargaste un examen para esta materia.
           </p>
@@ -69,7 +69,7 @@ export default async function ExamenesPage({ params }: PageProps) {
                     {examDisplayName(examen)}
                   </div>
                   {examen.fileName && (
-                    <div className="text-sm text-foreground-muted mt-1">
+                    <div className="text-sm text-foreground-muted mt-1 [overflow-wrap:anywhere]">
                       {examen.fileName}
                       {typeof examen.fileSize === "number"
                         ? ` · ${formatFileSize(examen.fileSize)}`

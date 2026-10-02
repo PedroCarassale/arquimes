@@ -59,11 +59,11 @@ export function ExamenForm({ materia }: { materia: Materia }) {
 
   return (
     <AppShell>
-      <div className="p-8 max-w-2xl">
+      <div className="px-4 py-6 sm:p-6 lg:p-8 max-w-2xl">
         <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
           {materia.name}
         </div>
-        <h1 className="font-serif text-3xl mb-2">Cargar examen</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl mb-2">Cargar examen</h1>
         <p className="text-sm text-foreground-muted mb-8">
           Paso 2 de 3: subí el archivo del próximo examen. Sumá una nota corta
           de contexto y después agregá temas para practicar.
@@ -83,7 +83,7 @@ export function ExamenForm({ materia }: { materia: Materia }) {
             setIsDragging(false);
             takeFiles(e.dataTransfer.files);
           }}
-          className={`border-2 border-dashed p-10 mb-6 text-center transition-colors ${
+          className={`border-2 border-dashed p-6 sm:p-10 mb-6 text-center transition-colors ${
             isDragging
               ? "border-accent bg-accent-muted/10"
               : file
@@ -93,7 +93,7 @@ export function ExamenForm({ materia }: { materia: Materia }) {
         >
           {file ? (
             <div>
-              <p className="font-serif text-xl mb-1">{file.name}</p>
+              <p className="font-serif text-xl mb-1 [overflow-wrap:anywhere]">{file.name}</p>
               <p className="text-sm text-foreground-muted mb-4">
                 {formatFileSize(file.size)}
               </p>
@@ -110,7 +110,10 @@ export function ExamenForm({ materia }: { materia: Materia }) {
             </div>
           ) : (
             <>
-              <h2 className="font-serif text-xl mb-2">Arrastrá el archivo acá</h2>
+              <h2 className="font-serif text-xl mb-2">
+                <span className="sm:hidden">Subí el archivo del examen</span>
+                <span className="hidden sm:inline">Arrastrá el archivo acá</span>
+              </h2>
               <p className="text-sm text-foreground-muted mb-6">
                 PDF, imagen o documento. Hasta 15 MB por archivo.
               </p>
@@ -157,10 +160,10 @@ export function ExamenForm({ materia }: { materia: Materia }) {
           >
             ← Paso 1: Cargar apuntes
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
             <Link
               href={`/materias/${materia.id}/examenes`}
-              className="border border-border px-4 py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
+              className="text-center border border-border px-4 py-3 sm:py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
             >
               Paso 3: Definir temas
             </Link>
@@ -169,7 +172,7 @@ export function ExamenForm({ materia }: { materia: Materia }) {
               onClick={handleSave}
               disabled={loading}
               aria-label="Guardar examen"
-              className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-accent text-background px-6 py-3 sm:py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Guardando..." : "Guardar examen →"}
             </button>

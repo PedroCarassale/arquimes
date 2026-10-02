@@ -39,7 +39,7 @@ export function MaterialViewer({
           <div className="mb-1 text-xs font-mono uppercase tracking-wider text-foreground-muted">
             Visor de material
           </div>
-          <h2 className="truncate font-serif text-2xl">{name}</h2>
+          <h2 className="font-serif text-xl [overflow-wrap:anywhere] sm:truncate sm:text-2xl">{name}</h2>
           <p className="mt-1 text-sm text-foreground-muted">
             {humanType(kind)} · {formatFileSize(size)}
           </p>
@@ -51,6 +51,16 @@ export function MaterialViewer({
           >
             {backLabel}
           </Link>
+          {(kind === "pdf" || kind === "text" || kind === "image") && (
+            <a
+              href={inlineUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-border px-3 py-2 hover:border-accent"
+            >
+              Abrir en pestaña nueva
+            </a>
+          )}
           <a
             href={downloadUrl}
             className="bg-accent px-3 py-2 text-background hover:bg-accent/90"
@@ -79,7 +89,7 @@ function ViewerContent({
       <iframe
         src={inlineUrl}
         title="Visor de PDF"
-        className="h-[70vh] w-full border border-border-subtle bg-white"
+        className="h-[60dvh] w-full border border-border-subtle bg-white sm:h-[70vh]"
       />
     );
   }

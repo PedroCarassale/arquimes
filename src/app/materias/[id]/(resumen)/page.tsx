@@ -94,7 +94,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
         }}
       />
       {!hasPreparacionConfig ? (
-        <div className="mb-8 border border-dashed border-border-subtle p-4">
+        <div className="mb-6 sm:mb-8 border border-dashed border-border-subtle p-4">
           <p className="text-sm text-foreground-muted">
             Si querés organizarte con anticipación, configurá temas y fecha del parcial en{" "}
             <Link href={`/materias/${id}/preparacion`} className="text-accent hover:underline">
@@ -104,7 +104,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
           </p>
         </div>
       ) : (
-        <div className="mb-8 border border-border-subtle p-4">
+        <div className="mb-6 sm:mb-8 border border-border-subtle p-4">
           <p className="text-sm text-foreground-muted">
             Preparación configurada: {preparacion?.temas.length || 0} temas · parcial{" "}
             {preparacion?.fechaParcial ? formatDate(preparacion.fechaParcial) : "sin fecha"}.
@@ -114,7 +114,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
       )}
 
       {noExam && (
-        <div className="border border-border-subtle p-8 text-center">
+        <div className="border border-border-subtle p-5 text-center sm:p-8">
           <p className="text-foreground-muted mb-4">
             No tenés ningún examen cargado para esta materia.
           </p>
@@ -123,7 +123,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               ? "Ya tenés material subido. Cargá un examen para empezar a prepararte."
               : "Empezá subiendo tu material de estudio y después cargá tu próximo examen."}
           </p>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             {materiales.length === 0 && (
               <Link
                 href={`/materias/${id}/cargar`}
@@ -144,24 +144,24 @@ export default async function MateriaResumenPage({ params }: PageProps) {
 
       {noTopics && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="border border-accent p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
+            <div className="border border-accent p-5 sm:p-6">
               <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
                 Próximo examen
               </div>
-              <div className="flex items-baseline justify-between">
-                <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0">
                   <div className="font-serif text-xl">
                     {examDisplayName(nextExamen)}
                   </div>
-                  <div className="text-sm text-foreground-muted">
+                  <div className="text-sm text-foreground-muted [overflow-wrap:anywhere]">
                     {nextExamen.fileName ||
                       (nextExamen.date
                         ? formatDate(nextExamen.date)
                         : "Archivo de examen")}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   {nextExamen.date ? (
                     <>
                       <div className="text-3xl font-serif">
@@ -193,7 +193,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
             </div>
 
             {hasPreparacionConfig ? (
-              <div className="border border-border-subtle p-6">
+              <div className="border border-border-subtle p-5 sm:p-6">
                 <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                   Preparación estimada
                 </div>
@@ -201,7 +201,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                 <div className="text-sm text-foreground-muted">Sin temas de práctica cargados</div>
               </div>
             ) : (
-              <div className="border border-border-subtle p-6">
+              <div className="border border-border-subtle p-5 sm:p-6">
                 <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                   Plan de estudio
                 </div>
@@ -217,7 +217,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               </div>
             )}
 
-            <div className="border border-border-subtle p-6">
+            <div className="border border-border-subtle p-5 sm:p-6">
               <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                 Siguiente paso
               </div>
@@ -245,24 +245,24 @@ export default async function MateriaResumenPage({ params }: PageProps) {
 
       {hasData && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="border border-accent p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
+            <div className="border border-accent p-5 sm:p-6">
               <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
                 Próximo examen
               </div>
-              <div className="flex items-baseline justify-between">
-                <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0">
                   <div className="font-serif text-xl">
                     {examDisplayName(nextExamen)}
                   </div>
-                  <div className="text-sm text-foreground-muted">
+                  <div className="text-sm text-foreground-muted [overflow-wrap:anywhere]">
                     {nextExamen.fileName ||
                       (nextExamen.date
                         ? formatDate(nextExamen.date)
                         : "Archivo de examen")}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   {nextExamen.date ? (
                     <>
                       <div className="text-3xl font-serif">
@@ -294,7 +294,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
             </div>
 
             {hasPreparacionConfig ? (
-              <div className="border border-border-subtle p-6">
+              <div className="border border-border-subtle p-5 sm:p-6">
                 <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                   Preparación estimada
                 </div>
@@ -311,7 +311,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                 </div>
               </div>
             ) : (
-              <div className="border border-border-subtle p-6">
+              <div className="border border-border-subtle p-5 sm:p-6">
                 <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                   Plan de estudio
                 </div>
@@ -327,7 +327,7 @@ export default async function MateriaResumenPage({ params }: PageProps) {
               </div>
             )}
 
-            <div className="border border-accent-muted p-6 bg-accent-muted/30">
+            <div className="border border-accent-muted p-5 sm:p-6 bg-accent-muted/30">
               <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
                 Siguiente paso recomendado
               </div>
@@ -375,9 +375,9 @@ export default async function MateriaResumenPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between gap-4 mb-4">
                 <h2 className="font-serif text-xl">Programa y temas</h2>
                 <Link
                   href={`/materias/${id}/examenes/${nextExamen.id}`}
@@ -402,14 +402,14 @@ export default async function MateriaResumenPage({ params }: PageProps) {
                   const progress = weights[tema.masteryState];
 
                   return (
-                    <div key={tema.id} className="p-4 flex items-center gap-4">
-                      <div className="flex-1">
+                    <div key={tema.id} className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
                         <div className="text-sm">{tema.name}</div>
                       </div>
                       <div className={`text-xs font-mono uppercase ${getMasteryColor(tema.masteryState)}`}>
                         {MASTERY_LABELS[tema.masteryState]}
                       </div>
-                      <div className="w-24 h-1 bg-surface-elevated">
+                      <div className="ml-auto w-24 h-1 bg-surface-elevated sm:ml-0">
                         <div
                           className="h-full bg-accent transition-all"
                           style={{ width: `${progress}%` }}
@@ -423,11 +423,11 @@ export default async function MateriaResumenPage({ params }: PageProps) {
 
             <div className="space-y-6">
               <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between gap-4 mb-4">
                   <h3 className="font-serif text-lg">Apuntes y material</h3>
                   <Link
                     href={`/materias/${id}/cargar`}
-                    className="text-accent text-sm border border-accent px-3 py-1 hover:bg-accent hover:text-background transition-colors"
+                    className="shrink-0 text-accent text-sm border border-accent px-3 py-1 hover:bg-accent hover:text-background transition-colors"
                   >
                     Cargar apuntes
                   </Link>

@@ -11,12 +11,12 @@ export default function CargarLoading() {
 
   return (
     <AppShell>
-      <SkeletonRegion className="p-8">
+      <SkeletonRegion className="px-4 py-6 sm:p-6 lg:p-8">
         <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
           Carga de material
         </div>
 
-        <h1 className="font-serif text-3xl mb-2">Seleccionar archivos</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl mb-2">Seleccionar archivos</h1>
         <p className="text-sm text-foreground-muted mb-8">
           Paso 1 de 3 para cargar info del examen: subí apuntes o guías a{" "}
           {snapshot?.name ?? <Bone className="w-32" />}. Después cargás el archivo del examen
@@ -37,7 +37,7 @@ export default function CargarLoading() {
           </div>
         </div>
 
-        <div className="border-2 border-dashed p-16 mb-8 text-center border-border">
+        <div className="border-2 border-dashed p-6 sm:p-10 lg:p-16 mb-8 text-center border-border">
           <div className="w-12 h-12 mx-auto mb-4 border border-accent flex items-center justify-center">
             <span className="text-accent text-2xl">↑</span>
           </div>

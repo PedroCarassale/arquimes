@@ -51,7 +51,7 @@ export function EliminarExamen({
             ¿Eliminar este examen y su archivo? Esta acción no se puede
             deshacer.
           </p>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => setConfirm(false)}

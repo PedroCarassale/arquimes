@@ -6,12 +6,12 @@ import type { MateriaSnapshot } from "@/lib/materia-snapshot";
 
 function ExamCard() {
   return (
-    <div className="border border-accent p-6">
+    <div className="border border-accent p-5 sm:p-6">
       <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
         Próximo examen
       </div>
-      <div className="flex items-baseline justify-between">
-        <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0">
           <div className="font-serif text-xl">
             <Bone className="w-36" />
           </div>
@@ -29,7 +29,7 @@ function ExamCard() {
 
 function PlanCard({ variant }: { variant: "sin_temas" | "con_temas" }) {
   return (
-    <div className="border border-border-subtle p-6">
+    <div className="border border-border-subtle p-5 sm:p-6">
       <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
         Plan de estudio
       </div>
@@ -45,7 +45,7 @@ function PlanCard({ variant }: { variant: "sin_temas" | "con_temas" }) {
 
 function PreparacionCard() {
   return (
-    <div className="border border-border-subtle p-6">
+    <div className="border border-border-subtle p-5 sm:p-6">
       <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
         Preparación estimada
       </div>
@@ -66,7 +66,7 @@ function PreparacionCard() {
 
 function SiguientePasoCard() {
   return (
-    <div className="border border-border-subtle p-6">
+    <div className="border border-border-subtle p-5 sm:p-6">
       <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
         Siguiente paso
       </div>
@@ -85,7 +85,7 @@ function SiguientePasoCard() {
 
 function RecomendadoCard() {
   return (
-    <div className="border border-accent-muted p-6 bg-accent-muted/30">
+    <div className="border border-accent-muted p-5 sm:p-6 bg-accent-muted/30">
       <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
         Siguiente paso recomendado
       </div>
@@ -106,14 +106,14 @@ function RecomendadoCard() {
 
 function SinExamen({ snapshot }: { snapshot: MateriaSnapshot }) {
   return (
-    <div className="border border-border-subtle p-8 text-center">
+    <div className="border border-border-subtle p-5 text-center sm:p-8">
       <p className="text-foreground-muted mb-4">
         No tenés ningún examen cargado para esta materia.
       </p>
       <p className="text-sm text-foreground-subtle mb-6">
         <Bone className="w-96" />
       </p>
-      <div className="flex items-center justify-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-4">
         {!snapshot.materialesCount && (
           <span className="text-accent text-sm">Subir material →</span>
         )}
@@ -130,9 +130,9 @@ function ConTemas({ snapshot }: { snapshot: MateriaSnapshot }) {
   const materiales = snapshot.materialesCount ?? 3;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <h2 className="font-serif text-xl">Programa y temas</h2>
           <span className="text-xs font-mono text-accent uppercase tracking-wider">
             Ver examen →
@@ -143,8 +143,8 @@ function ConTemas({ snapshot }: { snapshot: MateriaSnapshot }) {
         </p>
         <div className="border border-border-subtle divide-y divide-border-subtle">
           {Array.from({ length: temas }, (_, i) => (
-            <div key={i} className="p-4 flex items-center gap-4">
-              <div className="flex-1">
+            <div key={i} className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
                 <div className="text-sm">
                   <Bone className={i % 3 === 0 ? "w-56" : i % 3 === 1 ? "w-44" : "w-64"} />
                 </div>
@@ -152,7 +152,7 @@ function ConTemas({ snapshot }: { snapshot: MateriaSnapshot }) {
               <div className="text-xs font-mono uppercase">
                 <Bone className="w-20" />
               </div>
-              <BoneBlock className="w-24 h-1" />
+              <BoneBlock className="ml-auto w-24 h-1 sm:ml-0" />
             </div>
           ))}
         </div>
@@ -160,9 +160,9 @@ function ConTemas({ snapshot }: { snapshot: MateriaSnapshot }) {
 
       <div className="space-y-6">
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-4 mb-4">
             <h3 className="font-serif text-lg">Apuntes y material</h3>
-            <span className="text-accent text-sm border border-accent px-3 py-1">
+            <span className="shrink-0 text-accent text-sm border border-accent px-3 py-1">
               Cargar apuntes
             </span>
           </div>
@@ -202,7 +202,7 @@ export default function ResumenLoading() {
         return (
           <>
             <div
-              className={`mb-8 border ${
+              className={`mb-6 sm:mb-8 border ${
                 snapshot.hasPreparacionConfig ? "" : "border-dashed "
               }border-border-subtle p-4`}
             >
@@ -214,7 +214,7 @@ export default function ResumenLoading() {
             {variant === "sin_examen" && <SinExamen snapshot={snapshot} />}
 
             {variant !== "sin_examen" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
                 <ExamCard />
                 {snapshot.hasPreparacionConfig ? (
                   <PreparacionCard />

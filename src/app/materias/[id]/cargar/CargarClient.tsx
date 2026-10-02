@@ -83,19 +83,19 @@ export function CargarClient({ materia }: { materia: Materia }) {
 
   return (
     <AppShell>
-      <div className="p-8">
+      <div className="px-4 py-6 sm:p-6 lg:p-8">
         <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
           Carga de material
         </div>
 
-        <h1 className="font-serif text-3xl mb-2">Seleccionar archivos</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl mb-2">Seleccionar archivos</h1>
         <p className="text-sm text-foreground-muted mb-8">
           Paso 1 de 3 para cargar info del examen: subí apuntes o guías a{" "}
           {materia.name}. Después cargás el archivo del examen y definís temas.
         </p>
 
         <div className="mb-8">
-          <h2 className="font-serif text-2xl text-foreground-muted mb-2">
+          <h2 className="font-serif text-xl sm:text-2xl text-foreground-muted mb-2">
             Sumá material a la materia
           </h2>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -112,7 +112,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed p-16 mb-8 text-center transition-colors ${
+          className={`border-2 border-dashed p-6 sm:p-10 lg:p-16 mb-8 text-center transition-colors ${
             isDragging
               ? "border-accent bg-accent-muted/10"
               : files.length > 0
@@ -125,9 +125,13 @@ export function CargarClient({ materia }: { materia: Materia }) {
               <div className="w-12 h-12 mx-auto mb-4 border border-accent flex items-center justify-center">
                 <span className="text-accent text-2xl">↑</span>
               </div>
-              <h3 className="font-serif text-xl mb-2">Arrastrá los archivos acá</h3>
+              <h3 className="font-serif text-xl mb-2">
+                <span className="sm:hidden">Elegí tus archivos</span>
+                <span className="hidden sm:inline">Arrastrá los archivos acá</span>
+              </h3>
               <p className="text-sm text-foreground-muted mb-6">
-                También podés seleccionar archivos desde tu computadora.
+                <span className="sm:hidden">Desde tu celular: fotos, PDFs o documentos.</span>
+                <span className="hidden sm:inline">También podés seleccionar archivos desde tu computadora.</span>
               </p>
               <div className="flex items-center justify-center gap-4">
                 <label className="text-sm bg-accent text-background px-6 py-2 cursor-pointer hover:bg-accent/90 transition-colors uppercase tracking-wider">
@@ -152,22 +156,22 @@ export function CargarClient({ materia }: { materia: Materia }) {
                 {files.map((file, i) => (
                   <div
                     key={`${file.name}-${i}`}
-                    className="flex items-center gap-4 py-2 border-b border-border-subtle"
+                    className="flex items-center gap-3 py-2 border-b border-border-subtle sm:gap-4"
                   >
-                    <span className="text-xs font-mono text-foreground-muted w-8">
+                    <span className="shrink-0 text-xs font-mono text-foreground-muted w-8">
                       {file.type.includes("pdf")
                         ? "PDF"
                         : file.type.includes("image")
                         ? "IMG"
                         : "DOC"}
                     </span>
-                    <span className="flex-1 text-sm">{file.name}</span>
-                    <span className="text-xs text-foreground-muted">
+                    <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+                    <span className="shrink-0 text-xs text-foreground-muted">
                       {formatFileSize(file.size)}
                     </span>
                     <button
                       onClick={() => removeFile(i)}
-                      className="text-xs text-foreground-muted hover:text-red-500"
+                      className="-my-2 shrink-0 px-2 py-2 text-base text-foreground-muted hover:text-red-500"
                       aria-label={`Quitar ${file.name}`}
                     >
                       ×
@@ -206,10 +210,10 @@ export function CargarClient({ materia }: { materia: Materia }) {
           >
             ← Volver a la materia
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
             <Link
               href={`/materias/${materia.id}/examen`}
-              className="border border-border px-4 py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
+              className="text-center border border-border px-4 py-3 sm:py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
             >
               Paso 2: Cargar examen
             </Link>
@@ -217,7 +221,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
               onClick={handleUpload}
               disabled={uploading}
               aria-label="Guardar archivos"
-              className="bg-accent text-background px-6 py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-accent text-background px-6 py-3 sm:py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? "Subiendo..." : "Guardar archivos →"}
             </button>
