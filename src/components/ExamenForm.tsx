@@ -5,17 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { formatFileSize } from "@/lib/format";
-import {
-  expandStudyFiles,
-  uploadStudyFile,
-  validateStudyFile,
-} from "@/lib/study-upload";
+import { expandStudyFiles, validateStudyFile } from "@/lib/study-upload";
+import { enqueueUploads } from "@/lib/upload-queue";
 import type { Materia } from "@/lib/types";
 
 export function ExamenForm({ materia }: { materia: Materia }) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
-  const [progress, setProgress] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,34 +32,19 @@ export function ExamenForm({ materia }: { materia: Materia }) {
     }
 
     setLoading(true);
-    let saved = 0;
     try {
       const expanded = await expandStudyFiles(files);
       const invalid = expanded.map(validateStudyFile).find(Boolean);
       if (invalid) throw new Error(invalid);
-      for (const [index, file] of expanded.entries()) {
-        const prefix = expanded.length > 1 ? `${index + 1}/${expanded.length} · ` : "";
-        setProgress(`${prefix}0%`);
-        await uploadStudyFile(materia.id, file, {
-          kind: "examen",
-          note: note.trim() || undefined,
-          onProgress: (fraction) =>
-            setProgress(`${prefix}${Math.round(fraction * 100)}%`),
-        });
-        saved += 1;
-      }
-
+      enqueueUploads(materia.id, expanded, {
+        kind: "examen",
+        note: note.trim() || undefined,
+      });
       router.push(`/materias/${materia.id}/examenes`);
-      router.refresh();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "No pude guardar el examen.";
       setError(
-        saved > 0
-          ? `${message} Los ${saved} archivos anteriores ya quedaron guardados.`
-          : message
+        err instanceof Error ? err.message : "No pude guardar el examen."
       );
-      setProgress(null);
       setLoading(false);
     }
   }
@@ -200,7 +181,7 @@ export function ExamenForm({ materia }: { materia: Materia }) {
               className="bg-accent text-background px-6 py-3 sm:py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading
-                ? `Guardando${progress ? ` ${progress}` : "..."}`
+                ? "Preparando..."
                 : files.length > 1
                   ? "Guardar exámenes →"
                   : "Guardar examen →"}

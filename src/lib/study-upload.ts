@@ -148,6 +148,27 @@ async function withRetries<T>(task: () => Promise<T>): Promise<T> {
   throw lastError;
 }
 
+function putChunk(url: string, blob: Blob, onBytes: (bytes: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (event) => onBytes(event.loaded);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let message = "No pude subir el archivo.";
+      try {
+        const payload = JSON.parse(xhr.responseText) as { error?: unknown };
+        if (typeof payload.error === "string") message = payload.error;
+      } catch {}
+      reject(new Error(message));
+    };
+    xhr.onerror = () => reject(new Error("Se cortó la conexión mientras subía el archivo."));
+    xhr.send(blob);
+  });
+}
+
 export async function uploadStudyFile(
   materiaId: string,
   file: File,
@@ -180,26 +201,30 @@ export async function uploadStudyFile(
   };
 
   try {
-    let sent = 0;
+    const loaded = new Map<number, number>();
     let next = 0;
+    const report = () => {
+      const bytes = [...loaded.values()].reduce((sum, value) => sum + value, 0);
+      options.onProgress?.(Math.min(0.99, bytes / file.size));
+    };
     options.onProgress?.(0);
     const worker = async () => {
       while (next < chunkCount) {
         const index = next;
         next += 1;
         const blob = file.slice(index * chunkSize, (index + 1) * chunkSize);
-        await withRetries(async () => {
-          const response = await apiFetch(`/api/archivos/${fileId}/bloques/${index}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/octet-stream" },
-            body: blob,
-          });
-          if (!response.ok) {
-            throw new Error(await errorMessage(response, `No pude subir “${file.name}”.`));
-          }
-        });
-        sent += blob.size;
-        options.onProgress?.(sent / file.size);
+        await withRetries(() =>
+          putChunk(`/api/archivos/${fileId}/bloques/${index}`, blob, (bytes) => {
+            loaded.set(index, bytes);
+            report();
+          }).catch((error) => {
+            loaded.set(index, 0);
+            report();
+            throw error;
+          })
+        );
+        loaded.set(index, blob.size);
+        report();
       }
     };
     await Promise.all(

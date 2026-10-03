@@ -12,9 +12,10 @@ import {
   expandStudyFiles,
   onLecturaProgress,
   rereadStudyFile,
-  uploadStudyFile,
   validateStudyFile,
 } from "@/lib/study-upload";
+import { enqueueUploads } from "@/lib/upload-queue";
+import { SinSubidasPendientes, SubidasDeMateria } from "@/components/SubidasDeMateria";
 
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -45,8 +46,7 @@ export function ApuntesLibrary({
   initialMateriales: Material[];
 }) {
   const [materiales, setMateriales] = useState<Material[]>(initialMateriales);
-  const [uploading, setUploading] = useState(false);
-  const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,29 +90,18 @@ export function ApuntesLibrary({
   }
 
   async function handleUpload(list: FileList) {
-    setUploading(true);
+    setPreparing(true);
     setError(null);
 
     try {
       const files = await expandStudyFiles(Array.from(list));
       const invalid = files.map(validateStudyFile).find(Boolean);
       if (invalid) throw new Error(invalid);
-      for (const [index, file] of files.entries()) {
-        const prefix = files.length > 1 ? `${index + 1}/${files.length} · ` : "";
-        setProgressLabel(`${prefix}${file.name}`);
-        await uploadStudyFile(materia.id, file, {
-          kind: "apuntes",
-          onProgress: (fraction) =>
-            setProgressLabel(`${prefix}${file.name} · ${Math.round(fraction * 100)}%`),
-        });
-        await loadMateriales();
-      }
+      enqueueUploads(materia.id, files, { kind: "apuntes" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pude subir el archivo");
-      await loadMateriales();
     } finally {
-      setUploading(false);
-      setProgressLabel(null);
+      setPreparing(false);
     }
   }
 
@@ -251,10 +240,8 @@ export function ApuntesLibrary({
             }`}
           >
             <h3 className="font-serif text-lg mb-2">
-              {uploading ? (
-                <span className="[overflow-wrap:anywhere]">
-                  Subiendo {progressLabel || "..."}
-                </span>
+              {preparing ? (
+                "Preparando..."
               ) : (
                 <>
                   <span className="sm:hidden">Sumá archivos a esta materia</span>
@@ -283,11 +270,19 @@ export function ApuntesLibrary({
             </p>
           )}
 
+          <SubidasDeMateria
+            materiaId={materia.id}
+            kind="apuntes"
+            onComplete={loadMateriales}
+          />
+
           {materiales.length === 0 ? (
-            <div className="text-center py-12 text-foreground-muted">
-              No hay archivos todavía. Arrastrá archivos o hacé clic en
-              &quot;Cargar apuntes&quot;.
-            </div>
+            <SinSubidasPendientes materiaId={materia.id} kind="apuntes">
+              <div className="text-center py-12 text-foreground-muted">
+                No hay archivos todavía. Arrastrá archivos o hacé clic en
+                &quot;Cargar apuntes&quot;.
+              </div>
+            </SinSubidasPendientes>
           ) : (
             <div className="border border-border-subtle">
               <div className="hidden sm:grid grid-cols-[1fr_80px_120px_auto] gap-4 px-4 py-2 text-xs font-mono text-foreground-muted uppercase tracking-wider border-b border-border-subtle">

@@ -4,6 +4,7 @@ import { MateriaLayout } from "@/components/MateriaLayout";
 import { getExamenesConLectura, getMateria } from "@/lib/db";
 import { examDisplayName, formatFileSize, lecturaLabel } from "@/lib/format";
 import { RememberMateria } from "@/lib/materia-snapshot";
+import { SinSubidasPendientes, SubidasDeMateria } from "@/components/SubidasDeMateria";
 
 export const dynamic = "force-dynamic";
 
@@ -43,18 +44,22 @@ export default async function ExamenesPage({ params }: PageProps) {
         </Link>
       </div>
 
+      <SubidasDeMateria materiaId={id} kind="examen" />
+
       {examenes.length === 0 ? (
-        <div className="border border-border-subtle p-5 sm:p-8 text-center">
-          <p className="text-foreground-muted mb-4">
-            Todavía no cargaste un examen para esta materia.
-          </p>
-          <Link
-            href={`/materias/${id}/examen`}
-            className="text-accent text-sm hover:underline"
-          >
-            Cargar el primero →
-          </Link>
-        </div>
+        <SinSubidasPendientes materiaId={id} kind="examen">
+          <div className="border border-border-subtle p-5 sm:p-8 text-center">
+            <p className="text-foreground-muted mb-4">
+              Todavía no cargaste un examen para esta materia.
+            </p>
+            <Link
+              href={`/materias/${id}/examen`}
+              className="text-accent text-sm hover:underline"
+            >
+              Cargar el primero →
+            </Link>
+          </div>
+        </SinSubidasPendientes>
       ) : (
         <div className="border border-border-subtle divide-y divide-border-subtle">
           {examenes.map((examen) => (

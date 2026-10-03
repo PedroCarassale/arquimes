@@ -1,4 +1,5 @@
-import { uploadStudyFile, validateStudyFile } from "@/lib/study-upload";
+import { validateStudyFile } from "@/lib/study-upload";
+import { enqueueUploads } from "@/lib/upload-queue";
 import type { Material } from "@/lib/types";
 
 export const validateApunteFile = validateStudyFile;
@@ -7,10 +8,10 @@ type UploadedMaterial = Pick<Material, "id" | "name" | "type" | "size" | "lectur
 
 export async function uploadApunteFile(
   materiaId: string,
-  file: File,
-  onProgress?: (fraction: number) => void
+  file: File
 ): Promise<UploadedMaterial> {
-  const result = await uploadStudyFile(materiaId, file, { kind: "apuntes", onProgress });
+  const [upload] = enqueueUploads(materiaId, [file], { kind: "apuntes" });
+  const result = await upload;
   if (!result.material) throw new Error(`No pude guardar “${file.name}”.`);
   return result.material;
 }
