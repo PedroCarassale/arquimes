@@ -77,11 +77,11 @@ test("el prompt amplio incluye el índice completo y ambos extremos", () => {
 
 test("una pregunta puntual recibe el material completo cuando entra en el presupuesto", () => {
   const pages = Array.from(
-    { length: 124 },
+    { length: 60 },
     (_, index) =>
       `[Página ${index + 1}]\nArtículo ${index + 1}. ${"Texto legal transcripto. ".repeat(80)}MARCA-PAGINA-${index + 1}.`
   ).join("\n\n");
-  assert.ok(pages.length > 200_000);
+  assert.ok(pages.length > 100_000);
 
   const context: StudyContext = {
     materiaId: "materia-legislacion",
@@ -91,7 +91,7 @@ test("una pregunta puntual recibe el material completo cuando entra en el presup
         name: "Legislación 700-A.pdf",
         kind: "apunte",
         text: pages,
-        lectura: { estado: "lista", paginasLeidas: 124, paginasTotales: 124 },
+        lectura: { estado: "lista", paginasLeidas: 60, paginasTotales: 60 },
       },
     ],
     exams: [],
@@ -103,8 +103,8 @@ test("una pregunta puntual recibe el material completo cuando entra en el presup
 
   assert.match(system, /MATERIAL COMPLETO/);
   assert.match(system, /MARCA-PAGINA-1\./);
-  assert.match(system, /MARCA-PAGINA-124\./);
-  assert.match(system, /LECTURA COMPLETA: 124 páginas/);
+  assert.match(system, /MARCA-PAGINA-60\./);
+  assert.match(system, /LECTURA COMPLETA: 60 páginas/);
   assert.equal(system, second[0].content);
 });
 
@@ -124,4 +124,29 @@ test("una fuente a medio leer queda marcada como lectura en curso", () => {
   };
   const system = buildPrompt({ context, history: [], userMessage: "Hola" })[0].content;
   assert.match(system, /LECTURA EN CURSO: 4 de 124 páginas/);
+});
+
+test("en un apunte grande, una pregunta por página recupera esa página", () => {
+  const pages = Array.from(
+    { length: 124 },
+    (_, index) =>
+      `[Página ${index + 1}]\nArtículo ${index + 1}. ${"Texto legal transcripto. ".repeat(140)}MARCA-PAGINA-${index + 1}.`
+  ).join("\n\n");
+  assert.ok(pages.length > 400_000);
+
+  const context: StudyContext = {
+    materiaId: "m",
+    materiaName: "Legislación",
+    sources: [{ name: "Legislación 700-A.pdf", kind: "apunte", text: pages }],
+    exams: [],
+  };
+  const system = buildPrompt({
+    context,
+    history: [],
+    userMessage: "¿Qué dice la página 100 del apunte?",
+  })[0].content;
+
+  assert.doesNotMatch(system, /MATERIAL COMPLETO:/);
+  assert.match(system, /MARCA-PAGINA-100\./);
+  assert.ok(system.length < 150_000);
 });

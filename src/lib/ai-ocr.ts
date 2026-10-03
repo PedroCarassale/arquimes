@@ -1,5 +1,9 @@
 import { PDFDocument } from "pdf-lib";
-import { ProviderConfigError, resolveProviderName } from "./ai-providers";
+import {
+  fetchWithRateLimitRetry,
+  ProviderConfigError,
+  resolveProviderName,
+} from "./ai-providers";
 
 const OPENAI_BASE_URL =
   process.env.OPENAI_BASE_URL?.trim().replace(/\/+$/, "") ||
@@ -93,7 +97,7 @@ async function transcribeOpenAI(
           },
         };
 
-  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+  const response = await fetchWithRateLimitRetry(`${OPENAI_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
@@ -145,7 +149,7 @@ async function transcribeAnthropic(
             ).toString("base64"),
           },
         };
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetchWithRateLimitRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

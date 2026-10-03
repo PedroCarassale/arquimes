@@ -22,6 +22,28 @@ const ANTHROPIC_MODEL =
 const OPENAI_TUTOR_MAX_TOKENS = 12_000;
 const ANTHROPIC_TUTOR_MAX_TOKENS = 8_192;
 
+const RATE_LIMIT_RETRIES = 3;
+const MAX_RATE_LIMIT_WAIT_MS = 30_000;
+
+export async function fetchWithRateLimitRetry(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(url, init);
+    if ((response.status !== 429 && response.status !== 529) || attempt >= RATE_LIMIT_RETRIES) {
+      return response;
+    }
+    const detail = await response.clone().text();
+    const hinted = Number(detail.match(/try again in ([\d.]+)s/i)?.[1]);
+    const header = Number(response.headers.get("retry-after"));
+    const seconds = Number.isFinite(hinted) && hinted > 0 ? hinted : header > 0 ? header : 2 ** attempt * 3;
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(MAX_RATE_LIMIT_WAIT_MS, seconds * 1000 + 500))
+    );
+  }
+}
+
 export function resolveProviderName(): ProviderName {
   const selected = process.env.AI_PROVIDER?.trim().toLowerCase();
   if (selected === "openai" || selected === "anthropic") return selected;
@@ -72,7 +94,7 @@ async function callOpenAI(messages: ProviderMessage[]): Promise<ProviderResult> 
     );
   }
 
-  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+  const response = await fetchWithRateLimitRetry(`${OPENAI_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -115,7 +137,7 @@ async function callAnthropic(
     .filter((m) => m.role !== "system")
     .map((m) => ({ role: m.role, content: m.content }));
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetchWithRateLimitRetry("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

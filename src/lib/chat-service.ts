@@ -10,13 +10,13 @@ const SUGGESTED_CHIPS = [
   "Tomame un parcial simulado con corrección.",
 ] as const;
 
-const MAX_CONTEXT_CHARS = 48_000;
-const MAX_SOURCE_CHARS = 20_000;
+const MAX_CONTEXT_CHARS = 100_000;
+const MAX_SOURCE_CHARS = 70_000;
 const MAX_BROAD_CONTEXT_CHARS = 150_000;
 const CHUNK_TARGET = 1_100;
-const MAX_SELECTED_CHUNKS = 12;
+const MAX_SELECTED_CHUNKS = 48;
 const FULL_MATERIAL_CHARS =
-  Number(process.env.CHAT_FULL_MATERIAL_CHARS) || 480_000;
+  Number(process.env.CHAT_FULL_MATERIAL_CHARS) || 160_000;
 
 const RETRIEVAL_STOPWORDS = new Set([
   "apunte",
@@ -326,7 +326,7 @@ function selectChunks(chunks: RetrievalChunk[], query: string): RetrievalChunk[]
     .sort((a, b) => b.score - a.score || a.index - b.index);
   const selectedIndexes = new Set<number>();
 
-  for (const chunk of ranked.slice(0, 7)) {
+  for (const chunk of ranked.slice(0, Math.ceil(MAX_SELECTED_CHUNKS / 2))) {
     selectedIndexes.add(chunk.index);
     if (chunk.score > 0) {
       selectedIndexes.add(Math.max(0, chunk.index - 1));
