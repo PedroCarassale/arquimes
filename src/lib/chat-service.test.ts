@@ -154,7 +154,7 @@ test("en un apunte grande, una pregunta por página recupera esa página", () =>
   const range = buildPrompt({
     context,
     history: [],
-    userMessage: "¿Qué tema aparece en las últimas páginas (págs. 120 a 124)?",
+    userMessage: "¿Y qué tema aparece en las últimas páginas del apunte (120 a 124)?",
   })[0].content;
   assert.match(range, /MARCA-PAGINA-120\./);
   assert.match(range, /MARCA-PAGINA-124\./);

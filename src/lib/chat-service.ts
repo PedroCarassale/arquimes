@@ -356,7 +356,7 @@ const MAX_REQUESTED_PAGES = 8;
 function requestedPages(query: string): Set<number> {
   const pages = new Set<number>();
   const pattern =
-    /\bpag(?:ina)?s?\.?\s*(\d{1,4})(?:\s*(?:a|al|-|–|hasta|y)\s*(\d{1,4}))?/g;
+    /\bpag(?:ina)?s?\.?(?:\s+(?:de|del|la|el|apunte|material|pdf|libro))*[\s(]*(\d{1,4})(?:\s*(?:a|al|-|–|hasta|y)\s*(\d{1,4}))?/g;
   for (const match of fold(query).matchAll(pattern)) {
     const start = Number(match[1]);
     const end = match[2] ? Number(match[2]) : start;
