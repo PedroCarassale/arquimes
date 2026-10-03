@@ -14,7 +14,7 @@ const MAX_CONTEXT_CHARS = 100_000;
 const MAX_SOURCE_CHARS = 70_000;
 const MAX_BROAD_CONTEXT_CHARS = 150_000;
 const CHUNK_TARGET = 1_100;
-const MAX_SELECTED_CHUNKS = 48;
+const MAX_SELECTED_CHUNKS = 36;
 const FULL_MATERIAL_CHARS =
   Number(process.env.CHAT_FULL_MATERIAL_CHARS) || 160_000;
 
@@ -247,7 +247,7 @@ export function buildGroundingSnippet(
   const chunks = chunkForRetrieval(normalized);
   const selected = selectChunks(chunks, query);
   const perChunkBudget = Math.max(
-    400,
+    Math.ceil(CHUNK_TARGET * 1.6),
     Math.floor((maxChars - selected.length * 80) / selected.length)
   );
   const rendered = selected
@@ -315,8 +315,18 @@ function selectChunks(chunks: RetrievalChunk[], query: string): RetrievalChunk[]
     return selectBroadCoverage(chunks);
   }
 
-  const terms = retrievalTerms(query);
-  if (terms.length === 0) return selectBroadCoverage(chunks);
+  const pages = requestedPages(query);
+  const pageChunks = pages.size ? chunksForPages(chunks, pages) : [];
+  if (pageChunks.length >= MAX_SELECTED_CHUNKS) {
+    return pageChunks.slice(0, MAX_SELECTED_CHUNKS);
+  }
+
+  const terms = retrievalTerms(query).filter(
+    (term) => !(pages.size && (/^pag/.test(term) || pages.has(Number(term))))
+  );
+  if (terms.length === 0) {
+    return pageChunks.length ? pageChunks : selectBroadCoverage(chunks);
+  }
 
   const ranked = chunks
     .map((chunk) => ({
@@ -324,9 +334,10 @@ function selectChunks(chunks: RetrievalChunk[], query: string): RetrievalChunk[]
       score: relevanceScore(chunk.text, terms),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
-  const selectedIndexes = new Set<number>();
+  const selectedIndexes = new Set<number>(pageChunks.map((chunk) => chunk.index));
 
   for (const chunk of ranked.slice(0, Math.ceil(MAX_SELECTED_CHUNKS / 2))) {
+    if (selectedIndexes.size >= MAX_SELECTED_CHUNKS) break;
     selectedIndexes.add(chunk.index);
     if (chunk.score > 0) {
       selectedIndexes.add(Math.max(0, chunk.index - 1));
@@ -338,6 +349,37 @@ function selectChunks(chunks: RetrievalChunk[], query: string): RetrievalChunk[]
   return [...selectedIndexes]
     .slice(0, MAX_SELECTED_CHUNKS)
     .map((index) => chunks[index]);
+}
+
+const MAX_REQUESTED_PAGES = 8;
+
+function requestedPages(query: string): Set<number> {
+  const pages = new Set<number>();
+  const pattern =
+    /\bpag(?:ina)?s?\.?\s*(\d{1,4})(?:\s*(?:a|al|-|–|hasta|y)\s*(\d{1,4}))?/g;
+  for (const match of fold(query).matchAll(pattern)) {
+    const start = Number(match[1]);
+    const end = match[2] ? Number(match[2]) : start;
+    for (let page = Math.min(start, end); page <= Math.max(start, end); page += 1) {
+      if (pages.size >= MAX_REQUESTED_PAGES) return pages;
+      pages.add(page);
+    }
+  }
+  return pages;
+}
+
+function chunksForPages(chunks: RetrievalChunk[], pages: Set<number>): RetrievalChunk[] {
+  const selected: RetrievalChunk[] = [];
+  let currentPage = 0;
+  for (const chunk of chunks) {
+    const touched = new Set<number>(currentPage ? [currentPage] : []);
+    for (const marker of chunk.text.matchAll(/\[Página (\d+)\]/g)) {
+      currentPage = Number(marker[1]);
+      touched.add(currentPage);
+    }
+    if ([...touched].some((page) => pages.has(page))) selected.push(chunk);
+  }
+  return selected;
 }
 
 function selectBroadCoverage(chunks: RetrievalChunk[]): RetrievalChunk[] {

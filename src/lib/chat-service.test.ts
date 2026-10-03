@@ -130,7 +130,7 @@ test("en un apunte grande, una pregunta por página recupera esa página", () =>
   const pages = Array.from(
     { length: 124 },
     (_, index) =>
-      `[Página ${index + 1}]\nArtículo ${index + 1}. ${"Texto legal transcripto. ".repeat(140)}MARCA-PAGINA-${index + 1}.`
+      `[Página ${index + 1}]\nArtículo ${index + 1}. ${(index === 99 ? "Restricciones al dominio entre vecinos. " : "Legislación 700: dice exactamente la primera oración que se transcribí, decime qué trata. ").repeat(40)}MARCA-PAGINA-${index + 1}.`
   ).join("\n\n");
   assert.ok(pages.length > 400_000);
 
@@ -143,10 +143,19 @@ test("en un apunte grande, una pregunta por página recupera esa página", () =>
   const system = buildPrompt({
     context,
     history: [],
-    userMessage: "¿Qué dice la página 100 del apunte?",
+    userMessage:
+      "¿Qué dice exactamente la página 100 del apunte Legislación 700-A? Transcribí la primera oración y decime de qué tema trata.",
   })[0].content;
 
   assert.doesNotMatch(system, /MATERIAL COMPLETO:/);
   assert.match(system, /MARCA-PAGINA-100\./);
   assert.ok(system.length < 150_000);
+
+  const range = buildPrompt({
+    context,
+    history: [],
+    userMessage: "¿Qué tema aparece en las últimas páginas (págs. 120 a 124)?",
+  })[0].content;
+  assert.match(range, /MARCA-PAGINA-120\./);
+  assert.match(range, /MARCA-PAGINA-124\./);
 });
