@@ -9,7 +9,9 @@ function statusLabel(item: UploadItem): string {
     case "pendiente":
       return "En cola";
     case "subiendo":
-      return `Subiendo · ${Math.round(item.fraction * 100)}%`;
+      return item.fraction >= 0.99
+        ? "Guardando…"
+        : `Subiendo · ${Math.round(item.fraction * 100)}%`;
     case "lista":
       return item.kind === "examen" ? "Examen guardado" : "Apunte guardado";
     case "error":

@@ -43,7 +43,9 @@ export function SubidasDeMateria({
             <div className="text-[11px] font-mono text-accent">
               {item.status === "pendiente"
                 ? "En cola"
-                : `Subiendo · ${Math.round(item.fraction * 100)}%`}{" "}
+                : item.fraction >= 0.99
+                  ? "Guardando…"
+                  : `Subiendo · ${Math.round(item.fraction * 100)}%`}{" "}
               · {formatFileSize(item.size)}
             </div>
           </div>
