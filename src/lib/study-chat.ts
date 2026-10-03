@@ -3,6 +3,7 @@ import { extractText } from "unpdf";
 import type {
   ExamenEnPreparacion,
   GroundingPayload,
+  LecturaArchivo,
   Material,
   StudyExamSummary,
   StudySourceKind,
@@ -17,6 +18,7 @@ export type StudySource = {
   text: string | null;
   materialId?: string;
   unreadableHint?: string;
+  lectura?: LecturaArchivo;
 };
 
 export type StudyContext = {
@@ -135,6 +137,7 @@ export function groundingFromContext(ctx: StudyContext): GroundingPayload {
       kind: s.kind,
       readable: Boolean(s.text?.trim()),
       materialId: s.materialId,
+      lectura: s.lectura,
     })),
     exams: ctx.exams,
   };
@@ -144,7 +147,12 @@ export async function sourcesFromMateriales(
   materiales: Material[],
   fileMetaByStorageKey?: Map<
     string,
-    { extractedText: string | null; extractionStatus?: string; extractionDetail?: string | null }
+    {
+      extractedText: string | null;
+      extractionStatus?: string;
+      extractionDetail?: string | null;
+      lectura?: LecturaArchivo;
+    }
   >
 ): Promise<StudySource[]> {
   const sources = await Promise.all(
@@ -158,6 +166,7 @@ export async function sourcesFromMateriales(
           kind: material.kind === "examen" ? "examen" : "apunte",
           text: storageMeta.extractedText,
           materialId: material.id,
+          lectura: storageMeta.lectura,
           unreadableHint: unreadableHintFromStatus(
             storageMeta.extractionStatus,
             storageMeta.extractionDetail
@@ -585,6 +594,9 @@ function unreadableHintFromStatus(status?: string, detail?: string | null): stri
   if (!status) return undefined;
   if (status === "pdf-ocr-unavailable") {
     return "El PDF parece escaneado y falta configurar OCR para extraer texto.";
+  }
+  if (status === "ocr-pending" || status === "uploading") {
+    return "Todavía estoy leyendo este archivo. Dejá abierta la pantalla de apuntes o exámenes hasta que termine.";
   }
   if (status === "pdf-ocr-empty") {
     return "Intenté OCR, pero no devolvió texto legible.";

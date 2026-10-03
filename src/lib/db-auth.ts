@@ -20,6 +20,7 @@ import { nextMasteryFromPractice } from "./practice";
 import {
   deleteStudyFileByStorageKey,
   getStudyFileMetaByStorageKeys,
+  parseStorageKey,
 } from "./file-store-auth";
 import { getLibsqlClient } from "./libsql";
 import { requireUserId } from "./auth-session";
@@ -382,6 +383,44 @@ export async function getMateriales(materiaId: string): Promise<Material[]> {
     args: [userId, materiaId],
   });
   return result.rows.map((row) => toMaterial(row as SqlRow));
+}
+
+export async function withLectura(materiales: Material[]): Promise<Material[]> {
+  const meta = await getStudyFileMetaByStorageKeys(
+    materiales.map((m) => m.storageKey).filter(Boolean)
+  );
+  return materiales.map((material) => ({
+    ...material,
+    fileId: parseStorageKey(material.storageKey) || undefined,
+    lectura: meta.get(material.storageKey)?.lectura,
+  }));
+}
+
+export async function getExamenesConLectura(
+  materiaId: string
+): Promise<ExamenEnPreparacion[]> {
+  const examenes = await getExamenes(materiaId);
+  const userId = await requireUserId();
+  const materialIds = examenes
+    .map((examen) => examen.materialId)
+    .filter((id): id is string => Boolean(id));
+  if (materialIds.length === 0) return examenes;
+  const placeholders = materialIds.map(() => "?").join(", ");
+  const result = await getLibsqlClient().execute({
+    sql: `SELECT id, materia_id, name, type, size, storage_key, added_at, content_base64, kind, exam_id
+          FROM materiales WHERE user_id = ? AND id IN (${placeholders})`,
+    args: [userId, ...materialIds],
+  });
+  const materiales = await withLectura(
+    result.rows.map((row) => toMaterial(row as SqlRow))
+  );
+  const byId = new Map(materiales.map((material) => [material.id, material]));
+  return examenes.map((examen) => {
+    const material = examen.materialId ? byId.get(examen.materialId) : undefined;
+    return material
+      ? { ...examen, fileId: material.fileId, lectura: material.lectura }
+      : examen;
+  });
 }
 
 export async function getMaterial(id: string): Promise<Material | undefined> {

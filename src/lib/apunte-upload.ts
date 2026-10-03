@@ -1,61 +1,16 @@
-import { apiFetch } from "@/lib/api";
-import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
+import { uploadStudyFile, validateStudyFile } from "@/lib/study-upload";
 import type { Material } from "@/lib/types";
 
-const SUPPORTED_EXTENSIONS = new Set([
-  "pdf",
-  "doc",
-  "docx",
-  "ppt",
-  "pptx",
-  "xls",
-  "xlsx",
-  "txt",
-  "md",
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "webp",
-  "mp4",
-  "mov",
-  "webm",
-]);
+export const validateApunteFile = validateStudyFile;
 
-export function validateApunteFile(file: File): string | null {
-  if (!file) return "No se recibió ningún archivo.";
-  if (file.size <= 0) return "El archivo está vacío.";
-  if (file.size > MAX_STUDY_FILE_BYTES) return studyFileTooBigMessage(file.name);
-
-  const extension = file.name.toLowerCase().split(".").pop() || "";
-  if (!SUPPORTED_EXTENSIONS.has(extension)) {
-    return `No pude guardar “${file.name}”: formato no compatible.`;
-  }
-  return null;
-}
-
-type UploadedMaterial = Pick<Material, "id" | "name" | "type" | "size">;
+type UploadedMaterial = Pick<Material, "id" | "name" | "type" | "size" | "lectura">;
 
 export async function uploadApunteFile(
   materiaId: string,
-  file: File
+  file: File,
+  onProgress?: (fraction: number) => void
 ): Promise<UploadedMaterial> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await apiFetch(`/api/materias/${materiaId}/materiales`, {
-    method: "POST",
-    body: formData,
-  });
-  const payload = (await response.json().catch(() => ({}))) as
-    | UploadedMaterial
-    | { error?: string };
-  if (!response.ok || !("id" in payload)) {
-    const errorMessage =
-      typeof (payload as { error?: unknown }).error === "string"
-        ? (payload as { error?: string }).error
-        : undefined;
-    throw new Error(errorMessage || `No pude guardar “${file.name}”.`);
-  }
-  return payload;
+  const result = await uploadStudyFile(materiaId, file, { kind: "apuntes", onProgress });
+  if (!result.material) throw new Error(`No pude guardar “${file.name}”.`);
+  return result.material;
 }

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { createMaterial, getMateriales, getMateria } from "@/lib/db";
-import { storeStudyFile } from "@/lib/file-store";
-import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
-import { extractTextFromBuffer } from "@/lib/study-chat";
+import { createMaterial, getMateriales, getMateria, withLectura } from "@/lib/db";
+import { getStudyFileLectura } from "@/lib/file-store";
+import {
+  MAX_STUDY_FILE_BYTES,
+  studyFileMimeType,
+  studyFileTooBigMessage,
+} from "@/lib/limits";
+import { storeStudyFileFromBuffer } from "@/lib/study-ingest";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -16,7 +20,7 @@ export async function GET(
   try {
     await requireServerSession();
     const { id } = await params;
-    const materiales = await getMateriales(id);
+    const materiales = await withLectura(await getMateriales(id));
     return NextResponse.json(
       materiales.map(({ contentBase64, ...rest }) => ({
         ...rest,
@@ -68,32 +72,30 @@ export async function POST(
       );
     }
 
-    const extraction = await extractTextFromBuffer(
-      file.name,
-      file.type || "application/octet-stream",
-      buffer
-    );
-    const persisted = await storeStudyFile({
+    const type = studyFileMimeType(file.name, file.type);
+    const persisted = await storeStudyFileFromBuffer({
       name: file.name,
-      type: file.type || "application/octet-stream",
-      size: file.size || buffer.length,
+      type,
       bytes: buffer,
-      extractedText: extraction.text,
-      extractionStatus: extraction.status,
-      extractionDetail: extraction.detail,
     });
-    const fileId = uuid();
     const material = await createMaterial(
-      fileId,
+      uuid(),
       materiaId,
       file.name,
-      file.type || "application/octet-stream",
-      file.size,
+      type,
+      buffer.length,
       persisted.storageKey
     );
+    const lectura = await getStudyFileLectura(persisted.fileId);
 
     return NextResponse.json(
-      { ...material, contentBase64: undefined, hasContent: true },
+      {
+        ...material,
+        contentBase64: undefined,
+        hasContent: true,
+        fileId: persisted.fileId,
+        lectura,
+      },
       { status: 201 }
     );
   } catch (error) {

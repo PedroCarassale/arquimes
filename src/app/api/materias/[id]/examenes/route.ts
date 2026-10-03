@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { createExamenWithFile, getExamenes, getMateria } from "@/lib/db";
-import { storeStudyFile } from "@/lib/file-store";
-import { MAX_STUDY_FILE_BYTES, studyFileTooBigMessage } from "@/lib/limits";
-import { extractTextFromBuffer } from "@/lib/study-chat";
+import { createExamenWithFile, getExamenesConLectura, getMateria } from "@/lib/db";
+import { getStudyFileLectura } from "@/lib/file-store";
+import {
+  MAX_STUDY_FILE_BYTES,
+  studyFileMimeType,
+  studyFileTooBigMessage,
+} from "@/lib/limits";
+import { storeStudyFileFromBuffer } from "@/lib/study-ingest";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -16,7 +20,7 @@ export async function GET(
   try {
     await requireServerSession();
     const { id } = await params;
-    const examenes = await getExamenes(id);
+    const examenes = await getExamenesConLectura(id);
     return NextResponse.json(examenes);
   } catch (error) {
     return apiErrorResponse(error, "No pude leer los exámenes.");
@@ -70,19 +74,11 @@ export async function POST(
       );
     }
 
-    const extraction = await extractTextFromBuffer(
-      file.name,
-      file.type || "application/octet-stream",
-      buffer
-    );
-    const persisted = await storeStudyFile({
+    const type = studyFileMimeType(file.name, file.type);
+    const persisted = await storeStudyFileFromBuffer({
       name: file.name,
-      type: file.type || "application/octet-stream",
-      size: buffer.length,
+      type,
       bytes: buffer,
-      extractedText: extraction.text,
-      extractionStatus: extraction.status,
-      extractionDetail: extraction.detail,
     });
     const noteRaw = formData.get("note");
     const note =
@@ -93,13 +89,20 @@ export async function POST(
     const examen = await createExamenWithFile(uuid(), materiaId, {
       name: note,
       fileName: file.name,
-      fileType: file.type || "application/octet-stream",
+      fileType: type,
       fileSize: buffer.length,
       contentBase64: undefined,
       storageKey: persisted.storageKey,
     });
 
-    return NextResponse.json(examen, { status: 201 });
+    return NextResponse.json(
+      {
+        ...examen,
+        fileId: persisted.fileId,
+        lectura: await getStudyFileLectura(persisted.fileId),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     return apiErrorResponse(error, "No pude guardar el examen.");
   }

@@ -24,7 +24,7 @@ export default function CargarExamenLoading() {
         <div className="border-2 border-dashed p-6 sm:p-10 mb-6 text-center border-border">
           <h2 className="font-serif text-xl mb-2">Arrastrá el archivo acá</h2>
           <p className="text-sm text-foreground-muted mb-6">
-            PDF, imagen o documento. Hasta 15 MB por archivo.
+            PDF, imagen, documento o un ZIP con varios exámenes. Hasta 100 MB por archivo.
           </p>
           <span className="inline-block text-sm bg-accent text-background px-6 py-2 uppercase tracking-wider">
             Elegir archivo

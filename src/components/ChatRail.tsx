@@ -180,7 +180,10 @@ export function ChatRail() {
         );
         setUploadFeedback({
           tone: "success",
-          text: `Apunte guardado: ${file.name}`,
+          text:
+            uploaded.lectura?.estado === "leyendo"
+              ? `Apunte guardado: ${file.name}. Lo estoy leyendo para el chat; podés seguir el avance abajo.`
+              : `Apunte guardado: ${file.name}`,
         });
       } catch (uploadError) {
         setUploadChip({

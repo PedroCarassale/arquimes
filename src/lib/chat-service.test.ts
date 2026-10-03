@@ -74,3 +74,54 @@ test("el prompt amplio incluye el índice completo y ambos extremos", () => {
   assert.match(system, /MARCADOR-TARDÍO-ARQUIMES/);
   assert.match(system, /Solo afirmes que la cobertura es parcial.*EXTRACCIÓN FALLIDA/);
 });
+
+test("una pregunta puntual recibe el material completo cuando entra en el presupuesto", () => {
+  const pages = Array.from(
+    { length: 124 },
+    (_, index) =>
+      `[Página ${index + 1}]\nArtículo ${index + 1}. ${"Texto legal transcripto. ".repeat(80)}MARCA-PAGINA-${index + 1}.`
+  ).join("\n\n");
+  assert.ok(pages.length > 200_000);
+
+  const context: StudyContext = {
+    materiaId: "materia-legislacion",
+    materiaName: "Legislación",
+    sources: [
+      {
+        name: "Legislación 700-A.pdf",
+        kind: "apunte",
+        text: pages,
+        lectura: { estado: "lista", paginasLeidas: 124, paginasTotales: 124 },
+      },
+    ],
+    exams: [],
+  };
+
+  const first = buildPrompt({ context, history: [], userMessage: "¿Qué dice el artículo 3?" });
+  const second = buildPrompt({ context, history: [], userMessage: "Explicame la sociedad anónima" });
+  const system = first[0].content;
+
+  assert.match(system, /MATERIAL COMPLETO/);
+  assert.match(system, /MARCA-PAGINA-1\./);
+  assert.match(system, /MARCA-PAGINA-124\./);
+  assert.match(system, /LECTURA COMPLETA: 124 páginas/);
+  assert.equal(system, second[0].content);
+});
+
+test("una fuente a medio leer queda marcada como lectura en curso", () => {
+  const context: StudyContext = {
+    materiaId: "m",
+    materiaName: "Legislación",
+    sources: [
+      {
+        name: "escaneado.pdf",
+        kind: "apunte",
+        text: "[Página 1]\nPrimer artículo.",
+        lectura: { estado: "leyendo", paginasLeidas: 4, paginasTotales: 124 },
+      },
+    ],
+    exams: [],
+  };
+  const system = buildPrompt({ context, history: [], userMessage: "Hola" })[0].content;
+  assert.match(system, /LECTURA EN CURSO: 4 de 124 páginas/);
+});

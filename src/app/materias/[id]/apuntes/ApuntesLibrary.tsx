@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { Material, Materia } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
-import { formatFileSize } from "@/lib/format";
+import { formatFileSize, lecturaLabel } from "@/lib/format";
 import { materialViewerRoute } from "@/lib/material-viewer";
 import { useRememberMateria } from "@/lib/materia-snapshot";
+import {
+  expandStudyFiles,
+  onLecturaProgress,
+  rereadStudyFile,
+  uploadStudyFile,
+  validateStudyFile,
+} from "@/lib/study-upload";
 
 function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -39,6 +46,7 @@ export function ApuntesLibrary({
 }) {
   const [materiales, setMateriales] = useState<Material[]>(initialMateriales);
   const [uploading, setUploading] = useState(false);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,31 +59,60 @@ export function ApuntesLibrary({
     }
   }, [materia.id]);
 
-  async function handleUpload(files: FileList) {
+  const readingIds = materiales
+    .filter((m) => m.fileId && m.lectura?.estado === "leyendo")
+    .map((m) => m.fileId as string)
+    .join(",");
+
+  useEffect(() => {
+    if (!readingIds) return;
+    const unsubscribers = readingIds.split(",").map((fileId) =>
+      onLecturaProgress(fileId, (lectura) =>
+        setMateriales((current) =>
+          current.map((m) => (m.fileId === fileId ? { ...m, lectura } : m))
+        )
+      )
+    );
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [readingIds]);
+
+  async function handleReread(material: Material) {
+    if (!material.fileId) return;
+    setError(null);
+    try {
+      const lectura = await rereadStudyFile(material.fileId, material.name);
+      setMateriales((current) =>
+        current.map((m) => (m.id === material.id ? { ...m, lectura } : m))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pude volver a leer el archivo");
+    }
+  }
+
+  async function handleUpload(list: FileList) {
     setUploading(true);
     setError(null);
 
     try {
-      for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const res = await apiFetch(`/api/materias/${materia.id}/materiales`, {
-          method: "POST",
-          body: formData,
+      const files = await expandStudyFiles(Array.from(list));
+      const invalid = files.map(validateStudyFile).find(Boolean);
+      if (invalid) throw new Error(invalid);
+      for (const [index, file] of files.entries()) {
+        const prefix = files.length > 1 ? `${index + 1}/${files.length} · ` : "";
+        setProgressLabel(`${prefix}${file.name}`);
+        await uploadStudyFile(materia.id, file, {
+          kind: "apuntes",
+          onProgress: (fraction) =>
+            setProgressLabel(`${prefix}${file.name} · ${Math.round(fraction * 100)}%`),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(
-            (data as { error?: string }).error || `No pude subir ${file.name}`
-          );
-        }
+        await loadMateriales();
       }
-      await loadMateriales();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pude subir el archivo");
+      await loadMateriales();
     } finally {
       setUploading(false);
+      setProgressLabel(null);
     }
   }
 
@@ -157,7 +194,7 @@ export function ApuntesLibrary({
           <input
             type="file"
             multiple
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.zip"
             onChange={(e) => e.target.files && handleUpload(e.target.files)}
           />
         </label>
@@ -215,7 +252,9 @@ export function ApuntesLibrary({
           >
             <h3 className="font-serif text-lg mb-2">
               {uploading ? (
-                "Subiendo..."
+                <span className="[overflow-wrap:anywhere]">
+                  Subiendo {progressLabel || "..."}
+                </span>
               ) : (
                 <>
                   <span className="sm:hidden">Sumá archivos a esta materia</span>
@@ -224,7 +263,7 @@ export function ApuntesLibrary({
               )}
             </h3>
             <p className="text-sm text-foreground-muted mb-4">
-              PDF, texto o imágenes · Hasta 15 MB por archivo
+              PDF, texto, imágenes o ZIP · Hasta 100 MB por archivo
             </p>
             <label className="text-accent text-sm cursor-pointer hover:underline">
               Elegir archivos →
@@ -232,7 +271,7 @@ export function ApuntesLibrary({
                 type="file"
                 multiple
                 aria-label="Elegir archivos"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.zip"
                 onChange={(e) => e.target.files && handleUpload(e.target.files)}
               />
             </label>
@@ -268,6 +307,19 @@ export function ApuntesLibrary({
                     </span>
                     <div className="min-w-0">
                       <div className="text-sm truncate">{material.name}</div>
+                      {lecturaLabel(material.lectura) && (
+                        <div
+                          className={`text-[11px] font-mono ${
+                            material.lectura?.estado === "leyendo"
+                              ? "text-accent"
+                              : material.lectura?.estado === "lista"
+                                ? "text-foreground-subtle"
+                                : "text-foreground-muted"
+                          }`}
+                        >
+                          {lecturaLabel(material.lectura)}
+                        </div>
+                      )}
                       <div className="text-xs text-foreground-muted sm:hidden">
                         {formatFileSize(material.size)} · {formatRelativeDate(material.addedAt)}
                       </div>
@@ -289,6 +341,16 @@ export function ApuntesLibrary({
                     >
                       Ver →
                     </Link>
+                    {material.fileId &&
+                      (material.lectura?.estado === "sin-texto" ||
+                        material.lectura?.estado === "parcial") && (
+                        <button
+                          onClick={() => handleReread(material)}
+                          className="py-2 text-xs text-accent hover:underline sm:py-0"
+                        >
+                          Leer con IA
+                        </button>
+                      )}
                     <button
                       onClick={() => handleDelete(material.id)}
                       className="py-2 text-xs text-foreground-muted hover:text-red-500 sm:py-0"

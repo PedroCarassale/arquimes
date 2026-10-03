@@ -22,7 +22,7 @@ const ANTHROPIC_MODEL =
 const OPENAI_TUTOR_MAX_TOKENS = 12_000;
 const ANTHROPIC_TUTOR_MAX_TOKENS = 8_192;
 
-function resolveProviderName(): ProviderName {
+export function resolveProviderName(): ProviderName {
   const selected = process.env.AI_PROVIDER?.trim().toLowerCase();
   if (selected === "openai" || selected === "anthropic") return selected;
   if (process.env.OPENAI_API_KEY?.trim()) return "openai";

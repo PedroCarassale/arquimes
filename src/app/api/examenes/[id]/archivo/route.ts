@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getExamen, getMaterial } from "@/lib/db";
-import { readStudyFileContent } from "@/lib/file-store";
+import { studyFileResponse } from "@/lib/file-store";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -28,10 +28,16 @@ export async function GET(
       );
     }
 
-    const persisted = await readStudyFileContent(material.storageKey);
+    if (!material.contentBase64) {
+      const streamed = await studyFileResponse(material.storageKey, request, {
+        fileName: examen.fileName || material.name || "examen",
+        fallbackType: material.type,
+      });
+      if (streamed) return streamed;
+    }
     const bytes = material.contentBase64
       ? Buffer.from(material.contentBase64, "base64")
-      : persisted?.bytes;
+      : undefined;
     if (!bytes) {
       return NextResponse.json(
         { error: "Este examen no tiene archivo." },
@@ -45,7 +51,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(bytes), {
       headers: {
         "Content-Type":
-          persisted?.type || material.type || "application/octet-stream",
+          material.type || "application/octet-stream",
         "Content-Disposition": `${disposition}; filename="${encodeURIComponent(fileName)}"`,
       },
     });

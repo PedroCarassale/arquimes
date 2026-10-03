@@ -4,13 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { apiFetch } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import {
+  expandStudyFiles,
+  uploadStudyFile,
+  validateStudyFile,
+} from "@/lib/study-upload";
 import type { Materia } from "@/lib/types";
 
 export function ExamenForm({ materia }: { materia: Materia }) {
   const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,41 +23,47 @@ export function ExamenForm({ materia }: { materia: Materia }) {
 
   function takeFiles(list: FileList | null) {
     if (list && list.length > 0) {
-      setFile(list[0]);
+      setFiles(Array.from(list));
       setError(null);
     }
   }
 
   async function handleSave() {
     setError(null);
-    if (!file) {
+    if (files.length === 0) {
       setError("Adjuntá el archivo del examen.");
       return;
     }
 
     setLoading(true);
+    let saved = 0;
     try {
-      const body = new FormData();
-      body.append("file", file);
-      if (note.trim()) body.append("note", note.trim());
-
-      const res = await apiFetch(`/api/materias/${materia.id}/examenes`, {
-        method: "POST",
-        body,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(
-          (data as { error?: string }).error || "No pude guardar el examen."
-        );
+      const expanded = await expandStudyFiles(files);
+      const invalid = expanded.map(validateStudyFile).find(Boolean);
+      if (invalid) throw new Error(invalid);
+      for (const [index, file] of expanded.entries()) {
+        const prefix = expanded.length > 1 ? `${index + 1}/${expanded.length} · ` : "";
+        setProgress(`${prefix}0%`);
+        await uploadStudyFile(materia.id, file, {
+          kind: "examen",
+          note: note.trim() || undefined,
+          onProgress: (fraction) =>
+            setProgress(`${prefix}${Math.round(fraction * 100)}%`),
+        });
+        saved += 1;
       }
 
       router.push(`/materias/${materia.id}/examenes`);
       router.refresh();
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No pude guardar el examen.";
       setError(
-        err instanceof Error ? err.message : "No pude guardar el examen."
+        saved > 0
+          ? `${message} Los ${saved} archivos anteriores ya quedaron guardados.`
+          : message
       );
+      setProgress(null);
       setLoading(false);
     }
   }
@@ -86,24 +97,37 @@ export function ExamenForm({ materia }: { materia: Materia }) {
           className={`border-2 border-dashed p-6 sm:p-10 mb-6 text-center transition-colors ${
             isDragging
               ? "border-accent bg-accent-muted/10"
-              : file
+              : files.length > 0
                 ? "border-accent/50"
                 : "border-border hover:border-foreground-muted"
           }`}
         >
-          {file ? (
+          {files.length > 0 ? (
             <div>
-              <p className="font-serif text-xl mb-1 [overflow-wrap:anywhere]">{file.name}</p>
+              {files.map((file, index) => (
+                <p
+                  key={`${file.name}-${index}`}
+                  className="font-serif text-xl mb-1 [overflow-wrap:anywhere]"
+                >
+                  {file.name}
+                  <span className="ml-2 font-sans text-sm text-foreground-muted">
+                    {formatFileSize(file.size)}
+                  </span>
+                </p>
+              ))}
               <p className="text-sm text-foreground-muted mb-4">
-                {formatFileSize(file.size)}
+                {files.length > 1 || files.some((f) => f.name.toLowerCase().endsWith(".zip"))
+                  ? "Cada archivo se guarda como un examen aparte."
+                  : ""}
               </p>
               <label className="text-accent text-sm cursor-pointer hover:underline">
-                Cambiar archivo
+                Cambiar archivos
                 <input
                   type="file"
+                  multiple
                   aria-label="Archivo del examen"
                   className="sr-only"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt,.zip"
                   onChange={(e) => takeFiles(e.target.files)}
                 />
               </label>
@@ -115,15 +139,16 @@ export function ExamenForm({ materia }: { materia: Materia }) {
                 <span className="hidden sm:inline">Arrastrá el archivo acá</span>
               </h2>
               <p className="text-sm text-foreground-muted mb-6">
-                PDF, imagen o documento. Hasta 15 MB por archivo.
+                PDF, imagen, documento o un ZIP con varios exámenes. Hasta 100 MB por archivo.
               </p>
               <label className="inline-block text-sm bg-accent text-background px-6 py-2 cursor-pointer hover:bg-accent/90 uppercase tracking-wider">
-                Elegir archivo
+                Elegir archivos
                 <input
                   type="file"
+                  multiple
                   aria-label="Archivo del examen"
                   className="sr-only"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.txt,.zip"
                   onChange={(e) => takeFiles(e.target.files)}
                 />
               </label>
@@ -174,7 +199,11 @@ export function ExamenForm({ materia }: { materia: Materia }) {
               aria-label="Guardar examen"
               className="bg-accent text-background px-6 py-3 sm:py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Guardando..." : "Guardar examen →"}
+              {loading
+                ? `Guardando${progress ? ` ${progress}` : "..."}`
+                : files.length > 1
+                  ? "Guardar exámenes →"
+                  : "Guardar examen →"}
             </button>
           </div>
         </div>

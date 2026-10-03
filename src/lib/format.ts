@@ -1,4 +1,4 @@
-import type { ExamenEnPreparacion } from "./types";
+import type { ExamenEnPreparacion, LecturaArchivo } from "./types";
 
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
@@ -32,4 +32,25 @@ export function formatExamDate(dateStr: string): string {
     month: "short",
     year: "numeric",
   });
+}
+
+export function lecturaLabel(lectura?: LecturaArchivo): string | null {
+  if (!lectura) return null;
+  const pages = (count: number) => `${count} ${count === 1 ? "página" : "páginas"}`;
+  switch (lectura.estado) {
+    case "subiendo":
+      return "Subiendo…";
+    case "leyendo":
+      return lectura.paginasTotales > 1
+        ? `Leyendo · ${lectura.paginasLeidas}/${lectura.paginasTotales} págs.`
+        : "Leyendo…";
+    case "lista":
+      return lectura.paginasTotales > 1 ? `Texto listo · ${pages(lectura.paginasTotales)}` : "Texto listo";
+    case "parcial":
+      return `Lectura parcial · ${lectura.paginasLeidas}/${lectura.paginasTotales} págs.`;
+    case "sin-texto":
+      return "Sin texto legible";
+    case "no-aplica":
+      return null;
+  }
 }

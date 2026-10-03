@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMaterial } from "@/lib/db";
-import { readStudyFileContent } from "@/lib/file-store";
+import { studyFileResponse } from "@/lib/file-store";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -23,19 +23,24 @@ export async function GET(
       );
     }
 
-    const persisted = await readStudyFileContent(material.storageKey);
+    const fileName = material.name || "archivo";
+    if (!material.contentBase64) {
+      const streamed = await studyFileResponse(material.storageKey, request, {
+        fileName,
+        fallbackType: material.type,
+      });
+      if (streamed) return streamed;
+    }
     const bytes = material.contentBase64
       ? Buffer.from(material.contentBase64, "base64")
-      : persisted?.bytes;
+      : undefined;
     if (!bytes) {
       return NextResponse.json({ error: "Archivo no encontrado." }, { status: 404 });
     }
 
     const url = new URL(request.url);
     const download = url.searchParams.get("download") === "1";
-    const fileName = material.name || "archivo";
-    const contentType =
-      persisted?.type || material.type || "application/octet-stream";
+    const contentType = material.type || "application/octet-stream";
     const contentDisposition = download ? "attachment" : "inline";
 
     return new NextResponse(new Uint8Array(bytes), {

@@ -1,7 +1,7 @@
 import { generateWithProvider, type ProviderMessage } from "./ai-providers.ts";
 import { parseAssistantContent } from "./chat-message.ts";
 import type { ChatMessage } from "./types";
-import type { StudyContext } from "./study-chat";
+import type { StudyContext, StudySource } from "./study-chat";
 
 const SUGGESTED_CHIPS = [
   "Necesito aprender todo el apunte. Mapeá los temas y empecemos por el primero.",
@@ -15,6 +15,8 @@ const MAX_SOURCE_CHARS = 20_000;
 const MAX_BROAD_CONTEXT_CHARS = 150_000;
 const CHUNK_TARGET = 1_100;
 const MAX_SELECTED_CHUNKS = 12;
+const FULL_MATERIAL_CHARS =
+  Number(process.env.CHAT_FULL_MATERIAL_CHARS) || 480_000;
 
 const RETRIEVAL_STOPWORDS = new Set([
   "apunte",
@@ -56,7 +58,9 @@ export function buildPrompt(input: {
     "CONTRATO DE FUNDAMENTACIÓN",
     "- Enseñá únicamente desde el CONTEXTO DE MATERIA recuperado. No completes el programa con conocimiento externo ni inventes temas.",
     "- En pedidos amplios, el «ÍNDICE DEL MATERIAL (completo)» fue construido en el servidor recorriendo todo el texto extraído de cada fuente. Usalo para mapear el apunte y no inventes faltantes por números de fragmento.",
-    "- Solo afirmes que la cobertura es parcial cuando una fuente esté marcada como «EXTRACCIÓN FALLIDA». Un límite de recuperación o de contexto no significa que el PDF esté incompleto.",
+    "- Solo afirmes que la cobertura es parcial cuando una fuente esté marcada como «EXTRACCIÓN FALLIDA», «LECTURA EN CURSO» o «LECTURA PARCIAL». Un límite de recuperación o de contexto no significa que el PDF esté incompleto.",
+    "- Si el contexto dice «MATERIAL COMPLETO», tenés delante todo el texto legible de cada fuente: respondé con seguridad sobre cualquier parte del material.",
+    "- El texto puede traer marcas «[Página N]». Cuando cites una definición, artículo o ejercicio, mencioná la página (por ejemplo: «pág. 37»).",
     "- Preferí definiciones, notación, fórmulas y relaciones que estén presentes en el apunte. No atribuyas al apunte una fórmula que no aparece en el contexto.",
     "- Si falta material legible o no encontrás el tema, decilo de frente y sugerí qué fuente cargar.",
     "- Citá únicamente nombres exactos que aparezcan después de FUENTE. No inventes bibliografía.",
@@ -114,11 +118,77 @@ export async function runGroundedChat(input: {
   };
 }
 
+function readingStatusLine(source: StudySource): string {
+  const lectura = source.lectura;
+  if (!lectura) return "";
+  if (lectura.estado === "leyendo" || lectura.estado === "subiendo") {
+    return `LECTURA EN CURSO: ${lectura.paginasLeidas} de ${lectura.paginasTotales} páginas transcriptas; el resto todavía no está disponible.`;
+  }
+  if (lectura.estado === "parcial") {
+    return `LECTURA PARCIAL: se pudieron leer ${lectura.paginasLeidas} de ${lectura.paginasTotales} páginas.`;
+  }
+  if (lectura.estado === "lista" && lectura.paginasTotales > 1) {
+    return `LECTURA COMPLETA: ${lectura.paginasTotales} páginas.`;
+  }
+  return "";
+}
+
+function fitsFullMaterial(ctx: StudyContext): boolean {
+  const total = ctx.sources.reduce(
+    (sum, source) => sum + normalizeSourceText(source.text || "").length,
+    0
+  );
+  return total > 0 && total <= FULL_MATERIAL_CHARS;
+}
+
+function buildExamChunks(ctx: StudyContext): string {
+  return ctx.exams
+    .map((exam) =>
+      [
+        `EXAMEN: ${exam.name}`,
+        `TIPO: ${exam.typeLabel}`,
+        exam.date ? `FECHA: ${exam.date}` : "",
+        exam.objective ? `OBJETIVO: ${exam.objective}` : "",
+        exam.temas.length ? `TEMAS: ${exam.temas.join(", ")}` : "TEMAS: [sin temas]",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n\n");
+}
+
+function buildFullMaterialBlock(ctx: StudyContext): string {
+  const sources = ctx.sources
+    .map((source) => {
+      const text = source.text ? normalizeSourceText(source.text) : "";
+      return [
+        `FUENTE: ${source.name}`,
+        `TIPO: ${source.kind}`,
+        readingStatusLine(source),
+        text
+          ? `TEXTO EXTRAÍDO COMPLETO:\n${text}`
+          : `EXTRACCIÓN FALLIDA: [sin texto legible]${source.unreadableHint ? ` ${source.unreadableHint}` : ""}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    `MATERIA: ${ctx.materiaName}`,
+    "MATERIAL COMPLETO: cada fuente legible está incluida de principio a fin, sin recortes.",
+    buildMaterialOutline(ctx),
+    sources || "SIN FUENTES",
+    buildExamChunks(ctx) || "SIN EXAMENES CARGADOS",
+  ].join("\n\n");
+}
+
 function buildContextBlock(
   ctx: StudyContext,
   query: string,
   broadRequest: boolean
 ): string {
+  if (fitsFullMaterial(ctx)) return buildFullMaterialBlock(ctx);
   let remaining = broadRequest ? MAX_BROAD_CONTEXT_CHARS : MAX_CONTEXT_CHARS;
   const readableSources = ctx.sources.filter((source) => source.text?.trim());
   const readableChars = readableSources.reduce(
@@ -139,6 +209,7 @@ function buildContextBlock(
       return [
         `FUENTE: ${source.name}`,
         `TIPO: ${source.kind}`,
+        readingStatusLine(source),
         snippet
           ? broadRequest
             ? `TEXTO EXTRAÍDO${sourceFullyIncluded ? " COMPLETO" : " PARA ENSEÑANZA"}:\n${snippet}`
@@ -146,23 +217,13 @@ function buildContextBlock(
           : text
             ? "TEXTO EXTRAÍDO PARA ENSEÑANZA: [detalle cubierto por el índice completo]"
             : "EXTRACCIÓN FALLIDA: [sin texto legible]",
-      ].join("\n");
-    })
-    .join("\n\n");
-
-  const examChunks = ctx.exams
-    .map((exam) => {
-      return [
-        `EXAMEN: ${exam.name}`,
-        `TIPO: ${exam.typeLabel}`,
-        exam.date ? `FECHA: ${exam.date}` : "",
-        exam.objective ? `OBJETIVO: ${exam.objective}` : "",
-        exam.temas.length ? `TEMAS: ${exam.temas.join(", ")}` : "TEMAS: [sin temas]",
       ]
         .filter(Boolean)
         .join("\n");
     })
     .join("\n\n");
+
+  const examChunks = buildExamChunks(ctx);
 
   return [
     `MATERIA: ${ctx.materiaName}`,

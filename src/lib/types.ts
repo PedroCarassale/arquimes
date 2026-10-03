@@ -66,6 +66,22 @@ export interface Material {
   contentBase64?: string;
   kind?: "apuntes" | "examen";
   examId?: string;
+  fileId?: string;
+  lectura?: LecturaArchivo;
+}
+
+export type LecturaEstado =
+  | "subiendo"
+  | "leyendo"
+  | "lista"
+  | "parcial"
+  | "sin-texto"
+  | "no-aplica";
+
+export interface LecturaArchivo {
+  estado: LecturaEstado;
+  paginasLeidas: number;
+  paginasTotales: number;
 }
 
 export interface ExamenEnPreparacion {
@@ -83,6 +99,8 @@ export interface ExamenEnPreparacion {
   fileSize?: number;
   note?: string;
   fileContentBase64?: string;
+  fileId?: string;
+  lectura?: LecturaArchivo;
 }
 
 export interface ChatMessage {
@@ -125,6 +143,7 @@ export type GroundingPayload = {
     kind: StudySourceKind;
     readable: boolean;
     materialId?: string;
+    lectura?: LecturaArchivo;
   }[];
   exams: StudyExamSummary[];
 };

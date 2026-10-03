@@ -4,14 +4,23 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { apiFetch } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import {
+  expandStudyFiles,
+  uploadStudyFile,
+  validateStudyFile,
+} from "@/lib/study-upload";
 import type { Materia } from "@/lib/types";
 
 export function CargarClient({ materia }: { materia: Materia }) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{
+    index: number;
+    total: number;
+    fraction: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -49,22 +58,16 @@ export function CargarClient({ materia }: { materia: Materia }) {
     setError(null);
 
     try {
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const res = await apiFetch(`/api/materias/${materia.id}/materiales`, {
-          method: "POST",
-          body: formData,
+      const expanded = await expandStudyFiles(files);
+      const invalid = expanded.map(validateStudyFile).find(Boolean);
+      if (invalid) throw new Error(invalid);
+      for (const [index, file] of expanded.entries()) {
+        setProgress({ index, total: expanded.length, fraction: 0 });
+        await uploadStudyFile(materia.id, file, {
+          kind: "apuntes",
+          onProgress: (fraction) =>
+            setProgress({ index, total: expanded.length, fraction }),
         });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(
-            (data as { error?: string }).error ||
-              `No pude subir ${file.name}`
-          );
-        }
       }
 
       router.push(`/materias/${materia.id}/apuntes`);
@@ -74,6 +77,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
         err instanceof Error ? err.message : "No pude subir el archivo"
       );
       setUploading(false);
+      setProgress(null);
     }
   }
 
@@ -103,7 +107,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
               Podés cargar apuntes, guías, bibliografía, imágenes o documentos de clase.
             </p>
             <span className="text-xs font-mono text-foreground-muted">
-              PDF · DOCX · PPTX · JPG · PNG · TXT · hasta 15 MB
+              PDF · DOCX · PPTX · JPG · PNG · TXT · ZIP · hasta 100 MB
             </span>
           </div>
         </div>
@@ -140,7 +144,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
                     type="file"
                     multiple
                     aria-label="Explorar archivos"
-                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.zip"
                     onChange={handleFileSelect}
                   />
                 </label>
@@ -163,6 +167,8 @@ export function CargarClient({ materia }: { materia: Materia }) {
                         ? "PDF"
                         : file.type.includes("image")
                         ? "IMG"
+                        : file.name.toLowerCase().endsWith(".zip")
+                        ? "ZIP"
                         : "DOC"}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
@@ -185,7 +191,7 @@ export function CargarClient({ materia }: { materia: Materia }) {
                   type="file"
                   multiple
                   aria-label="Agregar más archivos"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.zip"
                   onChange={(e) => {
                     if (e.target.files) {
                       setFiles([...files, ...Array.from(e.target.files)]);
@@ -223,7 +229,11 @@ export function CargarClient({ materia }: { materia: Materia }) {
               aria-label="Guardar archivos"
               className="bg-accent text-background px-6 py-3 sm:py-2 text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? "Subiendo..." : "Guardar archivos →"}
+              {uploading
+                ? progress
+                  ? `Subiendo ${progress.index + 1}/${progress.total} · ${Math.round(progress.fraction * 100)}%`
+                  : "Preparando..."
+                : "Guardar archivos →"}
             </button>
           </div>
         </div>

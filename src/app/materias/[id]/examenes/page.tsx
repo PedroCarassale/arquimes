@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MateriaLayout } from "@/components/MateriaLayout";
-import { getExamenes, getMateria } from "@/lib/db";
-import { examDisplayName, formatFileSize } from "@/lib/format";
+import { getExamenesConLectura, getMateria } from "@/lib/db";
+import { examDisplayName, formatFileSize, lecturaLabel } from "@/lib/format";
 import { RememberMateria } from "@/lib/materia-snapshot";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function ExamenesPage({ params }: PageProps) {
   const materia = await getMateria(id);
   if (!materia) notFound();
 
-  const examenes = await getExamenes(id);
+  const examenes = await getExamenesConLectura(id);
   const materiaInfo = [materia.faculty, materia.catedra]
     .filter(Boolean)
     .join(" · ");
@@ -74,6 +74,11 @@ export default async function ExamenesPage({ params }: PageProps) {
                       {typeof examen.fileSize === "number"
                         ? ` · ${formatFileSize(examen.fileSize)}`
                         : ""}
+                    </div>
+                  )}
+                  {lecturaLabel(examen.lectura) && (
+                    <div className="text-[11px] font-mono text-foreground-muted mt-1">
+                      {lecturaLabel(examen.lectura)}
                     </div>
                   )}
                 </div>

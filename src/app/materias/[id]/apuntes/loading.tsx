@@ -66,7 +66,7 @@ export default function ApuntesLoading() {
                 <div className="border-2 border-dashed border-border p-5 sm:p-8 mb-6 text-center">
                   <h3 className="font-serif text-lg mb-2">Soltá archivos para cargarlos</h3>
                   <p className="text-sm text-foreground-muted mb-4">
-                    PDF, texto o imágenes · Hasta 15 MB por archivo
+                    PDF, texto, imágenes o ZIP · Hasta 100 MB por archivo
                   </p>
                   <span className="text-accent text-sm">Elegir archivos →</span>
                 </div>
