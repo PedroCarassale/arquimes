@@ -84,9 +84,13 @@ export interface LecturaArchivo {
   paginasTotales: number;
 }
 
+export type EvaluacionKind = "examen" | "entrega";
+
 export interface ExamenEnPreparacion {
   id: string;
   materiaId: string;
+  kind?: EvaluacionKind;
+  description?: string;
   type?: ExamType;
   date?: string;
   name?: string;
@@ -123,7 +127,7 @@ export interface ChatSession {
   updatedAt: string;
 }
 
-export type StudySourceKind = "apunte" | "examen";
+export type StudySourceKind = "apunte" | "examen" | "nota" | "generado";
 
 export type StudyExamSummary = {
   name: string;
@@ -143,6 +147,7 @@ export type GroundingPayload = {
     kind: StudySourceKind;
     readable: boolean;
     materialId?: string;
+    notaId?: string;
     lectura?: LecturaArchivo;
   }[];
   exams: StudyExamSummary[];
@@ -173,3 +178,38 @@ export const MASTERY_ORDER: MasteryState[] = [
   "necesita_practica",
   "dominado",
 ];
+
+export interface Nota {
+  id: string;
+  materiaId: string;
+  titulo: string;
+  contenido: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ArtefactoTipo = "examen" | "documento";
+
+export interface Artefacto {
+  id: string;
+  materiaId: string;
+  sessionId?: string;
+  tipo: ArtefactoTipo;
+  titulo: string;
+  contenido: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ArtefactoVersion {
+  version: number;
+  titulo: string;
+  contenido: string;
+  createdAt: string;
+}
+
+export type WorkspaceFocus = {
+  kind: "nota" | "artefacto" | "material" | "examen";
+  id: string;
+};

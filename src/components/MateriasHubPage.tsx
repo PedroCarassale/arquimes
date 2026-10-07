@@ -5,28 +5,12 @@ import { getMaterias, getExamenes, getTemas } from "@/lib/db";
 import { calculatePreparation } from "@/lib/mastery";
 import { type MasteryState } from "@/lib/types";
 import { RememberMaterias } from "@/lib/materia-snapshot";
+import { diasHasta, fechaLarga, proximaEvaluacion } from "@/lib/evaluaciones";
 
 type MateriasHubMode = "inicio" | "selector-chat";
 
 interface MateriasHubPageProps {
   mode?: MateriasHubMode;
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
-function daysUntil(dateStr: string): number {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);
-  target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function getMasteryDots(temas: { masteryState: MasteryState }[]): React.ReactNode {
@@ -51,17 +35,18 @@ function getMasteryDots(temas: { masteryState: MasteryState }[]): React.ReactNod
 export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps) {
   const materias = await getMaterias();
   const isChatPicker = mode === "selector-chat";
-  const today = new Date().toLocaleDateString("es-AR", {
+  const todayRaw = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
+  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
 
   const materiasWithData = await Promise.all(
     materias.map(async (materia) => {
       const examenes = await getExamenes(materia.id);
-      const nextExamen = examenes[0];
+      const nextExamen = proximaEvaluacion(examenes) ?? examenes[0];
 
       const temas = nextExamen ? await getTemas(nextExamen.id) : [];
       const preparation = calculatePreparation(temas);
@@ -97,7 +82,7 @@ export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps)
           <h1 className="font-serif text-3xl leading-tight sm:text-4xl">
             {isChatPicker ? "Elegí una materia para chatear" : "Tus materias"}
           </h1>
-          <div className="text-sm text-foreground-muted capitalize">{today}</div>
+          <div className="text-sm text-foreground-muted">{today}</div>
         </div>
 
         {materias.length === 0 ? (
@@ -199,10 +184,7 @@ export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps)
                         <>
                           <div className="text-sm text-accent">{examDisplayName(materia.nextExamen)}</div>
                           <div className="truncate text-sm text-foreground-muted">
-                            {materia.nextExamen.fileName ||
-                              (materia.nextExamen.date
-                                ? formatDate(materia.nextExamen.date)
-                                : "Sin fecha")}
+                            {fechaLarga(materia.nextExamen.date) || materia.nextExamen.fileName || "Sin fecha"}
                           </div>
                         </>
                       ) : (
@@ -213,7 +195,7 @@ export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps)
                     <div className="order-4 text-right lg:order-none lg:text-center">
                       {materia.nextExamen?.date ? (
                         <>
-                          <div className="font-serif text-2xl">{daysUntil(materia.nextExamen.date)}</div>
+                          <div className="font-serif text-2xl">{diasHasta(materia.nextExamen.date) ?? "—"}</div>
                           <div className="text-xs text-foreground-muted">días</div>
                         </>
                       ) : (

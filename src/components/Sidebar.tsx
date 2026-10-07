@@ -63,21 +63,6 @@ function FolderIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
-function ChatIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M21 12a7.5 7.5 0 01-7.5 7.5H7l-4 2v-4.5A7.5 7.5 0 0110.5 4.5h3A7.5 7.5 0 0121 12z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M8.5 12h7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function MenuIcon({ className = "h-5 w-5" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
@@ -139,6 +124,8 @@ function LogoutIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+let cachedMaterias: { id: string; name: string }[] | null = null;
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -148,17 +135,29 @@ export function Sidebar() {
   const [drawerPath, setDrawerPath] = useState(pathname);
   const menuRef = useRef<HTMLDivElement>(null);
   const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
-  const isMateriasChatPicker = pathname === "/materias/chats";
-  const chatHref = materiaId ? `/materias/${materiaId}/chat` : "/materias/chats";
+  const [materias, setMaterias] = useState<{ id: string; name: string }[] | null>(cachedMaterias);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/materias", { credentials: "include" })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((list: { id: string; name: string }[]) => {
+        if (cancelled || !Array.isArray(list)) return;
+        cachedMaterias = list.map(({ id, name }) => ({ id, name }));
+        setMaterias(cachedMaterias);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   const items = useMemo(
     () => [
-      { href: "/", label: "Inicio", Icon: HomeIcon },
-      { href: "/materias", label: "Materias", Icon: BookIcon },
+      { href: "/", label: "Tus materias", Icon: HomeIcon },
       { href: "/archivos", label: "Archivos", Icon: FolderIcon },
-      { href: chatHref, label: "Chats", Icon: ChatIcon },
     ],
-    [chatHref]
+    []
   );
 
   const profileName = session?.user?.name?.trim() || "Cuenta";
@@ -257,20 +256,9 @@ export function Sidebar() {
           </button>
         </div>
 
-        <nav className="flex-1 px-3">
+        <nav className="flex min-h-0 flex-1 flex-col px-3">
           {items.map((item) => {
-            const isChatItem = item.label === "Chats";
-            const isMateriasItem = item.label === "Materias";
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : isChatItem
-                  ? pathname.includes("/chat") || isMateriasChatPicker
-                  : isMateriasItem
-                    ? pathname.startsWith("/materias") &&
-                      !pathname.includes("/chat") &&
-                      !isMateriasChatPicker
-                    : pathname.startsWith(item.href);
+            const isActive = item.href === "/" ? pathname === "/" || pathname === "/materias" : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.label}
@@ -286,6 +274,43 @@ export function Sidebar() {
               </Link>
             );
           })}
+          <div className="mt-6 flex items-center justify-between px-3 pb-2">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">Materias</span>
+            <Link
+              href="/materias/nueva"
+              aria-label="Nueva materia"
+              title="Nueva materia"
+              className="font-mono text-xs text-foreground-muted hover:text-accent"
+            >
+              +
+            </Link>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+            {materias === null ? null : materias.length === 0 ? (
+              <Link href="/materias/nueva" className="block px-3 py-2 text-sm text-foreground-muted hover:text-accent">
+                Crear tu primera materia
+              </Link>
+            ) : (
+              materias.map((materia) => {
+                const active = materia.id === materiaId;
+                return (
+                  <Link
+                    key={materia.id}
+                    href={`/materias/${materia.id}`}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
+                      active
+                        ? "bg-surface-elevated text-foreground shadow-[inset_2px_0_0_var(--accent)]"
+                        : "text-foreground-muted hover:bg-surface hover:text-foreground"
+                    }`}
+                  >
+                    <BookIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{materia.name}</span>
+                  </Link>
+                );
+              })
+            )}
+          </div>
         </nav>
 
         <div className="relative border-t border-border-subtle p-4" ref={menuRef}>

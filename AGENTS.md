@@ -22,8 +22,16 @@ Arquimedes is NOT a PDF library, flashcard app, generic chatbot, or study calend
 3. They can declare they are preparing an exam by uploading the exam file (PDF/image/doc) with an optional one-line note.
 4. The materia home answers the north-star question honestly for this depth: if there is no exam, no topics, or no practice yet, say so in plain Spanish and point at the next action (subir material, cargar examen, agregar temas). If topics exist, show per-topic states starting at "no estudiado" (no estudiado / empezado / estudiado / necesita práctica / dominado). Do not fake a high readiness score.
 5. Skip a marketing landing. First useful screen is "tus materias" / crear materia.
-6. Always-on study chat answers from that student's materia (apuntes and uploaded exam files). If there is no readable material, say so in Spanish. Do not fake preparado. Persist the thread in the session store.
+6. Always-on study chat answers from that student's materia (notas, apuntes and uploaded exam files). If there is no readable material, say so in Spanish. Do not fake preparado. Persist the thread in the session store.
 7. Short práctica on exam temas updates mastery so Resumen's preparación estimada can move.
+
+### Materia workspace (Pedro, 2026-10-07)
+
+Each materia is a Claude-artifacts-style workspace (plan: `docs/workspace-materia-plan.md`):
+
+- Persistent, collapsible, resizable **chat panel on the left**; content on the right. The chat knows what the student has open (nota, generado, archivo, evaluación) and can use it as focus.
+- Sections: **Inicio** (honest readiness) · **Notas** (Markdown class notes, "Nueva clase") · **Exámenes** (future parciales/finales and TP entregas with fecha, descripción, temas) · **Generados** · **Material** (uploaded files).
+- **Generados** are artifacts the chat writes (`<artefacto tipo="examen|documento">` → stored, versioned, opened beside the chat, switchable from a top strip). `tipo="examen"` is Markdown with a question convention rendered as an interactive exam; correcting it moves mastery of matching temas.
 
 ## Visual Identity
 
@@ -47,6 +55,9 @@ Dark, editorial, technological.
 
 - **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Practice answers move it.
 - **ChatMessage**: per-materia study thread. Assistant replies cite files when they use them.
+- **Nota**: Markdown note owned by a materia (título, contenido). Read by the chat as a source.
+- **Evaluación**: an `examenes` row with `kind` (`examen` | `entrega`), fecha, descripción and temas.
+- **Artefacto**: chat-generated document (`examen` | `documento`) with version history.
 
 Single-user persistence. No auth/multi-tenant unless it is the smallest way to keep data. No fake community seed data.
 

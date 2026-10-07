@@ -3,6 +3,7 @@ import {
   Materia,
   Material,
   ExamenEnPreparacion,
+  EvaluacionKind,
   Tema,
   MasteryState,
   GroundingPayload,
@@ -24,6 +25,11 @@ import {
 } from "./file-store-auth";
 import { getLibsqlClient } from "./libsql";
 import { requireUserId } from "./auth-session";
+import {
+  deleteWorkspaceForMateria,
+  listArtefactos,
+  listNotas,
+} from "./workspace-store";
 
 let schemaReady: Promise<void> | null = null;
 
@@ -95,6 +101,14 @@ async function ensureSchema() {
         ],
         "write"
       );
+      const columns = await db.execute("PRAGMA table_info(examenes)");
+      const names = new Set(columns.rows.map((row) => String(row.name)));
+      if (!names.has("kind")) {
+        await db.execute("ALTER TABLE examenes ADD COLUMN kind TEXT");
+      }
+      if (!names.has("description")) {
+        await db.execute("ALTER TABLE examenes ADD COLUMN description TEXT");
+      }
     })();
   }
 
@@ -141,6 +155,8 @@ function toExamen(row: SqlRow): ExamenEnPreparacion {
   return {
     id: String(row.id),
     materiaId: String(row.materia_id),
+    kind: row.kind === "entrega" ? "entrega" : "examen",
+    description: row.description ? String(row.description) : undefined,
     type: row.type ? (String(row.type) as ExamenEnPreparacion["type"]) : undefined,
     date: row.date ? String(row.date) : undefined,
     name: row.name ? String(row.name) : undefined,
@@ -363,6 +379,8 @@ export async function deleteMateria(id: string): Promise<void> {
     "write"
   );
 
+  await deleteWorkspaceForMateria(id);
+
   await Promise.all(
     [...new Set(storageKeys)].map((storageKey) =>
       deleteStudyFileByStorageKey(storageKey)
@@ -513,7 +531,7 @@ export async function getExamenes(
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, materia_id, type, date, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
+    sql: `SELECT id, materia_id, kind, description, type, date, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
           FROM examenes
           WHERE user_id = ? AND materia_id = ?
           ORDER BY datetime(created_at) DESC`,
@@ -529,7 +547,7 @@ export async function getExamen(
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, materia_id, type, date, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
+    sql: `SELECT id, materia_id, kind, description, type, date, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
           FROM examenes
           WHERE user_id = ? AND id = ?`,
     args: [userId, id],
@@ -614,6 +632,76 @@ export async function createExamenWithFile(
     fileSize: data.fileSize,
     note: data.name,
   };
+}
+
+export type EvaluacionInput = {
+  kind: EvaluacionKind;
+  name: string;
+  type?: ExamenEnPreparacion["type"];
+  date?: string;
+  description?: string;
+};
+
+export async function createEvaluacion(
+  materiaId: string,
+  input: EvaluacionInput
+): Promise<ExamenEnPreparacion> {
+  await ensureSchema();
+  const userId = await requireUserId();
+  const id = uuid();
+  const createdAt = new Date().toISOString();
+  await getLibsqlClient().execute({
+    sql: `INSERT INTO examenes (
+      id, user_id, materia_id, kind, description, type, date, name, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      id,
+      userId,
+      materiaId,
+      input.kind,
+      input.description || null,
+      input.type || null,
+      input.date || null,
+      input.name,
+      createdAt,
+    ],
+  });
+  return {
+    id,
+    materiaId,
+    kind: input.kind,
+    description: input.description,
+    type: input.type,
+    date: input.date,
+    name: input.name,
+    createdAt,
+  };
+}
+
+export async function updateEvaluacion(
+  id: string,
+  input: Partial<Omit<EvaluacionInput, "type">> & { type?: EvaluacionInput["type"] | null }
+): Promise<ExamenEnPreparacion | undefined> {
+  await ensureSchema();
+  const userId = await requireUserId();
+  const fields: string[] = [];
+  const args: (string | null)[] = [];
+  const set = (column: string, value: string | null | undefined) => {
+    fields.push(`${column} = ?`);
+    args.push(value?.trim() ? value.trim() : null);
+  };
+  if (input.kind !== undefined) set("kind", input.kind);
+  if (input.name !== undefined) set("name", input.name);
+  if (input.type !== undefined) set("type", input.type);
+  if (input.date !== undefined) set("date", input.date);
+  if (input.description !== undefined) set("description", input.description);
+  if (fields.length > 0) {
+    await getLibsqlClient().execute({
+      sql: `UPDATE examenes SET ${fields.join(", ")} WHERE user_id = ? AND id = ?`,
+      args: [...args, userId, id],
+    });
+  }
+  return getExamen(id);
 }
 
 export async function updateExamenNote(
@@ -732,10 +820,12 @@ export async function getStudyContext(
   const materia = await queryMateriaById(userId, materiaId);
   if (!materia) return null;
 
-  const [materiales, examenes, temas] = await Promise.all([
+  const [materiales, examenes, temas, notas, artefactos] = await Promise.all([
     queryAllMaterialesForMateria(userId, materiaId),
     getExamenes(materiaId),
     getTemasForMateria(materiaId),
+    listNotas(materiaId),
+    listArtefactos(materiaId),
   ]);
   const fileMetaByStorageKey = await getStudyFileMetaByStorageKeys(
     materiales.map((m) => m.storageKey).filter(Boolean)
@@ -747,12 +837,27 @@ export async function getStudyContext(
     materiales,
     fileMetaByStorageKey
   );
-  const sources = [...materialSources, ...examLegacySources];
+  const notaSources = notas
+    .filter((nota) => nota.contenido.trim())
+    .map((nota) => ({
+      name: `Nota · ${nota.titulo}`,
+      kind: "nota" as const,
+      text: nota.contenido,
+      notaId: nota.id,
+    }));
+  const sources = [...notaSources, ...materialSources, ...examLegacySources];
 
   return {
     materiaId,
     materiaName: materia.name,
     sources,
+    artefactos: artefactos.map((artefacto) => ({
+      id: artefacto.id,
+      tipo: artefacto.tipo,
+      titulo: artefacto.titulo,
+      version: artefacto.version,
+      contenido: artefacto.contenido,
+    })),
     exams: examenes.map((examen) =>
       summarizeExamen(
         examen,

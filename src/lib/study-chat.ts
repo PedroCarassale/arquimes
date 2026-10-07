@@ -17,8 +17,17 @@ export type StudySource = {
   kind: StudySourceKind;
   text: string | null;
   materialId?: string;
+  notaId?: string;
   unreadableHint?: string;
   lectura?: LecturaArchivo;
+};
+
+export type StudyArtefactoRef = {
+  id: string;
+  tipo: "examen" | "documento";
+  titulo: string;
+  version: number;
+  contenido: string;
 };
 
 export type StudyContext = {
@@ -26,6 +35,7 @@ export type StudyContext = {
   materiaName: string;
   sources: StudySource[];
   exams: StudyExamSummary[];
+  artefactos?: StudyArtefactoRef[];
 };
 
 const STOPWORDS = new Set([
@@ -137,6 +147,7 @@ export function groundingFromContext(ctx: StudyContext): GroundingPayload {
       kind: s.kind,
       readable: Boolean(s.text?.trim()),
       materialId: s.materialId,
+      notaId: s.notaId,
       lectura: s.lectura,
     })),
     exams: ctx.exams,
@@ -196,10 +207,10 @@ export async function sourcesFromExamen(
 ): Promise<StudySource[]> {
   const sources: StudySource[] = [];
   const examName = examDisplayName(examen);
-  const note = examen.note?.trim() || examen.name?.trim();
+  const note = examen.note?.trim();
   if (note) {
     sources.push({
-      name: `Nota · ${examName}`,
+      name: `Examen · ${examName}`,
       kind: "examen",
       text: note,
     });
@@ -226,9 +237,11 @@ export function summarizeExamen(
 ): StudyExamSummary {
   return {
     name: examDisplayName(examen),
-    typeLabel: examTypeLabel(examen.type),
+    typeLabel:
+      examen.kind === "entrega" ? "Entrega de trabajo práctico" : examTypeLabel(examen.type),
     date: examen.date || "",
-    objective: examen.objective?.trim() || undefined,
+    objective:
+      examen.description?.trim() || examen.objective?.trim() || undefined,
     temas: temas.map((t) => t.name),
   };
 }

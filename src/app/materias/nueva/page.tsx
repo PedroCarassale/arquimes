@@ -40,7 +40,7 @@ export default function CrearMateriaPage() {
       }
 
       const materia = await res.json();
-      router.push(`/materias/${materia.id}/inicio`);
+      router.push(`/materias/${materia.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");

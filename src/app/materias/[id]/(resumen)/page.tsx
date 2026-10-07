@@ -1,476 +1,291 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MateriaLayout } from "@/components/MateriaLayout";
-import { getMateria, getMateriales, getExamenes, getTemas } from "@/lib/db";
-import { examDisplayName } from "@/lib/format";
+import { getExamenes, getMateriales, getTemasForMateria } from "@/lib/db";
+import { listArtefactos, listNotas } from "@/lib/workspace-store";
 import { calculatePreparation } from "@/lib/mastery";
-import { MASTERY_LABELS, type MasteryState } from "@/lib/types";
-import { materialViewerRoute } from "@/lib/material-viewer";
-import { RememberMateria } from "@/lib/materia-snapshot";
+import {
+  cuentaRegresiva,
+  diasHasta,
+  evaluacionNombre,
+  evaluacionTipoLabel,
+  fechaLarga,
+  ordenarEvaluaciones,
+  proximaEvaluacion,
+} from "@/lib/evaluaciones";
+import { MASTERY_LABELS, MASTERY_ORDER, type MasteryState, type Tema } from "@/lib/types";
+import { NuevaNotaButtons } from "@/components/workspace/NuevaNotaButtons";
+import { PedirAlChat } from "@/components/workspace/PedirAlChat";
 
 export const dynamic = "force-dynamic";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+const MASTERY_BAR: Record<MasteryState, string> = {
+  no_estudiado: "bg-surface-elevated",
+  empezado: "bg-foreground-subtle",
+  estudiado: "bg-foreground-muted",
+  necesita_practica: "bg-red-300/70",
+  dominado: "bg-accent",
+};
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
-function daysUntil(dateStr: string): number {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);
-  target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function getMasteryColor(state: MasteryState): string {
-  switch (state) {
-    case "dominado":
-      return "text-accent";
-    case "estudiado":
-      return "text-accent/70";
-    case "necesita_practica":
-      return "text-amber-500";
-    case "empezado":
-      return "text-foreground-muted";
-    default:
-      return "text-foreground-subtle";
-  }
-}
-
-export default async function MateriaResumenPage({ params }: PageProps) {
+export default async function MateriaInicioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [materia, materiales, examenes] = await Promise.all([
-    getMateria(id),
-    getMateriales(id),
+  const [examenes, temas, notas, artefactos, materiales] = await Promise.all([
     getExamenes(id),
+    getTemasForMateria(id),
+    listNotas(id),
+    listArtefactos(id),
+    getMateriales(id),
   ]);
 
-  if (!materia) {
-    notFound();
-  }
-
-  const nextExamen = examenes[0];
-
-  const temas = nextExamen ? await getTemas(nextExamen.id) : [];
-  const preparation = calculatePreparation(temas);
-  const temasCount = temas.length;
-  const temasCubiertos = temas.filter(
-    (t) => t.masteryState !== "no_estudiado"
-  ).length;
-  const preparacion = materia.preparacion;
-  const hasPreparacionConfig = Boolean(
-    preparacion?.fechaParcial && preparacion.temas.length > 0
-  );
-
-  const materiaInfo = [materia.faculty, materia.catedra].filter(Boolean).join(" · ");
-
-  const noExam = !nextExamen;
-  const noTopics = nextExamen && temas.length === 0;
-  const hasData = nextExamen && temas.length > 0;
+  const proxima = proximaEvaluacion(examenes);
+  const proximas = ordenarEvaluaciones(examenes).filter((e) => {
+    const dias = diasHasta(e.date);
+    return dias === null || dias >= 0;
+  });
 
   return (
-    <MateriaLayout
-      materiaId={id}
-      materiaName={materia.name}
-      materiaInfo={materiaInfo || "Privada"}
-    >
-      <RememberMateria
-        id={id}
-        snapshot={{
-          resumenVariant: noExam ? "sin_examen" : noTopics ? "sin_temas" : "con_temas",
-          hasPreparacionConfig,
-          temasCount,
-          materialesCount: materiales.length,
-          examenesCount: examenes.length,
-        }}
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+      <Preparacion
+        materiaId={id}
+        proxima={proxima}
+        temas={proxima ? temas.filter((t) => t.examenId === proxima.id) : []}
+        hayEvaluaciones={examenes.length > 0}
       />
-      {!hasPreparacionConfig ? (
-        <div className="mb-6 sm:mb-8 border border-dashed border-border-subtle p-4">
-          <p className="text-sm text-foreground-muted">
-            Si querés organizarte con anticipación, configurá temas y fecha del parcial en{" "}
-            <Link href={`/materias/${id}/preparacion`} className="text-accent hover:underline">
-              Preparación
+
+      <div className="mt-12 grid gap-10 lg:grid-cols-3">
+        <Bloque titulo="Próximos" href={`/materias/${id}/examenes`} accion="Ver todos">
+          {proximas.length === 0 ? (
+            <Vacio>
+              Nada cargado.{" "}
+              <Link href={`/materias/${id}/examenes/nuevo`} className="text-accent underline">
+                Cargar examen o entrega
+              </Link>
+            </Vacio>
+          ) : (
+            proximas.slice(0, 4).map((e) => (
+              <Fila key={e.id} href={`/materias/${id}/examenes/${e.id}`} meta={evaluacionTipoLabel(e)}>
+                <span className="block truncate">{evaluacionNombre(e)}</span>
+                <span className="block text-xs text-foreground-muted">{cuentaRegresiva(e.date) ?? "Sin fecha"}</span>
+              </Fila>
+            ))
+          )}
+        </Bloque>
+
+        <Bloque titulo="Notas" href={`/materias/${id}/notas`} accion="Ver todas">
+          {notas.length === 0 ? (
+            <div className="space-y-3">
+              <Vacio>Todavía no escribiste notas de clase.</Vacio>
+              <NuevaNotaButtons materiaId={id} />
+            </div>
+          ) : (
+            notas.slice(0, 4).map((n) => (
+              <Fila
+                key={n.id}
+                href={`/materias/${id}/notas/${n.id}`}
+                meta={new Date(n.updatedAt).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+              >
+                <span className="block truncate">{n.titulo}</span>
+              </Fila>
+            ))
+          )}
+        </Bloque>
+
+        <Bloque titulo="Generados" href={`/materias/${id}/generados`} accion="Ver todos">
+          {artefactos.length === 0 ? (
+            <div className="space-y-2">
+              <Vacio>Pedile al chat un examen de práctica y aparece acá.</Vacio>
+              <PedirAlChat texto="Armame un examen de práctica corto con lo que tengo cargado." label="Pedir un examen de práctica" />
+            </div>
+          ) : (
+            artefactos.slice(0, 4).map((a) => (
+              <Fila key={a.id} href={`/materias/${id}/generados/${a.id}`} meta={a.tipo === "examen" ? "Examen" : "Doc"}>
+                <span className="block truncate">{a.titulo}</span>
+              </Fila>
+            ))
+          )}
+        </Bloque>
+      </div>
+
+      <p className="mt-12 border-t border-border-subtle pt-4 text-sm text-foreground-muted">
+        {materiales.length === 0 ? (
+          <>
+            No subiste material.{" "}
+            <Link href={`/materias/${id}/apuntes`} className="text-accent underline">
+              Subí PDFs, fotos o apuntes
+            </Link>{" "}
+            para que el chat pueda enseñarte desde ahí.
+          </>
+        ) : (
+          <>
+            <Link href={`/materias/${id}/apuntes`} className="text-foreground hover:text-accent">
+              {materiales.length} {materiales.length === 1 ? "archivo" : "archivos"} en Material
             </Link>
-            .
-          </p>
-        </div>
-      ) : (
-        <div className="mb-6 sm:mb-8 border border-border-subtle p-4">
-          <p className="text-sm text-foreground-muted">
-            Preparación configurada: {preparacion?.temas.length || 0} temas · parcial{" "}
-            {preparacion?.fechaParcial ? formatDate(preparacion.fechaParcial) : "sin fecha"}.
-            {preparacion?.plan ? " Ya tenés un plan generado." : " Podés generar tu plan cuando quieras."}
-          </p>
-        </div>
-      )}
-
-      {noExam && (
-        <div className="border border-border-subtle p-5 text-center sm:p-8">
-          <p className="text-foreground-muted mb-4">
-            No tenés ningún examen cargado para esta materia.
-          </p>
-          <p className="text-sm text-foreground-subtle mb-6">
-            {materiales.length > 0
-              ? "Ya tenés material subido. Cargá un examen para empezar a prepararte."
-              : "Empezá subiendo tu material de estudio y después cargá tu próximo examen."}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            {materiales.length === 0 && (
-              <Link
-                href={`/materias/${id}/cargar`}
-                className="text-accent text-sm hover:underline"
-              >
-                Subir material →
-              </Link>
-            )}
-            <Link
-              href={`/materias/${id}/examen`}
-              className="bg-accent text-background px-4 py-2 text-sm hover:bg-accent/90 transition-colors"
-            >
-              Cargar examen →
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {noTopics && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
-            <div className="border border-accent p-5 sm:p-6">
-              <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
-                Próximo examen
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-serif text-xl">
-                    {examDisplayName(nextExamen)}
-                  </div>
-                  <div className="text-sm text-foreground-muted [overflow-wrap:anywhere]">
-                    {nextExamen.fileName ||
-                      (nextExamen.date
-                        ? formatDate(nextExamen.date)
-                        : "Archivo de examen")}
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  {nextExamen.date ? (
-                    <>
-                      <div className="text-3xl font-serif">
-                        {daysUntil(nextExamen.date)}
-                      </div>
-                      <div className="text-xs font-mono text-foreground-muted">
-                        días
-                      </div>
-                    </>
-                  ) : (
-                    <Link
-                      href={
-                        nextExamen.materialId
-                          ? materialViewerRoute({
-                              materiaId: id,
-                              materialId: nextExamen.materialId,
-                              volver: `/materias/${id}`,
-                              etiqueta: "Volver al resumen",
-                            })
-                          : `/materias/${id}/examenes/${nextExamen.id}`
-                      }
-                      className="text-accent text-sm hover:underline"
-                    >
-                      Ver archivo online →
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {hasPreparacionConfig ? (
-              <div className="border border-border-subtle p-5 sm:p-6">
-                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                  Preparación estimada
-                </div>
-                <div className="text-3xl font-serif">—</div>
-                <div className="text-sm text-foreground-muted">Sin temas de práctica cargados</div>
-              </div>
-            ) : (
-              <div className="border border-border-subtle p-5 sm:p-6">
-                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                  Plan de estudio
-                </div>
-                <p className="text-sm text-foreground-muted mb-3">
-                  Configurá temas y fecha del parcial para generar tu plan.
-                </p>
-                <Link
-                  href={`/materias/${id}/preparacion`}
-                  className="text-accent text-sm hover:underline"
-                >
-                  Configurar preparación →
-                </Link>
-              </div>
-            )}
-
-            <div className="border border-border-subtle p-5 sm:p-6">
-              <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                Siguiente paso
-              </div>
-              <p className="text-sm text-foreground-muted mb-4">
-                El archivo ya está. Agregá los temas que entran para poder
-                practicar y ver el preparado.
-              </p>
-              <Link
-                href={`/materias/${id}/examenes/${nextExamen.id}`}
-                className="text-accent text-sm hover:underline"
-              >
-                Agregar temas →
-              </Link>
-              <p className="text-xs text-foreground-muted mt-3">
-                Cuando completes los temas, abrí{" "}
-                <Link href={`/materias/${id}/chat`} className="text-accent hover:underline">
-                  Chat
-                </Link>{" "}
-                para pedir resumen o plan de estudio.
-              </p>
-            </div>
-          </div>
-        </>
-      )}
-
-      {hasData && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 sm:mb-8">
-            <div className="border border-accent p-5 sm:p-6">
-              <div className="text-xs font-mono text-accent uppercase tracking-wider mb-2">
-                Próximo examen
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-serif text-xl">
-                    {examDisplayName(nextExamen)}
-                  </div>
-                  <div className="text-sm text-foreground-muted [overflow-wrap:anywhere]">
-                    {nextExamen.fileName ||
-                      (nextExamen.date
-                        ? formatDate(nextExamen.date)
-                        : "Archivo de examen")}
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  {nextExamen.date ? (
-                    <>
-                      <div className="text-3xl font-serif">
-                        {daysUntil(nextExamen.date)}
-                      </div>
-                      <div className="text-xs font-mono text-foreground-muted">
-                        días
-                      </div>
-                    </>
-                  ) : (
-                    <Link
-                      href={
-                        nextExamen.materialId
-                          ? materialViewerRoute({
-                              materiaId: id,
-                              materialId: nextExamen.materialId,
-                              volver: `/materias/${id}`,
-                              etiqueta: "Volver al resumen",
-                            })
-                          : `/materias/${id}/examenes/${nextExamen.id}`
-                      }
-                      className="text-accent text-sm hover:underline"
-                    >
-                      Ver archivo online →
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {hasPreparacionConfig ? (
-              <div className="border border-border-subtle p-5 sm:p-6">
-                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                  Preparación estimada
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-serif">{preparation}%</span>
-                  <span className="text-sm text-foreground-muted">
-                    {preparation === 0 ? "sin práctica" : "en curso"}
-                  </span>
-                </div>
-                <div className="text-sm text-foreground-muted mt-1">
-                  {preparation === 0
-                    ? "Todavía no hay práctica que mueva este número"
-                    : `${temasCubiertos} de ${temasCount} temas cubiertos`}
-                </div>
-              </div>
-            ) : (
-              <div className="border border-border-subtle p-5 sm:p-6">
-                <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                  Plan de estudio
-                </div>
-                <p className="text-sm text-foreground-muted mb-3">
-                  Este resumen evita forzar un plan hasta que vos lo configures.
-                </p>
-                <Link
-                  href={`/materias/${id}/preparacion`}
-                  className="text-accent text-sm hover:underline"
-                >
-                  Configurar preparación →
-                </Link>
-              </div>
-            )}
-
-            <div className="border border-accent-muted p-5 sm:p-6 bg-accent-muted/30">
-              <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-                Siguiente paso recomendado
-              </div>
-              {temas.filter((t) => t.masteryState === "no_estudiado").length > 0 ? (
-                <>
-                  <div className="font-serif text-lg mb-1">
-                    Empezar con {temas.find((t) => t.masteryState === "no_estudiado")?.name}
-                  </div>
-                  <p className="text-sm text-foreground-muted mb-3">
-                    Tema sin estudiar
-                  </p>
-                </>
-              ) : temas.filter((t) => t.masteryState === "necesita_practica").length > 0 ? (
-                <>
-                  <div className="font-serif text-lg mb-1">
-                    Practicar {temas.find((t) => t.masteryState === "necesita_practica")?.name}
-                  </div>
-                  <p className="text-sm text-foreground-muted mb-3">
-                    Necesita más práctica
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="font-serif text-lg mb-1">
-                    Seguir practicando
-                  </div>
-                  <p className="text-sm text-foreground-muted mb-3">
-                    Mantené el ritmo de estudio
-                  </p>
-                </>
-              )}
-              <Link
-                href={`/materias/${id}/practica`}
-                className="text-accent text-sm hover:underline"
-              >
-                Practicar ahora →
-              </Link>
-              <p className="text-xs text-foreground-muted mt-3">
-                También podés abrir{" "}
-                <Link href={`/materias/${id}/chat`} className="text-accent hover:underline">
-                  Chat
-                </Link>{" "}
-                para repasar por tema o simular examen.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div>
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <h2 className="font-serif text-xl">Programa y temas</h2>
-                <Link
-                  href={`/materias/${id}/examenes/${nextExamen.id}`}
-                  className="text-xs font-mono text-accent uppercase tracking-wider hover:underline"
-                >
-                  Ver examen →
-                </Link>
-              </div>
-              <p className="text-sm text-foreground-muted mb-4">
-                {temasCubiertos} cubiertos · {temas.filter((t) => t.masteryState === "necesita_practica").length} necesitan práctica · {temas.filter((t) => t.masteryState === "no_estudiado").length} sin empezar
-              </p>
-
-              <div className="border border-border-subtle divide-y divide-border-subtle">
-                {temas.map((tema) => {
-                  const weights: Record<MasteryState, number> = {
-                    no_estudiado: 0,
-                    empezado: 25,
-                    estudiado: 60,
-                    necesita_practica: 75,
-                    dominado: 100,
-                  };
-                  const progress = weights[tema.masteryState];
-
-                  return (
-                    <div key={tema.id} className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
-                        <div className="text-sm">{tema.name}</div>
-                      </div>
-                      <div className={`text-xs font-mono uppercase ${getMasteryColor(tema.masteryState)}`}>
-                        {MASTERY_LABELS[tema.masteryState]}
-                      </div>
-                      <div className="ml-auto w-24 h-1 bg-surface-elevated sm:ml-0">
-                        <div
-                          className="h-full bg-accent transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <h3 className="font-serif text-lg">Apuntes y material</h3>
-                  <Link
-                    href={`/materias/${id}/cargar`}
-                    className="shrink-0 text-accent text-sm border border-accent px-3 py-1 hover:bg-accent hover:text-background transition-colors"
-                  >
-                    Cargar apuntes
-                  </Link>
-                </div>
-                {materiales.length === 0 ? (
-                  <p className="text-sm text-foreground-muted">
-                    No hay material subido todavía.
-                  </p>
-                ) : (
-                  <div className="border border-border-subtle divide-y divide-border-subtle">
-                    {materiales.slice(0, 3).map((material) => (
-                      <Link
-                        key={material.id}
-                        href={materialViewerRoute({
-                          materiaId: id,
-                          materialId: material.id,
-                          volver: `/materias/${id}`,
-                          etiqueta: "Volver al resumen",
-                        })}
-                        className="p-3 flex items-center gap-3 hover:bg-surface transition-colors"
-                      >
-                        <span className="text-xs font-mono text-foreground-muted w-8">
-                          {material.type.includes("pdf") ? "PDF" : material.type.includes("image") ? "IMG" : "DOC"}
-                        </span>
-                        <span className="flex-1 text-sm truncate">{material.name}</span>
-                        <span className="text-xs text-accent">Ver →</span>
-                      </Link>
-                    ))}
-                    {materiales.length > 3 && (
-                      <Link
-                        href={`/materias/${id}/apuntes`}
-                        className="block p-3 text-sm text-foreground-muted hover:text-foreground transition-colors"
-                      >
-                        Ver todos →
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-    </MateriaLayout>
+            {" · "}el chat los usa como fuente.
+          </>
+        )}
+      </p>
+    </div>
   );
+}
+
+function Preparacion({
+  materiaId,
+  proxima,
+  temas,
+  hayEvaluaciones,
+}: {
+  materiaId: string;
+  proxima?: Awaited<ReturnType<typeof getExamenes>>[number];
+  temas: Tema[];
+  hayEvaluaciones: boolean;
+}) {
+  const pregunta = (
+    <div className="mb-3 font-mono text-xs uppercase tracking-wider text-foreground-muted">
+      ¿Qué tan preparado estoy?
+    </div>
+  );
+
+  if (!proxima) {
+    return (
+      <section>
+        {pregunta}
+        <p className="max-w-2xl font-serif text-3xl leading-snug sm:text-4xl">
+          {hayEvaluaciones
+            ? "No tenés ningún examen ni entrega con fecha por delante."
+            : "Todavía no sé para qué te estás preparando."}
+        </p>
+        <p className="mt-3 max-w-xl text-sm text-foreground-muted">
+          Cargá el próximo parcial o la próxima entrega, con su fecha y sus temas. Con eso te digo honestamente
+          cómo venís.
+        </p>
+        <Link
+          href={`/materias/${materiaId}/examenes/nuevo`}
+          className="mt-5 inline-flex bg-accent px-4 py-2 text-sm text-background hover:bg-accent/90"
+        >
+          Cargar examen o entrega
+        </Link>
+      </section>
+    );
+  }
+
+  const nombre = evaluacionNombre(proxima);
+  const cuenta = cuentaRegresiva(proxima.date);
+
+  if (temas.length === 0) {
+    return (
+      <section>
+        {pregunta}
+        <p className="max-w-2xl font-serif text-3xl leading-snug sm:text-4xl">
+          {nombre} {cuenta}, pero no cargaste sus temas.
+        </p>
+        <p className="mt-3 max-w-xl text-sm text-foreground-muted">
+          Sin temas no puedo estimar tu preparación. Agregalos y cada examen de práctica los va moviendo.
+        </p>
+        <Link
+          href={`/materias/${materiaId}/examenes/${proxima.id}`}
+          className="mt-5 inline-flex bg-accent px-4 py-2 text-sm text-background hover:bg-accent/90"
+        >
+          Agregar temas
+        </Link>
+      </section>
+    );
+  }
+
+  const preparacion = calculatePreparation(temas);
+  const sinEstudiar = temas.filter((t) => t.masteryState === "no_estudiado").length;
+  const conteo = MASTERY_ORDER.map((state) => ({
+    state,
+    count: temas.filter((t) => t.masteryState === state).length,
+  })).filter((c) => c.count > 0);
+
+  return (
+    <section className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div>
+        {pregunta}
+        <div className="flex items-baseline gap-4">
+          <span className="font-mono text-6xl text-accent sm:text-7xl">{preparacion}%</span>
+          <span className="text-sm text-foreground-muted">preparación estimada</span>
+        </div>
+        <p className="mt-3 max-w-xl font-serif text-2xl leading-snug">
+          <Link href={`/materias/${materiaId}/examenes/${proxima.id}`} className="hover:text-accent">
+            {nombre}
+          </Link>{" "}
+          {cuenta}
+          {fechaLarga(proxima.date) && (
+            <span className="text-foreground-muted"> · {fechaLarga(proxima.date)?.toLowerCase()}</span>
+          )}
+        </p>
+        <p className="mt-2 max-w-xl text-sm text-foreground-muted">
+          {sinEstudiar === temas.length
+            ? "Ningún tema practicado todavía: este número sube cuando rendís exámenes de práctica."
+            : sinEstudiar > 0
+              ? `${sinEstudiar} de ${temas.length} temas sin estudiar.`
+              : "Ya practicaste todos los temas. Seguí rindiendo simulacros para consolidar."}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <PedirAlChat
+            texto={`Armame un simulacro de «${nombre}» priorizando los temas que tengo más flojos.`}
+            label="Rendir un simulacro"
+            className="bg-accent px-4 py-2 text-sm text-background hover:bg-accent/90"
+          />
+          <PedirAlChat
+            texto={`¿Qué me falta para estar preparado para «${nombre}»? Armame un plan hasta la fecha.`}
+            label="¿Qué me falta?"
+            className="border border-border px-4 py-2 text-sm hover:border-accent"
+          />
+        </div>
+      </div>
+      <div>
+        <div className="mb-3 flex h-1.5 w-full overflow-hidden">
+          {temas.map((t) => (
+            <span key={t.id} className={`h-full flex-1 border-r border-background ${MASTERY_BAR[t.masteryState]}`} />
+          ))}
+        </div>
+        <ul className="space-y-1.5 text-sm">
+          {conteo.map((c) => (
+            <li key={c.state} className="flex items-center gap-2">
+              <span className={`h-2 w-2 ${MASTERY_BAR[c.state]}`} />
+              <span className="flex-1 text-foreground-muted">{MASTERY_LABELS[c.state]}</span>
+              <span className="font-mono text-xs">{c.count}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Bloque({
+  titulo,
+  href,
+  accion,
+  children,
+}: {
+  titulo: string;
+  href: string;
+  accion: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline justify-between border-b border-border-subtle pb-2">
+        <h3 className="font-mono text-xs uppercase tracking-wider text-foreground-muted">{titulo}</h3>
+        <Link href={href} className="text-xs text-foreground-muted hover:text-accent">
+          {accion}
+        </Link>
+      </div>
+      <div className="space-y-1">{children}</div>
+    </section>
+  );
+}
+
+function Fila({ href, meta, children }: { href: string; meta: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="group flex items-start gap-3 px-1 py-2 text-sm transition-colors hover:bg-surface">
+      <span className="w-14 shrink-0 pt-0.5 font-mono text-[10px] uppercase tracking-wider text-foreground-muted">{meta}</span>
+      <span className="min-w-0 flex-1 group-hover:text-accent">{children}</span>
+    </Link>
+  );
+}
+
+function Vacio({ children }: { children: React.ReactNode }) {
+  return <p className="px-1 py-2 text-sm text-foreground-muted">{children}</p>;
 }

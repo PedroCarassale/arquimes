@@ -1,7 +1,5 @@
-import { MateriasHubPage } from "@/components/MateriasHubPage";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function MateriasChatsPage() {
-  return <MateriasHubPage mode="selector-chat" />;
+export default function MateriasChatsPage() {
+  redirect("/");
 }

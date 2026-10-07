@@ -439,3 +439,65 @@ select {
   padding: 0.7rem 0.8rem;
   white-space: pre-wrap;
 }
+
+.doc-markdown {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #e7e5e4;
+}
+
+.doc-markdown h1 {
+  margin: 0 0 1rem;
+  font-size: 2.25rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.doc-markdown h2 {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.doc-markdown h3 {
+  margin-top: 1.5rem;
+  font-size: 1.2rem;
+}
+
+.doc-markdown p,
+.doc-markdown ul,
+.doc-markdown ol,
+.doc-markdown blockquote,
+.doc-markdown pre,
+.doc-markdown table {
+  margin: 0.9rem 0;
+}
+
+.doc-markdown hr {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.chat-markdown li.task-list-item {
+  list-style: none;
+  margin-left: -1.3rem;
+}
+
+.chat-markdown li.task-list-item input {
+  margin-right: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.note-editor {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  tab-size: 2;
+}
+
+.note-editor::placeholder {
+  color: var(--foreground-subtle);
+}

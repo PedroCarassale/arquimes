@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import {
+  getExamen,
   getStudyGrounding,
   getStudyContext,
+  getTemas,
 } from "@/lib/db";
+import { getArtefacto, getNota, saveArtefacto } from "@/lib/workspace-store";
+import type { StudyContext } from "@/lib/study-chat";
+import type { ChatFocus } from "@/lib/chat-service";
+import { examDisplayName } from "@/lib/format";
+import type { Artefacto } from "@/lib/types";
 import {
   addTurn,
   createChatSession,
@@ -114,9 +121,12 @@ export async function POST(request: Request) {
     }
 
     const history = await listMessages(session.id);
-    const hasReadableSources = ctx.sources.some((source) =>
-      Boolean(source.text?.trim())
-    );
+    const focus = await resolveFocus(body.focus, ctx);
+    const hasReadableSources =
+      ctx.sources.some((source) => Boolean(source.text?.trim())) ||
+      ctx.exams.some((exam) => exam.temas.length > 0 || Boolean(exam.objective)) ||
+      Boolean(focus?.contenido?.trim());
+    const savedArtefactos: Artefacto[] = [];
 
     let assistantText = "";
     let citations: string[] = [];
@@ -132,8 +142,23 @@ export async function POST(request: Request) {
           context: ctx,
           history,
           userMessage: content,
+          focus,
         });
-        assistantText = generated.answer;
+        for (const block of generated.artefactos) {
+          savedArtefactos.push(
+            await saveArtefacto({
+              materiaId,
+              sessionId: session.id,
+              id: block.id,
+              tipo: block.tipo,
+              titulo: block.titulo,
+              contenido: block.contenido,
+            })
+          );
+        }
+        assistantText = savedArtefactos.length
+          ? generated.withArtefactoIds(savedArtefactos.map((a) => a.id))
+          : generated.answer;
         citations = generated.citations;
       } catch (error) {
         if (error instanceof ProviderConfigError) {
@@ -158,6 +183,12 @@ export async function POST(request: Request) {
         session,
         turn,
         isError,
+        artefactos: savedArtefactos.map(({ id, titulo, tipo, version }) => ({
+          id,
+          titulo,
+          tipo,
+          version,
+        })),
       },
       { status: 201 }
     );
@@ -167,6 +198,46 @@ export async function POST(request: Request) {
     }
     return apiErrorResponse(error, "Error al enviar el mensaje");
   }
+}
+
+async function resolveFocus(
+  raw: unknown,
+  ctx: StudyContext
+): Promise<ChatFocus | null> {
+  if (!raw || typeof raw !== "object") return null;
+  const { kind, id } = raw as { kind?: unknown; id?: unknown };
+  if (typeof id !== "string" || !id) return null;
+  if (kind === "nota") {
+    const nota = await getNota(id);
+    return nota && nota.materiaId === ctx.materiaId
+      ? { kind, id, titulo: nota.titulo, contenido: nota.contenido }
+      : null;
+  }
+  if (kind === "artefacto") {
+    const artefacto = await getArtefacto(id);
+    return artefacto && artefacto.materiaId === ctx.materiaId
+      ? { kind, id, titulo: artefacto.titulo, contenido: artefacto.contenido }
+      : null;
+  }
+  if (kind === "material") {
+    const source = ctx.sources.find((s) => s.materialId === id);
+    return source ? { kind, id, titulo: source.name, contenido: source.text } : null;
+  }
+  if (kind === "examen") {
+    const examen = await getExamen(id);
+    if (!examen || examen.materiaId !== ctx.materiaId) return null;
+    const temas = await getTemas(id);
+    const contenido = [
+      examen.kind === "entrega" ? "Entrega de trabajo práctico" : "Examen",
+      examen.date ? `Fecha: ${examen.date}` : "",
+      examen.description ? `Descripción: ${examen.description}` : "",
+      temas.length ? `Temas: ${temas.map((t) => t.name).join(", ")}` : "Temas: sin cargar",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    return { kind, id, titulo: examDisplayName(examen), contenido };
+  }
+  return null;
 }
 
 function inferSessionTitle(content: string): string {

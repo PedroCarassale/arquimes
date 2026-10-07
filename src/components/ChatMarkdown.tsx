@@ -17,13 +17,15 @@ type HastNode = {
 
 export function ChatMarkdown({
   children,
+  className,
 }: {
   children?: string | null;
+  className?: string;
 }) {
   const mathReady = preprocessAssistantMarkdown(children);
 
   return (
-    <div className="chat-markdown">
+    <div className={className ? `chat-markdown ${className}` : "chat-markdown"}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeInvalidMathFallback, rehypeKatex, rehypeKatexA11y]}

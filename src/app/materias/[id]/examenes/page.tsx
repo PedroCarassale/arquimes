@@ -1,97 +1,103 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MateriaLayout } from "@/components/MateriaLayout";
-import { getExamenesConLectura, getMateria } from "@/lib/db";
-import { examDisplayName, formatFileSize, lecturaLabel } from "@/lib/format";
-import { RememberMateria } from "@/lib/materia-snapshot";
-import { SinSubidasPendientes, SubidasDeMateria } from "@/components/SubidasDeMateria";
+import { getExamenes, getTemasForMateria } from "@/lib/db";
+import { calculatePreparation } from "@/lib/mastery";
+import {
+  cuentaRegresiva,
+  diasHasta,
+  evaluacionNombre,
+  evaluacionTipoLabel,
+  fechaLarga,
+  ordenarEvaluaciones,
+} from "@/lib/evaluaciones";
 
 export const dynamic = "force-dynamic";
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default async function ExamenesPage({ params }: PageProps) {
+export default async function ExamenesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const materia = await getMateria(id);
-  if (!materia) notFound();
-
-  const examenes = await getExamenesConLectura(id);
-  const materiaInfo = [materia.faculty, materia.catedra]
-    .filter(Boolean)
-    .join(" · ");
+  const [examenes, temas] = await Promise.all([getExamenes(id), getTemasForMateria(id)]);
+  const ordenados = ordenarEvaluaciones(examenes);
 
   return (
-    <MateriaLayout
-      materiaId={id}
-      materiaName={materia.name}
-      materiaInfo={materiaInfo || "Privada"}
-    >
-      <RememberMateria id={id} snapshot={{ examenesCount: examenes.length }} />
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-serif text-2xl mb-1">Exámenes</h2>
-          <p className="text-sm text-foreground-muted">
-            Archivos de examen que cargaste en {materia.name}.
+          <div className="mb-1 font-mono text-xs uppercase tracking-wider text-foreground-muted">Exámenes y entregas</div>
+          <h2 className="font-serif text-3xl">Lo que se viene</h2>
+          <p className="mt-1 max-w-xl text-sm text-foreground-muted">
+            Parciales, finales y entregas de trabajos prácticos: cuándo son, de qué tratan y qué temas entran.
           </p>
         </div>
-        <Link
-          href={`/materias/${id}/examen`}
-          className="text-center text-sm bg-accent text-background px-4 py-3 sm:py-2 hover:bg-accent/90 transition-colors uppercase tracking-wider"
-        >
-          Cargar examen →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/materias/${id}/examenes/nuevo`} className="bg-accent px-4 py-2 text-sm text-background hover:bg-accent/90">
+            + Nuevo
+          </Link>
+          <Link
+            href={`/materias/${id}/examen`}
+            className="border border-border px-4 py-2 text-sm text-foreground-muted hover:border-accent hover:text-foreground"
+          >
+            Subir examen viejo
+          </Link>
+        </div>
       </div>
 
-      <SubidasDeMateria materiaId={id} kind="examen" />
-
-      {examenes.length === 0 ? (
-        <SinSubidasPendientes materiaId={id} kind="examen">
-          <div className="border border-border-subtle p-5 sm:p-8 text-center">
-            <p className="text-foreground-muted mb-4">
-              Todavía no cargaste un examen para esta materia.
-            </p>
-            <Link
-              href={`/materias/${id}/examen`}
-              className="text-accent text-sm hover:underline"
-            >
-              Cargar el primero →
-            </Link>
-          </div>
-        </SinSubidasPendientes>
-      ) : (
-        <div className="border border-border-subtle divide-y divide-border-subtle">
-          {examenes.map((examen) => (
-            <Link
-              key={examen.id}
-              href={`/materias/${id}/examenes/${examen.id}`}
-              className="block p-4 hover:bg-surface transition-colors"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
-                <div>
-                  <div className="font-serif text-xl">
-                    {examDisplayName(examen)}
-                  </div>
-                  {examen.fileName && (
-                    <div className="text-sm text-foreground-muted mt-1 [overflow-wrap:anywhere]">
-                      {examen.fileName}
-                      {typeof examen.fileSize === "number"
-                        ? ` · ${formatFileSize(examen.fileSize)}`
-                        : ""}
-                    </div>
-                  )}
-                  {lecturaLabel(examen.lectura) && (
-                    <div className="text-[11px] font-mono text-foreground-muted mt-1">
-                      {lecturaLabel(examen.lectura)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Link>
-          ))}
+      {ordenados.length === 0 ? (
+        <div className="border border-dashed border-border px-6 py-12 text-center">
+          <p className="font-serif text-2xl">No cargaste exámenes ni entregas</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-foreground-muted">
+            Sin una fecha y unos temas no puedo decirte qué tan preparado estás. Cargá el próximo parcial o
+            la próxima entrega.
+          </p>
+          <Link
+            href={`/materias/${id}/examenes/nuevo`}
+            className="mt-5 inline-flex bg-accent px-4 py-2 text-sm text-background hover:bg-accent/90"
+          >
+            Cargar el próximo
+          </Link>
         </div>
+      ) : (
+        <ul className="divide-y divide-border-subtle border-y border-border-subtle">
+          {ordenados.map((examen) => {
+            const propios = temas.filter((t) => t.examenId === examen.id);
+            const dias = diasHasta(examen.date);
+            const pasado = dias !== null && dias < 0;
+            return (
+              <li key={examen.id}>
+                <Link
+                  href={`/materias/${id}/examenes/${examen.id}`}
+                  className={`group grid gap-2 px-1 py-4 transition-colors hover:bg-surface sm:grid-cols-[140px_1fr_auto] sm:items-center sm:gap-6 sm:px-3 ${
+                    pasado ? "opacity-60" : ""
+                  }`}
+                >
+                  <div>
+                    <div className="font-mono text-xs uppercase tracking-wider text-accent">{evaluacionTipoLabel(examen)}</div>
+                    <div className="mt-0.5 text-sm text-foreground-muted">
+                      {cuentaRegresiva(examen.date) ?? "Sin fecha"}
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-base group-hover:text-accent">{evaluacionNombre(examen)}</div>
+                    <div className="mt-0.5 truncate text-sm text-foreground-muted">
+                      {[fechaLarga(examen.date), propios.length ? `${propios.length} temas` : "sin temas"]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  </div>
+                  {propios.length > 0 && (
+                    <div className="flex items-center gap-3 sm:w-40">
+                      <div className="h-1 flex-1 bg-surface-elevated">
+                        <div className="h-1 bg-accent" style={{ width: `${calculatePreparation(propios)}%` }} />
+                      </div>
+                      <span className="w-10 text-right font-mono text-xs text-foreground-muted">
+                        {calculatePreparation(propios)}%
+                      </span>
+                    </div>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </MateriaLayout>
+    </div>
   );
 }

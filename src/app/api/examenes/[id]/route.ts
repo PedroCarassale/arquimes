@@ -4,8 +4,10 @@ import {
   getExamen,
   getMaterial,
   materialHasContent,
+  updateEvaluacion,
   updateExamenNote,
 } from "@/lib/db";
+import { parseEvaluacionInput } from "@/lib/evaluacion-input";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -47,6 +49,17 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    if (typeof body.note !== "string") {
+      const input = parseEvaluacionInput(body);
+      const updated = await updateEvaluacion(id, {
+        kind: input.kind,
+        name: input.name,
+        type: "type" in body ? input.type ?? null : undefined,
+        date: input.date,
+        description: "description" in body ? input.description ?? "" : undefined,
+      });
+      return NextResponse.json(updated);
+    }
     const name =
       typeof body.note === "string"
         ? body.note.trim()

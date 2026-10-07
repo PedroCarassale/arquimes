@@ -2,6 +2,17 @@ import { generateWithProvider, type ProviderMessage } from "./ai-providers.ts";
 import { parseAssistantContent } from "./chat-message.ts";
 import type { ChatMessage } from "./types";
 import type { StudyContext, StudySource } from "./study-chat";
+import { extractArtefactos, type ArtefactoBlock } from "./artefactos.ts";
+
+export type ChatFocus = {
+  kind: "nota" | "artefacto" | "material" | "examen";
+  titulo: string;
+  id: string;
+  contenido: string | null;
+};
+
+const MAX_FOCUS_CHARS = 60_000;
+const MAX_LATEST_ARTEFACTO_CHARS = 20_000;
 
 const SUGGESTED_CHIPS = [
   "Necesito aprender todo el apunte. Mapeá los temas y empecemos por el primero.",
@@ -43,6 +54,7 @@ export function buildPrompt(input: {
   context: StudyContext;
   history: ChatMessage[];
   userMessage: string;
+  focus?: ChatFocus | null;
 }): ProviderMessage[] {
   const broadRequest = isBroadLearningRequest(input.userMessage);
   const contextBlock = buildContextBlock(
@@ -81,6 +93,11 @@ export function buildPrompt(input: {
     '<!-- ARQUIMES_CITATIONS: ["nombre exacto de fuente"] -->',
     "- La lista debe contener cada fuente realmente usada. Si no usaste ninguna, escribí []. La línea de metadatos no forma parte de la respuesta visible.",
     "",
+    "",
+    ARTEFACTOS_CONTRACT,
+    "",
+    buildArtefactosBlock(input.context, input.focus),
+    buildFocusBlock(input.focus),
     "CONTEXTO DE MATERIA",
     contextBlock,
   ].join("\n");
@@ -101,21 +118,85 @@ export async function runGroundedChat(input: {
   context: StudyContext;
   history: ChatMessage[];
   userMessage: string;
-}): Promise<{ answer: string; citations: string[] }> {
+  focus?: ChatFocus | null;
+}): Promise<{
+  answer: string;
+  citations: string[];
+  artefactos: ArtefactoBlock[];
+  withArtefactoIds: (ids: string[]) => string;
+}> {
   const prompt = buildPrompt(input);
   const response = await generateWithProvider(prompt);
   const parsed = parseAssistantContent(response.text);
-  if (!parsed) {
-    return {
-      answer: response.text.trim(),
-      citations: [],
-    };
-  }
   const knownSources = new Set(input.context.sources.map((source) => source.name));
+  const answer = parsed ? parsed.answer : response.text.trim();
+  const extracted = extractArtefactos(answer);
+  const knownArtefactos = new Set((input.context.artefactos || []).map((a) => a.id));
   return {
-    answer: parsed.answer,
-    citations: [...new Set(parsed.citations.filter((name) => knownSources.has(name)))],
+    answer,
+    citations: parsed
+      ? [...new Set(parsed.citations.filter((name) => knownSources.has(name)))]
+      : [],
+    artefactos: extracted.blocks.map((block) => ({
+      ...block,
+      id: block.id && knownArtefactos.has(block.id) ? block.id : undefined,
+    })),
+    withArtefactoIds: extracted.replace,
   };
+}
+
+const ARTEFACTOS_CONTRACT = [
+  "ARTEFACTOS (documentos que se abren al lado del chat)",
+  "- Cuando el estudiante pida un examen, simulacro, parcial de práctica, cuestionario, resumen, guía, cuadro comparativo, resolución larga o cualquier documento para estudiar o guardar, escribilo como artefacto en vez de pegarlo en el chat.",
+  '- Formato: <artefacto tipo="examen" titulo="Título corto">…markdown…</artefacto>. Usá tipo="documento" para todo lo que no sea un examen.',
+  "- Fuera del artefacto escribí solo una o dos frases: qué armaste y cómo usarlo. No repitas el contenido.",
+  '- Para modificar un artefacto existente usá su id: <artefacto id="ID" tipo="..." titulo="...">…contenido COMPLETO nuevo…</artefacto>. Se guarda como versión nueva.',
+  "- Examen interactivo (tipo=\"examen\"): empezá con «# Título» y una línea de instrucciones. Cada pregunta es un encabezado «## N. enunciado» (N = 1, 2, 3…).",
+  "  · Debajo, una línea «Tema: nombre del tema» usando, si existen, los nombres exactos de los TEMAS del examen.",
+  "  · Opción múltiple: opciones como «- [ ] texto» y marcá la correcta con «- [x] texto». Exactamente una correcta. Después «> Explicación: …».",
+  "  · Desarrollo: sin opciones; después del enunciado poné «> Respuesta: …» con la resolución modelo completa.",
+  "  · Mezclá opción múltiple y desarrollo salvo que pidan otra cosa. Basá las preguntas en el material de la materia y en el nivel del examen que se prepara.",
+  "- Dentro del artefacto podés usar Markdown, tablas y LaTeX con las mismas reglas de FORMATO.",
+].join("\n");
+
+function buildArtefactosBlock(ctx: StudyContext, focus?: ChatFocus | null): string {
+  const artefactos = ctx.artefactos || [];
+  if (artefactos.length === 0) return "ARTEFACTOS EXISTENTES: ninguno todavía.\n";
+  const list = artefactos
+    .slice(0, 30)
+    .map((a) => `- id="${a.id}" tipo="${a.tipo}" titulo="${a.titulo}" (versión ${a.version})`)
+    .join("\n");
+  const latest = artefactos[0];
+  const latestBlock =
+    latest && !(focus?.kind === "artefacto" && focus.id === latest.id)
+      ? `\nCONTENIDO DEL ÚLTIMO ARTEFACTO (id="${latest.id}"):\n${clipText(latest.contenido, MAX_LATEST_ARTEFACTO_CHARS)}`
+      : "";
+  return `ARTEFACTOS EXISTENTES EN LA MATERIA:\n${list}${latestBlock}\n`;
+}
+
+function buildFocusBlock(focus?: ChatFocus | null): string {
+  if (!focus) return "";
+  const label =
+    focus.kind === "nota"
+      ? "una nota del estudiante"
+      : focus.kind === "artefacto"
+        ? `el artefacto id="${focus.id}"`
+        : focus.kind === "examen"
+          ? "una evaluación (examen o entrega)"
+          : "un archivo de material";
+  const body = focus.contenido?.trim()
+    ? clipText(focus.contenido, MAX_FOCUS_CHARS)
+    : "[sin texto legible]";
+  return [
+    `LO QUE EL ESTUDIANTE TIENE ABIERTO AHORA: ${label} — «${focus.titulo}».`,
+    "Si pregunta por «esto», «este examen», «la nota» o similar, se refiere a este documento. Si pide cambios sobre un artefacto abierto, devolvé una versión nueva con su id.",
+    body,
+    "",
+  ].join("\n");
+}
+
+function clipText(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max)}\n[…recortado…]`;
 }
 
 function readingStatusLine(source: StudySource): string {
@@ -148,7 +229,7 @@ function buildExamChunks(ctx: StudyContext): string {
         `EXAMEN: ${exam.name}`,
         `TIPO: ${exam.typeLabel}`,
         exam.date ? `FECHA: ${exam.date}` : "",
-        exam.objective ? `OBJETIVO: ${exam.objective}` : "",
+        exam.objective ? `DE QUÉ TRATA: ${exam.objective}` : "",
         exam.temas.length ? `TEMAS: ${exam.temas.join(", ")}` : "TEMAS: [sin temas]",
       ]
         .filter(Boolean)

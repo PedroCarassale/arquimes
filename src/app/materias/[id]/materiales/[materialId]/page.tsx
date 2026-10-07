@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { MateriaLayout } from "@/components/MateriaLayout";
 import { MaterialViewer } from "@/components/MaterialViewer";
+import { FocusRegister } from "@/components/workspace/WorkspaceContext";
 import { getMateria, getMaterial } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function MaterialViewerPage({
   const rawBackHref = query.volver?.trim() || "";
   const backHref =
     rawBackHref.startsWith(`/materias/${id}`) ? rawBackHref : fallbackHref;
-  const backLabel = query.etiqueta?.trim() || "Volver a Apuntes";
+  const backLabel = query.etiqueta?.trim() || "Volver a Material";
   const materiaInfo = [materia.faculty, materia.catedra].filter(Boolean).join(" · ");
 
   return (
@@ -33,6 +34,7 @@ export default async function MaterialViewerPage({
       materiaName={materia.name}
       materiaInfo={materiaInfo || "Privada"}
     >
+      <FocusRegister kind="material" id={material.id} titulo={material.name} />
       <MaterialViewer
         materiaId={id}
         materialId={material.id}

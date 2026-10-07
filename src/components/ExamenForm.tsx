@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AppShell } from "@/components/AppShell";
+
 import { formatFileSize } from "@/lib/format";
 import { expandStudyFiles, validateStudyFile } from "@/lib/study-upload";
 import { enqueueUploads } from "@/lib/upload-queue";
@@ -50,15 +50,16 @@ export function ExamenForm({ materia }: { materia: Materia }) {
   }
 
   return (
-    <AppShell>
+    <div className="mx-auto w-full max-w-5xl">
       <div className="px-4 py-6 sm:p-6 lg:p-8 max-w-2xl">
         <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
           {materia.name}
         </div>
-        <h1 className="font-serif text-2xl sm:text-3xl mb-2">Cargar examen</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl mb-2">Subir un examen</h1>
         <p className="text-sm text-foreground-muted mb-8">
-          Paso 2 de 3: subí el archivo del próximo examen. Sumá una nota corta
-          de contexto y después agregá temas para practicar.
+          Subí exámenes de años anteriores o un enunciado. El chat los lee para
+          armarte simulacros parecidos. Para cargar un examen futuro con fecha y temas,
+          usá «+ Nuevo» en Exámenes.
         </p>
 
         <div
@@ -161,18 +162,12 @@ export function ExamenForm({ materia }: { materia: Materia }) {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-6 border-t border-border-subtle">
           <Link
-            href={`/materias/${materia.id}/cargar`}
+            href={`/materias/${materia.id}/examenes`}
             className="text-sm text-foreground-muted hover:text-foreground transition-colors"
           >
-            ← Paso 1: Cargar apuntes
+            ← Exámenes y entregas
           </Link>
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-            <Link
-              href={`/materias/${materia.id}/examenes`}
-              className="text-center border border-border px-4 py-3 sm:py-2 text-xs font-mono uppercase tracking-wider text-foreground-muted hover:border-accent"
-            >
-              Paso 3: Definir temas
-            </Link>
             <button
               type="button"
               onClick={handleSave}
@@ -189,6 +184,6 @@ export function ExamenForm({ materia }: { materia: Materia }) {
           </div>
         </div>
       </div>
-    </AppShell>
+    </div>
   );
 }
