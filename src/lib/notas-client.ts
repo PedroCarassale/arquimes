@@ -1,23 +1,17 @@
 import { apiFetch } from "./api";
 import type { Nota } from "./types";
 
-export function tituloNuevaClase(date = new Date()): string {
-  return `Clase · ${date.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}`;
-}
-
-export const PLANTILLA_CLASE = "## Temas vistos\n\n- \n\n## Apuntes\n\n\n\n## Dudas para consultar\n\n- ";
-
 export async function crearNota(
   materiaId: string,
-  input: { titulo: string; contenido?: string }
+  input: { titulo?: string; contenido?: string } = {}
 ): Promise<Nota> {
   const response = await apiFetch(`/api/materias/${materiaId}/notas`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ titulo: input.titulo ?? "", contenido: input.contenido ?? "" }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "No pude crear la nota.");
+  if (!response.ok) throw new Error(payload.error || "No se pudo crear la clase.");
   return payload as Nota;
 }
 

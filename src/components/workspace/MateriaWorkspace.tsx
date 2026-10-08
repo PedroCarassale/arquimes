@@ -1,24 +1,34 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { cx } from "@/components/ui/cx";
 import { useRememberMateria } from "@/lib/materia-snapshot";
+import { rutas } from "@/lib/routes";
+import { tabKey } from "@/lib/tabs";
 import { ChatPanel } from "./ChatPanel";
-import { WorkspaceProvider, useWorkspace } from "./WorkspaceContext";
-
-const SECTIONS = [
-  { href: "", label: "Inicio" },
-  { href: "/notas", label: "Notas" },
-  { href: "/examenes", label: "Exámenes" },
-  { href: "/generados", label: "Generados" },
-  { href: "/apuntes", label: "Material" },
-];
+import { LauncherOverlay } from "./Launcher";
+import { TabBar } from "./TabBar";
+import { WorkspaceProvider, useChatLayout, useWorkspace } from "./WorkspaceContext";
+import { tabsStore } from "./tabs-store";
 
 const WIDTH_KEY = "arq.chat.width";
+const DEFAULT_WIDTH = 380;
 const MIN_WIDTH = 320;
-const MAX_WIDTH = 680;
+const MAX_WIDTH = 560;
+const MIN_CONTENT = 560;
+const KEY_STEP = 16;
+
+const OVERLAY =
+  "fixed inset-0 z-40 flex flex-col bg-background md:absolute md:right-auto md:w-[380px] md:max-w-full md:border-r md:border-border-subtle md:shadow-pop";
+const COLUMN =
+  "lg:relative lg:inset-auto lg:z-auto lg:flex lg:w-[var(--chat-w)] lg:max-w-none lg:shrink-0 lg:flex-col lg:border-r lg:border-border-subtle lg:bg-background lg:shadow-none";
+
+function clampWidth(value: number, rowWidth?: number) {
+  const max = rowWidth ? Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, rowWidth - MIN_CONTENT)) : MAX_WIDTH;
+  return Math.round(Math.min(max, Math.max(MIN_WIDTH, value)));
+}
 
 export function MateriaWorkspace({
   materiaId,
@@ -42,20 +52,103 @@ export function MateriaWorkspace({
 }
 
 function WorkspaceFrame({ children }: { children: React.ReactNode }) {
-  const { materiaId, materiaName, chatOpen, mobileChatOpen, toggleChat } = useWorkspace();
+  const { materiaId, chatOpen, mobileChatOpen, openChat, closeChat } = useWorkspace();
+  const { reportColumnFits, closeOverlay, isChatVisible } = useChatLayout();
+  const router = useRouter();
   const pathname = usePathname();
-  const base = `/materias/${materiaId}`;
+  const rowRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLElement>(null);
-  const width = useRef(420);
+  const width = useRef(DEFAULT_WIDTH);
   const dragging = useRef(false);
+  const [fits, setFits] = useState(true);
+  const [launcherOpen, setLauncherOpen] = useState(false);
 
   useEffect(() => {
     try {
-      const stored = Number(window.localStorage.getItem(WIDTH_KEY));
-      if (stored >= MIN_WIDTH && stored <= MAX_WIDTH) {
-        width.current = stored;
-        asideRef.current?.style.setProperty("--chat-w", `${stored}px`);
+      const raw = window.localStorage.getItem(WIDTH_KEY);
+      const stored = raw === null || raw === "" ? Number.NaN : Number(raw);
+      if (Number.isFinite(stored)) {
+        width.current = clampWidth(stored);
+        asideRef.current?.style.setProperty("--chat-w", `${width.current}px`);
       }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const observer = new ResizeObserver((entries) => {
+      const rowWidth = entries[entries.length - 1]?.contentRect.width ?? row.getBoundingClientRect().width;
+      const next = rowWidth - width.current >= MIN_CONTENT;
+      reportColumnFits(next);
+      setFits(next);
+    });
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [reportColumnFits]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.isComposing) return;
+      const mod = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if (mod && !event.altKey && !event.shiftKey && key === "k") {
+        event.preventDefault();
+        setLauncherOpen(true);
+        return;
+      }
+      if (mod && !event.altKey && !event.shiftKey && key === "j") {
+        event.preventDefault();
+        if (isChatVisible()) closeChat();
+        else openChat({ focusComposer: true });
+        return;
+      }
+      if (event.key === "Escape" && !mod && mobileChatOpen && !isChatVisibleAsColumn()) {
+        closeOverlay();
+        return;
+      }
+      if (!event.altKey || mod) return;
+      if (!event.shiftKey && /^Digit[1-9]$/.test(event.code)) {
+        event.preventDefault();
+        const index = Number(event.code.slice(5));
+        if (index === 1) {
+          router.push(rutas.materia(materiaId));
+        } else {
+          const tab = tabsStore.getSnapshot(materiaId)[index - 2];
+          if (tab) router.push(tab.href);
+        }
+        return;
+      }
+      if (!event.shiftKey && event.code === "KeyW") {
+        event.preventDefault();
+        const active = tabKey(pathname);
+        const next = tabsStore.close(materiaId, active, active);
+        if (next) router.replace(next);
+        return;
+      }
+      if (event.shiftKey && event.code === "KeyT") {
+        event.preventDefault();
+        const href = tabsStore.popClosed(materiaId);
+        if (href) router.push(href);
+      }
+    }
+
+    function isChatVisibleAsColumn() {
+      return window.matchMedia("(min-width: 1024px)").matches && fits && chatOpen;
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [materiaId, pathname, router, isChatVisible, openChat, closeChat, closeOverlay, mobileChatOpen, fits, chatOpen]);
+
+  const applyWidth = useCallback((next: number) => {
+    width.current = next;
+    asideRef.current?.style.setProperty("--chat-w", `${next}px`);
+  }, []);
+
+  const persistWidth = useCallback(() => {
+    try {
+      window.localStorage.setItem(WIDTH_KEY, String(width.current));
     } catch {}
   }, []);
 
@@ -64,148 +157,80 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
     event.currentTarget.setPointerCapture(event.pointerId);
   }, []);
 
-  const onDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return;
-    const aside = event.currentTarget.parentElement;
-    if (!aside) return;
-    const next = Math.round(
-      Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, event.clientX - aside.getBoundingClientRect().left))
-    );
-    width.current = next;
-    aside.style.setProperty("--chat-w", `${next}px`);
-  }, []);
+  const onDrag = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!dragging.current) return;
+      const aside = asideRef.current;
+      const row = rowRef.current;
+      if (!aside || !row) return;
+      applyWidth(clampWidth(event.clientX - aside.getBoundingClientRect().left, row.getBoundingClientRect().width));
+    },
+    [applyWidth]
+  );
 
   const endDrag = useCallback(() => {
     if (!dragging.current) return;
     dragging.current = false;
-    try {
-      window.localStorage.setItem(WIDTH_KEY, String(width.current));
-    } catch {}
-  }, []);
+    persistWidth();
+  }, [persistWidth]);
 
-  const isActive = (href: string) =>
-    href === "" ? pathname === base || pathname === `${base}/` : pathname.startsWith(`${base}${href}`) ||
-      (href === "/apuntes" && (pathname.startsWith(`${base}/materiales`) || pathname.startsWith(`${base}/cargar`)));
+  const onSeparatorKey = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const delta = event.key === "ArrowRight" ? KEY_STEP : -KEY_STEP;
+      applyWidth(clampWidth(width.current + delta, rowRef.current?.getBoundingClientRect().width));
+      event.currentTarget.setAttribute("aria-valuenow", String(width.current));
+      persistWidth();
+    },
+    [applyWidth, persistWidth]
+  );
+
+  const lgColumn = chatOpen && fits;
+  const asideClass = lgColumn ? cx(mobileChatOpen ? OVERLAY : "hidden", COLUMN) : mobileChatOpen ? OVERLAY : "hidden";
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-[480px] flex-col lg:h-screen">
-      <header className="shrink-0 border-b border-border-subtle">
-        <div className="flex h-14 items-center gap-3 px-3 sm:px-5">
-          <ChatToggle open={chatOpen} onClick={toggleChat} className="hidden lg:flex" />
-          <ChatToggle open={mobileChatOpen} onClick={toggleChat} className="flex lg:hidden" />
-          <div className="min-w-0 flex-1">
-            <Link
-              href="/"
-              className="block font-mono text-[10px] uppercase tracking-wider text-foreground-muted hover:text-foreground"
-            >
-              Materias /
-            </Link>
-            <h1 className="truncate font-serif text-xl leading-tight">{materiaName}</h1>
-          </div>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Secciones de la materia">
-            {SECTIONS.map((section) => (
-              <SectionLink key={section.label} href={`${base}${section.href}`} active={isActive(section.href)}>
-                {section.label}
-              </SectionLink>
-            ))}
-          </nav>
-        </div>
-        <nav
-          className="-mt-1 flex gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] md:hidden"
-          aria-label="Secciones de la materia"
-        >
-          {SECTIONS.map((section) => (
-            <SectionLink key={section.label} href={`${base}${section.href}`} active={isActive(section.href)}>
-              {section.label}
-            </SectionLink>
-          ))}
-        </nav>
-      </header>
-
-      <div className="relative flex min-h-0 flex-1">
+    <div className="relative flex h-[calc(100dvh-3.5rem)] min-h-[480px] flex-col lg:h-dvh">
+      <div ref={rowRef} className="relative flex min-h-0 flex-1">
+        {mobileChatOpen && (
+          <div
+            aria-hidden="true"
+            onClick={closeOverlay}
+            className={cx("t-fade-in absolute inset-0 z-30 hidden bg-black/40 md:block", lgColumn && "lg:hidden")}
+          />
+        )}
         <aside
           ref={asideRef}
-          style={{ "--chat-w": "420px" } as React.CSSProperties}
-          className={`relative min-h-0 flex-col border-border-subtle bg-background lg:w-[var(--chat-w)] lg:shrink-0 lg:border-r ${
-            mobileChatOpen ? "max-lg:fixed max-lg:inset-0 max-lg:z-40 max-lg:flex" : "max-lg:hidden"
-          } ${chatOpen ? "lg:flex" : "lg:hidden"}`}
+          style={{ "--chat-w": `${DEFAULT_WIDTH}px` } as React.CSSProperties}
+          className={asideClass}
           aria-label="Chat de estudio"
         >
           <ChatPanel />
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Cambiar ancho del chat"
-            onPointerDown={startDrag}
-            onPointerMove={onDrag}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-            className="absolute inset-y-0 -right-1 z-10 hidden w-2 cursor-col-resize hover:bg-accent/20 lg:block"
-          />
+          {lgColumn && (
+            <div
+              role="separator"
+              tabIndex={0}
+              aria-orientation="vertical"
+              aria-label="Cambiar ancho del chat"
+              aria-valuemin={MIN_WIDTH}
+              aria-valuemax={MAX_WIDTH}
+              onPointerDown={startDrag}
+              onPointerMove={onDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={endDrag}
+              onKeyDown={onSeparatorKey}
+              className="absolute inset-y-0 -right-1 z-10 hidden w-2 cursor-col-resize transition-colors duration-(--dur-fast) hover:bg-border lg:block"
+            />
+          )}
         </aside>
-        <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Suspense fallback={<div aria-hidden="true" className="h-11 shrink-0 border-b border-border-subtle md:h-10" />}>
+            <TabBar columnChat={lgColumn} />
+          </Suspense>
+          <main className="relative min-h-0 flex-1 overflow-y-auto">{children}</main>
+        </div>
       </div>
+      <LauncherOverlay open={launcherOpen} onClose={() => setLauncherOpen(false)} />
     </div>
-  );
-}
-
-function ChatToggle({
-  open,
-  onClick,
-  className,
-}: {
-  open: boolean;
-  onClick: () => void;
-  className: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={open}
-      aria-label={open ? "Cerrar chat" : "Abrir chat"}
-      title={open ? "Cerrar chat" : "Abrir chat"}
-      className={`${className} h-9 shrink-0 items-center gap-2 border px-2.5 text-xs font-mono uppercase tracking-wider transition-colors ${
-        open
-          ? "border-accent/60 text-accent"
-          : "border-border text-foreground-muted hover:border-accent hover:text-foreground"
-      }`}
-    >
-      <PanelIcon />
-      <span className="hidden sm:inline">Chat</span>
-    </button>
-  );
-}
-
-function SectionLink({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`shrink-0 whitespace-nowrap px-3 py-1.5 text-sm transition-colors ${
-        active
-          ? "bg-surface-elevated text-foreground shadow-[inset_0_-2px_0_var(--accent)]"
-          : "text-foreground-muted hover:bg-surface hover:text-foreground"
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function PanelIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" aria-hidden="true">
-      <rect x="3.5" y="4.5" width="17" height="15" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M9.5 4.5v15" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
   );
 }

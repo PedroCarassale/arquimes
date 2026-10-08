@@ -2,11 +2,14 @@ import { Bone, BoneBlock, SkeletonRegion } from "@/components/Skeleton";
 
 export default function MateriaSectionLoading() {
   return (
-    <SkeletonRegion className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+    <SkeletonRegion className="mx-auto w-full max-w-[880px] space-y-4 px-4 pb-10 pt-8 md:px-8 md:pt-10">
       <Bone className="w-24" />
-      <BoneBlock className="h-8 w-64" />
-      <BoneBlock className="h-24 w-full" />
-      <BoneBlock className="h-24 w-full" />
+      <BoneBlock className="h-8 w-64 rounded-md" />
+      <div className="space-y-2 pt-4">
+        <BoneBlock className="h-[52px] w-full rounded-md" />
+        <BoneBlock className="h-[52px] w-full rounded-md" />
+        <BoneBlock className="h-[52px] w-full rounded-md" />
+      </div>
     </SkeletonRegion>
   );
 }

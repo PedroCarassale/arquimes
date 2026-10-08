@@ -1,281 +1,268 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { MarkdownEditor } from "@/components/editor";
+import { ConfirmDialog, IconButton, Menu, cx, toast } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
-import { ChatMarkdown } from "@/components/ChatMarkdown";
-import { descargarMarkdown, relativo } from "@/lib/notas-client";
+import { fechaLarga } from "@/lib/fechas";
+import { descargarMarkdown } from "@/lib/notas-client";
 import type { Nota } from "@/lib/types";
 import { FocusRegister, useWorkspace } from "./WorkspaceContext";
+import { useTabs } from "./tabs-store";
 
-type Estado = "guardado" | "pendiente" | "guardando" | "error";
+type Estado = "idle" | "guardando" | "guardado" | "oculto" | "error";
+type Snapshot = { titulo: string; contenido: string };
 
-const FORMATOS: { label: string; title: string; apply: (sel: string) => [string, string, string] }[] = [
-  { label: "B", title: "Negrita (Ctrl+B)", apply: (s) => ["**", s || "texto", "**"] },
-  { label: "I", title: "Itálica (Ctrl+I)", apply: (s) => ["_", s || "texto", "_"] },
-  { label: "H", title: "Título", apply: (s) => ["\n## ", s || "Título", "\n"] },
-  { label: "•", title: "Lista", apply: (s) => ["\n- ", s || "", ""] },
-  { label: "☐", title: "Tarea", apply: (s) => ["\n- [ ] ", s || "", ""] },
-  { label: "</>", title: "Código", apply: (s) => ["`", s || "código", "`"] },
-  { label: "∑", title: "Fórmula", apply: (s) => ["$", s || "x^2", "$"] },
-];
+const DEBOUNCE_MS = 800;
+const FADE_MS = 2000;
+const KEEPALIVE_LIMIT = 60_000;
 
-export function NotaEditor({ nota, editarInicial }: { nota: Nota; editarInicial: boolean }) {
-  const router = useRouter();
-  const { materiaId, askChat } = useWorkspace();
+function iguales(a: Snapshot, b: Snapshot): boolean {
+  return a.titulo === b.titulo && a.contenido === b.contenido;
+}
+
+async function enviar(notaId: string, snapshot: Snapshot, keepalive = false): Promise<boolean> {
+  try {
+    const response = await apiFetch(`/api/notas/${notaId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot),
+      keepalive,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function avisarError(notaId: string, snapshot: Snapshot) {
+  toast({
+    message: "No se pudo guardar",
+    tone: "error",
+    action: {
+      label: "Reintentar",
+      onClick: () => {
+        void enviar(notaId, snapshot).then((ok) => {
+          if (ok) toast({ message: "Guardado" });
+          else avisarError(notaId, snapshot);
+        });
+      },
+    },
+  });
+}
+
+export function NotaEditor({ nota }: { nota: Nota }) {
+  const pathname = usePathname();
+  const { askChat } = useWorkspace();
+  const { close } = useTabs();
   const [titulo, setTitulo] = useState(nota.titulo);
   const [contenido, setContenido] = useState(nota.contenido);
-  const [modo, setModo] = useState<"escribir" | "leer">(
-    editarInicial || !nota.contenido.trim() ? "escribir" : "leer"
-  );
-  const [estado, setEstado] = useState<Estado>("guardado");
-  const [savedAt, setSavedAt] = useState(nota.updatedAt);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [estado, setEstado] = useState<Estado>("idle");
+  const [confirmando, setConfirmando] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef({ titulo, contenido });
-  const lastSaved = useRef({ titulo: nota.titulo, contenido: nota.contenido });
+  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chain = useRef<Promise<unknown>>(Promise.resolve());
+  const latest = useRef<Snapshot>({ titulo: nota.titulo, contenido: nota.contenido });
+  const lastSaved = useRef<Snapshot>({ titulo: nota.titulo, contenido: nota.contenido });
+  const deleted = useRef(false);
 
   useLayoutEffect(() => {
     latest.current = { titulo, contenido };
   }, [titulo, contenido]);
 
-  const save = useCallback(async () => {
+  const save = useCallback((): Promise<boolean> => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    const snapshot = latest.current;
-    if (
-      snapshot.titulo === lastSaved.current.titulo &&
-      snapshot.contenido === lastSaved.current.contenido
-    ) {
-      setEstado("guardado");
-      return;
-    }
-    setEstado("guardando");
-    try {
-      const response = await apiFetch(`/api/notas/${nota.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(snapshot),
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error();
-      const tituloCambio = snapshot.titulo !== lastSaved.current.titulo;
+    const run = chain.current.then(async (): Promise<"noop" | "ok" | "error"> => {
+      const snapshot = latest.current;
+      if (deleted.current || iguales(snapshot, lastSaved.current)) return "noop";
+      if (fadeTimer.current) clearTimeout(fadeTimer.current);
+      setEstado("guardando");
+      const ok = await enviar(nota.id, snapshot);
+      if (!ok) return "error";
       lastSaved.current = snapshot;
-      setSavedAt(new Date().toISOString());
-      setEstado(
-        latest.current.titulo === snapshot.titulo && latest.current.contenido === snapshot.contenido
-          ? "guardado"
-          : "pendiente"
-      );
-      if (tituloCambio) router.refresh();
-    } catch {
-      setEstado("error");
-    }
-  }, [nota.id, router]);
+      return "ok";
+    });
+    chain.current = run.catch(() => undefined);
+    return run.then((result) => {
+      if (result === "error") {
+        setEstado("error");
+        return false;
+      }
+      if (result === "ok") {
+        if (iguales(latest.current, lastSaved.current)) {
+          setEstado("guardado");
+          fadeTimer.current = setTimeout(
+            () => setEstado((actual) => (actual === "guardado" ? "oculto" : actual)),
+            FADE_MS
+          );
+        } else {
+          setEstado("idle");
+        }
+      }
+      return true;
+    });
+  }, [nota.id]);
 
   const schedule = useCallback(() => {
-    setEstado("pendiente");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(), 800);
+    timer.current = setTimeout(() => void save(), DEBOUNCE_MS);
   }, [save]);
 
   useEffect(() => {
-    const flush = () => void save();
-    window.addEventListener("beforeunload", flush);
-    return () => {
-      window.removeEventListener("beforeunload", flush);
-      flush();
-    };
-  }, [save]);
-
-  useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.max(textarea.scrollHeight, 360)}px`;
-  }, [contenido, modo]);
-
-  useEffect(() => {
-    if (modo === "escribir" && editarInicial) textareaRef.current?.focus();
-  }, [modo, editarInicial]);
-
-  function insertar(apply: (sel: string) => [string, string, string]) {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const { selectionStart: start, selectionEnd: end } = textarea;
-    const [before, middle, after] = apply(contenido.slice(start, end));
-    const next = contenido.slice(0, start) + before + middle + after + contenido.slice(end);
-    setContenido(next);
-    schedule();
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, start + before.length + middle.length);
-    });
-  }
-
-  function onKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    const mod = event.ctrlKey || event.metaKey;
-    if (mod && event.key.toLowerCase() === "b") {
-      event.preventDefault();
-      insertar(FORMATOS[0].apply);
-    } else if (mod && event.key.toLowerCase() === "i") {
-      event.preventDefault();
-      insertar(FORMATOS[1].apply);
-    } else if (event.key === "Tab") {
-      event.preventDefault();
-      insertar(() => ["  ", "", ""]);
+    const notaId = nota.id;
+    const pending = timer;
+    const fade = fadeTimer;
+    function flushOnExit() {
+      const snapshot = latest.current;
+      if (deleted.current || iguales(snapshot, lastSaved.current)) return;
+      const body = JSON.stringify(snapshot);
+      void enviar(notaId, snapshot, new Blob([body]).size < KEEPALIVE_LIMIT);
+      lastSaved.current = snapshot;
     }
-  }
+    window.addEventListener("pagehide", flushOnExit);
+    window.addEventListener("beforeunload", flushOnExit);
+    return () => {
+      window.removeEventListener("pagehide", flushOnExit);
+      window.removeEventListener("beforeunload", flushOnExit);
+      if (pending.current) clearTimeout(pending.current);
+      if (fade.current) clearTimeout(fade.current);
+      const snapshot = latest.current;
+      if (deleted.current || iguales(snapshot, lastSaved.current)) return;
+      void chain.current
+        .then(() => (iguales(snapshot, lastSaved.current) ? true : enviar(notaId, snapshot)))
+        .then((ok) => {
+          if (ok) lastSaved.current = snapshot;
+          else avisarError(notaId, snapshot);
+        });
+    };
+  }, [nota.id]);
 
   useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      const mod = event.ctrlKey || event.metaKey;
-      if (mod && event.key.toLowerCase() === "s") {
+    function onKeyDown(event: globalThis.KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         void save();
-      } else if (mod && event.key.toLowerCase() === "e") {
-        event.preventDefault();
-        setModo((m) => (m === "escribir" ? "leer" : "escribir"));
       }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [save]);
 
-  async function borrar() {
-    if (!window.confirm(`¿Borrar «${titulo}»? No se puede deshacer.`)) return;
-    if (timer.current) clearTimeout(timer.current);
-    lastSaved.current = latest.current;
-    await apiFetch(`/api/notas/${nota.id}`, { method: "DELETE" });
-    router.push(`/materias/${materiaId}/notas`);
-    router.refresh();
+  function onTituloKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    wrapRef.current?.querySelector<HTMLElement>(".ProseMirror")?.focus();
   }
 
-  const estadoLabel =
-    estado === "guardando"
-      ? "Guardando…"
-      : estado === "pendiente"
-        ? "Sin guardar"
-        : estado === "error"
-          ? "No pude guardar · reintentá con Ctrl+S"
-          : `Guardado ${relativo(savedAt)}`;
+  const onContenido = useCallback(
+    (markdown: string) => {
+      latest.current = { ...latest.current, contenido: markdown };
+      setContenido(markdown);
+      schedule();
+    },
+    [schedule]
+  );
+
+  async function borrar() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const response = await apiFetch(`/api/notas/${nota.id}`, { method: "DELETE" }).catch(() => null);
+    if (!response?.ok) {
+      toast({ message: "No se pudo borrar la clase.", tone: "error" });
+      if (!iguales(latest.current, lastSaved.current)) schedule();
+      return;
+    }
+    deleted.current = true;
+    setConfirmando(false);
+    close(pathname);
+  }
+
+  const nombre = titulo.trim() || "Sin título";
+  const fecha = fechaLarga(nota.createdAt);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-24 pt-6 sm:px-8">
-      <FocusRegister kind="nota" id={nota.id} titulo={titulo} />
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex border border-border-subtle" role="tablist" aria-label="Modo">
-          {(["escribir", "leer"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={modo === m}
-              onClick={() => setModo(m)}
-              className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider ${
-                modo === m ? "bg-surface-elevated text-foreground" : "text-foreground-muted hover:text-foreground"
-              }`}
-            >
-              {m === "escribir" ? "Escribir" : "Leer"}
-            </button>
-          ))}
+    <div className="mx-auto box-content max-w-[720px] px-4 pb-32 pt-6 md:px-8 md:pt-10">
+      <FocusRegister kind="nota" id={nota.id} titulo={nombre} />
+      <div className="flex h-8 items-center gap-3 md:pl-11">
+        {fecha && <span className="font-mono text-[11px] leading-4 text-foreground-subtle">{fecha}</span>}
+        <div className="ml-auto flex items-center gap-1">
+          <EstadoGuardado estado={estado} onRetry={() => void save()} />
+          <Menu
+            label="Opciones de la clase"
+            items={[
+              {
+                label: "Descargar .md",
+                icon: "download",
+                onSelect: () => descargarMarkdown(nombre, `# ${nombre}\n\n${latest.current.contenido}`),
+              },
+              { separator: true },
+              { label: "Borrar", icon: "trash", danger: true, onSelect: () => setConfirmando(true) },
+            ]}
+            trigger={(props) => <IconButton icon="more" label="Más opciones" size={28} {...props} />}
+          />
         </div>
-        {modo === "escribir" && (
-          <div className="flex border border-border-subtle" aria-label="Formato">
-            {FORMATOS.map((f) => (
-              <button
-                key={f.label}
-                type="button"
-                title={f.title}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => insertar(f.apply)}
-                className="min-w-8 px-2 py-1.5 text-xs text-foreground-muted hover:bg-surface hover:text-foreground"
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        )}
-        <span
-          className={`ml-auto font-mono text-[10px] uppercase tracking-wider ${
-            estado === "error" ? "text-red-300" : "text-foreground-subtle"
-          }`}
-          role="status"
-        >
-          {estadoLabel}
-        </span>
       </div>
 
       <input
         value={titulo}
-        onChange={(e) => {
-          setTitulo(e.target.value);
+        onChange={(event) => {
+          setTitulo(event.target.value);
           schedule();
         }}
         onBlur={() => void save()}
-        aria-label="Título de la nota"
-        placeholder="Título"
-        className="mb-4 w-full bg-transparent font-serif text-4xl leading-tight outline-none placeholder:text-foreground-subtle"
+        onKeyDown={onTituloKeyDown}
+        aria-label="Título de la clase"
+        placeholder="Sin título"
+        spellCheck={false}
+        className="t-doc-title mt-2 block w-full bg-transparent text-foreground outline-none placeholder:text-foreground-subtle focus-visible:shadow-none md:pl-11"
       />
 
-      {modo === "escribir" ? (
-        <textarea
-          ref={textareaRef}
-          value={contenido}
-          onChange={(e) => {
-            setContenido(e.target.value);
-            schedule();
-          }}
-          onKeyDown={onKeyDown}
-          onBlur={() => void save()}
-          aria-label="Contenido de la nota en Markdown"
-          placeholder={"Escribí en Markdown: ## títulos, - listas, **negrita**, $fórmulas$…"}
-          className="note-editor w-full resize-none bg-transparent text-foreground outline-none"
-          spellCheck
+      <div ref={wrapRef} className="mt-5">
+        <MarkdownEditor
+          key={nota.id}
+          value={nota.contenido}
+          onChange={onContenido}
+          autoFocus={nota.contenido === ""}
+          onAskSelection={(texto) => askChat(`Explicame esto de mi clase «${nombre}»:\n\n${texto}`, { send: true })}
         />
-      ) : contenido.trim() ? (
-        <div onDoubleClick={() => setModo("escribir")} title="Doble click para editar">
-          <ChatMarkdown className="doc-markdown">{contenido}</ChatMarkdown>
-        </div>
-      ) : (
-        <p className="text-foreground-muted">
-          Nota vacía.{" "}
-          <button type="button" onClick={() => setModo("escribir")} className="text-accent underline">
-            Empezá a escribir
-          </button>
-        </p>
-      )}
-
-      <div className="mt-12 flex flex-wrap gap-2 border-t border-border-subtle pt-4 text-sm">
-        <button
-          type="button"
-          onClick={() => askChat("Repasá esta nota: corregí errores conceptuales, completá lo que falte según el material y decime qué preguntar en clase.")}
-          className="border border-border px-3 py-2 hover:border-accent"
-        >
-          Repasar con el chat
-        </button>
-        <button
-          type="button"
-          onClick={() => askChat("Armame un examen corto de práctica sobre esta nota.", { send: true })}
-          className="border border-border px-3 py-2 hover:border-accent"
-        >
-          Examen sobre esta nota
-        </button>
-        <button
-          type="button"
-          onClick={() => descargarMarkdown(titulo, `# ${titulo}\n\n${contenido}`)}
-          className="border border-border px-3 py-2 text-foreground-muted hover:border-accent hover:text-foreground"
-        >
-          Descargar .md
-        </button>
-        <button
-          type="button"
-          onClick={() => void borrar()}
-          className="ml-auto px-3 py-2 text-foreground-subtle hover:text-red-300"
-        >
-          Borrar nota
-        </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmando}
+        title={`¿Borrar «${nombre}»?`}
+        body="No se puede deshacer."
+        onConfirm={borrar}
+        onCancel={() => setConfirmando(false)}
+      />
     </div>
+  );
+}
+
+function EstadoGuardado({ estado, onRetry }: { estado: Estado; onRetry: () => void }) {
+  if (estado === "error") {
+    return (
+      <span role="status" data-save-state="error" className="font-mono text-[11px] leading-4 text-danger">
+        No se pudo guardar ·{" "}
+        <button type="button" onClick={onRetry} className="rounded-xs underline underline-offset-2 hover:text-foreground">
+          Reintentar
+        </button>
+      </span>
+    );
+  }
+  return (
+    <span
+      role="status"
+      aria-live="polite"
+      data-save-state={estado}
+      className={cx(
+        "px-1 font-mono text-[11px] leading-4 text-foreground-subtle transition-opacity duration-500 ease-out motion-reduce:transition-none",
+        estado === "oculto" || estado === "idle" ? "opacity-0" : "opacity-100"
+      )}
+    >
+      {estado === "guardando" ? "Guardando…" : estado === "idle" ? "" : "Guardado"}
+    </span>
   );
 }

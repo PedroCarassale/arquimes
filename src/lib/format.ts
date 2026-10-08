@@ -15,6 +15,7 @@ export function examTypeLabel(
   type: ExamenEnPreparacion["type"] | undefined
 ): string {
   if (type === "final") return "Final";
+  if (type === "recuperatorio") return "Recuperatorio";
   if (type === "parcial") return "Parcial";
   return "Examen";
 }

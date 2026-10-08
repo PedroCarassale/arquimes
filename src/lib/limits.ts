@@ -1,5 +1,6 @@
 export const MAX_STUDY_FILE_BYTES = 100 * 1024 * 1024;
 export const UPLOAD_CHUNK_BYTES = 3 * 1024 * 1024;
+export const MAX_ARTEFACTO_CHARS = 200_000;
 
 export function studyFileTooBigMessage(fileName: string): string {
   return `No pude guardar “${fileName}”: supera el límite de 100 MB por archivo.`;

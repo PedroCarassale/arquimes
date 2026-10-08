@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { IBM_Plex_Mono } from "next/font/google";
 import { Cormorant_Garamond } from "next/font/google";
+import { Toaster } from "@/components/ui/Toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,7 +24,7 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: "Arquimedes",
-  description: "¿Qué tan preparado estoy para rendir este examen?",
+  description: "Organizá toda tu vida de estudio en la facu.",
 };
 
 export const viewport: Viewport = {
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-background text-foreground antialiased">
         {children}
+        <Toaster />
       </body>
     </html>
   );

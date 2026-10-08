@@ -304,7 +304,7 @@ export function ProfileScreen({
               type="button"
               disabled={avatarBusy}
               onClick={() => fileInputRef.current?.click()}
-              className="h-10 border border-border px-3 text-sm text-foreground-muted transition-colors hover:border-accent hover:text-foreground disabled:opacity-60"
+              className="h-10 border border-border px-3 text-sm text-foreground-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
             >
               {avatarBusy ? "Subiendo..." : "Subir avatar"}
             </button>
@@ -312,7 +312,7 @@ export function ProfileScreen({
               type="button"
               disabled={avatarBusy || !effectiveImage}
               onClick={() => void updateAvatar(null)}
-              className="h-10 border border-border px-3 text-sm text-foreground-muted transition-colors hover:border-accent hover:text-foreground disabled:opacity-60"
+              className="h-10 border border-border px-3 text-sm text-foreground-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
             >
               Quitar avatar
             </button>

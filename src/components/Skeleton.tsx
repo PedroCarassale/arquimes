@@ -2,7 +2,7 @@ export function Bone({ className = "w-24" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`t-skeleton-line inline-block h-[0.7em] max-w-full rounded-sm align-middle ${className}`}
+      className={`t-skeleton-line inline-block h-[0.7em] max-w-full rounded-xs align-middle ${className}`}
     />
   );
 }

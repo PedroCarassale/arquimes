@@ -1,4 +1,6 @@
-export type MaterialViewerKind = "pdf" | "image" | "text" | "unsupported";
+import { rutas } from "./routes.ts";
+
+export type MaterialViewerKind ="pdf" | "image" | "text" | "unsupported";
 
 const textExtensions = new Set([
   "txt",
@@ -46,16 +48,6 @@ export function materialFileUrl(
   return base;
 }
 
-export function materialViewerRoute(input: {
-  materiaId: string;
-  materialId: string;
-  volver?: string;
-  etiqueta?: string;
-}): string {
-  const base = `/materias/${input.materiaId}/materiales/${input.materialId}`;
-  const params = new URLSearchParams();
-  if (input.volver) params.set("volver", input.volver);
-  if (input.etiqueta) params.set("etiqueta", input.etiqueta);
-  const query = params.toString();
-  return query ? `${base}?${query}` : base;
+export function materialViewerRoute(input: { materiaId: string; materialId: string }): string {
+  return rutas.archivo(input.materiaId, input.materialId);
 }

@@ -1,247 +1,184 @@
+import Image from "next/image";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { examDisplayName } from "@/lib/format";
-import { getMaterias, getExamenes, getTemas } from "@/lib/db";
-import { calculatePreparation } from "@/lib/mastery";
-import { type MasteryState } from "@/lib/types";
+import { SeguirDondeDejaste } from "@/components/home/SeguirDondeDejaste";
+import { cantidad, cuandoEvento, grupoSeVieneGlobal, saludo, type GrupoSeVieneGlobal } from "@/components/home/home-format";
+import { ButtonLink, buttonClasses } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
+import { getServerSession } from "@/lib/auth-session";
+import { listEventos } from "@/lib/db";
+import { fechaLarga, hoyYmd, sumarDias } from "@/lib/fechas";
 import { RememberMaterias } from "@/lib/materia-snapshot";
-import { diasHasta, fechaLarga, proximaEvaluacion } from "@/lib/evaluaciones";
+import { materiaTone } from "@/lib/materia-tone";
+import { rutas } from "@/lib/routes";
+import type { EventoResumen, MateriaResumen } from "@/lib/types";
+import { getMateriasResumen } from "@/lib/workspace-store";
 
-type MateriasHubMode = "inicio" | "selector-chat";
+const GRUPOS: GrupoSeVieneGlobal[] = ["Esta semana", "La que viene", "Más adelante"];
 
-interface MateriasHubPageProps {
-  mode?: MateriasHubMode;
+function materiaInfo(materia: MateriaResumen["materia"]): string {
+  return [materia.catedra, materia.faculty].filter(Boolean).join(" · ");
 }
 
-function getMasteryDots(temas: { masteryState: MasteryState }[]): React.ReactNode {
-  return (
-    <div className="flex justify-end gap-0.5 lg:justify-center">
-      {temas.slice(0, 10).map((t, i) => (
-        <span
-          key={i}
-          className={`w-1.5 h-1.5 rounded-full ${
-            t.masteryState === "dominado" || t.masteryState === "estudiado"
-              ? "bg-accent"
-              : t.masteryState === "empezado" || t.masteryState === "necesita_practica"
-                ? "bg-foreground-muted"
-                : "bg-foreground-subtle"
-          }`}
-        />
-      ))}
-    </div>
+export async function MateriasHubPage() {
+  const hoy = hoyYmd();
+  const [session, resumenes, eventos] = await Promise.all([
+    getServerSession(),
+    getMateriasResumen(),
+    listEventos({ desde: hoy, hasta: sumarDias(hoy, 13) }),
+  ]);
+
+  const remember = (
+    <RememberMaterias
+      items={resumenes.map(({ materia }) => ({
+        id: materia.id,
+        snapshot: { name: materia.name, info: materiaInfo(materia) },
+      }))}
+    />
   );
-}
 
-export async function MateriasHubPage({ mode = "inicio" }: MateriasHubPageProps) {
-  const materias = await getMaterias();
-  const isChatPicker = mode === "selector-chat";
-  const todayRaw = new Date().toLocaleDateString("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const today = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
+  if (resumenes.length === 0) {
+    return (
+      <AppShell>
+        {remember}
+        <div className="px-4 pb-16 pt-[20vh]">
+          <section className="t-reveal-in mx-auto flex max-w-[440px] flex-col items-center text-center">
+            <Image
+              src="/brand/arquimedes-mark.png"
+              alt=""
+              width={77}
+              height={96}
+              unoptimized
+              preload
+              className="h-24 w-auto opacity-50"
+            />
+            <h1 className="mt-8 font-serif text-[28px] leading-[34px]">Empezá por tu primera materia</h1>
+            <p className="mt-2 text-sm leading-6 text-foreground-muted">
+              Cada materia guarda tus clases, apuntes y fechas.
+            </p>
+            <ButtonLink href={rutas.nuevaMateria} variant="primary" size="lg" className="mt-8">
+              Crear materia
+            </ButtonLink>
+          </section>
+        </div>
+      </AppShell>
+    );
+  }
 
-  const materiasWithData = await Promise.all(
-    materias.map(async (materia) => {
-      const examenes = await getExamenes(materia.id);
-      const nextExamen = proximaEvaluacion(examenes) ?? examenes[0];
-
-      const temas = nextExamen ? await getTemas(nextExamen.id) : [];
-      const preparation = calculatePreparation(temas);
-
-      return {
-        ...materia,
-        nextExamen,
-        temas,
-        preparation,
-      };
-    })
-  );
+  const grupos = GRUPOS.map((grupo) => ({
+    grupo,
+    eventos: eventos.filter((evento) => grupoSeVieneGlobal(evento.date) === grupo),
+  })).filter((item) => item.eventos.length > 0);
 
   return (
     <AppShell>
-      <RememberMaterias
-        items={materiasWithData.map((materia) => ({
-          id: materia.id,
-          snapshot: {
-            name: materia.name,
-            info: [materia.faculty, materia.catedra].filter(Boolean).join(" · ") || "Privada",
-            resumenVariant: !materia.nextExamen
-              ? "sin_examen"
-              : materia.temas.length === 0
-                ? "sin_temas"
-                : "con_temas",
-            temasCount: materia.temas.length,
-          },
-        }))}
-      />
-      <div className="px-4 py-6 sm:p-6 lg:p-8">
-        <div className="mb-6 flex flex-col gap-1 sm:mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <h1 className="font-serif text-3xl leading-tight sm:text-4xl">
-            {isChatPicker ? "Elegí una materia para chatear" : "Tus materias"}
-          </h1>
-          <div className="text-sm text-foreground-muted">{today}</div>
-        </div>
+      {remember}
+      <div className="mx-auto w-full max-w-[960px] px-4 pb-16 pt-6 md:px-8 md:pt-10">
+        <header>
+          <h1 className="t-greeting">{saludo(session?.user?.name)}</h1>
+          <p className="mt-2 font-mono text-[11px] leading-4 tracking-[0.06em] text-foreground-subtle">
+            {fechaLarga(hoy)}
+          </p>
+        </header>
 
-        {materias.length === 0 ? (
-          <section className="t-reveal-in mx-auto max-w-4xl border border-border-subtle bg-surface/50 p-5 sm:p-8 md:p-12">
-            <div className="mb-8 sm:mb-10">
-              <p className="text-xs font-mono uppercase tracking-[0.24em] text-foreground-muted">
-                Primera noche en Arquimedes
-              </p>
-              <h2 className="mt-3 max-w-3xl font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
-                {isChatPicker
-                  ? "Cada chat empieza con una materia."
-                  : "Tu espacio para estudiar con foco, sin sentirte solo."}
-              </h2>
-              <p className="mt-4 max-w-2xl text-base leading-relaxed text-foreground-muted">
-                {isChatPicker
-                  ? "Creá tu primera materia y después vas a poder abrir su chat de estudio."
-                  : "Acá convertís apuntes sueltos en un plan claro para llegar al examen con más calma."}
-              </p>
-            </div>
+        <SeguirDondeDejaste materias={resumenes.map(({ materia }) => ({ id: materia.id, name: materia.name }))} />
 
-            <div>
-              <h3 className="mb-4 text-sm font-mono uppercase tracking-[0.22em] text-foreground-muted">
-                Cómo usarlo
-              </h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                {[
-                  "Subí tus apuntes y el material del examen.",
-                  "Charlá con el tutor para destrabar temas difíciles.",
-                  "Practicá pregunta por pregunta, tema por tema.",
-                  "Medí qué tan preparado estás antes de rendir.",
-                ].map((step, index) => (
-                  <div
-                    key={step}
-                    className="border border-border-subtle bg-background/40 p-4"
-                  >
-                    <p className="text-xs font-mono text-accent">0{index + 1}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-foreground-muted">{step}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-8 border-t border-border-subtle pt-6 sm:mt-10 sm:pt-8">
-              <Link
-                href="/materias/nueva"
-                aria-label="Agregar materia"
-                className="inline-flex w-full items-center justify-center bg-accent px-6 py-3 sm:w-auto text-sm font-mono uppercase tracking-[0.12em] text-background transition-colors hover:bg-accent/90"
-              >
-                Agregar materia
+        <section aria-labelledby="se-viene-titulo" className="mt-10">
+          <div className="mb-3 flex h-7 items-center justify-between gap-3">
+            <h2 id="se-viene-titulo" className="t-meta">
+              Se viene
+            </h2>
+            <Link href={rutas.calendarioGlobal} className={buttonClasses({ variant: "ghost", size: "sm" })}>
+              Ver calendario
+            </Link>
+          </div>
+          {grupos.length === 0 ? (
+            <p className="py-2 text-sm text-foreground-muted">
+              Nada en los próximos 14 días.{" "}
+              <Link href={rutas.calendarioGlobal} className="text-foreground underline-offset-4 hover:underline">
+                Cargar una fecha
               </Link>
-              <p className="mt-3 text-sm text-foreground-muted">
-                {isChatPicker
-                  ? "Creala y abrimos el chat de estudio desde ahí."
-                  : "Empezá por una sola materia. El resto se va ordenando con vos."}
-              </p>
-            </div>
-          </section>
-        ) : (
-          <>
-            {isChatPicker && (
-              <p className="mb-6 text-sm text-foreground-muted">
-                Cada chat pertenece a una materia. Elegí una para abrir su espacio de chat.
-              </p>
-            )}
-
-            <div className="mb-6 hidden border-b border-border-subtle lg:block">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-xs font-mono uppercase tracking-wider text-foreground-muted">
-                    <th className="pb-3 text-left font-normal">Materia / Cátedra</th>
-                    <th className="pb-3 text-left font-normal">Próximo examen</th>
-                    <th className="pb-3 text-center font-normal">Falta</th>
-                    <th className="pb-3 text-center font-normal">Preparado</th>
-                    <th className="pb-3 text-right font-normal">
-                      {isChatPicker ? "Abrir chat" : "Siguiente acción"}
-                    </th>
-                  </tr>
-                </thead>
-              </table>
-            </div>
-
-            <div className="space-y-0">
-              {materiasWithData.map((materia) => (
-                <Link
-                  key={materia.id}
-                  href={isChatPicker ? `/materias/${materia.id}/chat` : `/materias/${materia.id}`}
-                  className="mx-[-1rem] block border-b border-border-subtle px-4 py-4 transition-colors hover:bg-surface lg:py-5"
-                >
-                  <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 lg:grid-cols-[1fr_200px_80px_100px_200px] lg:gap-4">
-                    <div className="min-w-0">
-                      <div className="mb-1 font-serif text-xl leading-tight">{materia.name}</div>
-                      <div className="text-sm text-foreground-muted">
-                        {[materia.faculty, materia.catedra].filter(Boolean).join(" · ") || "Sin cátedra"}
-                      </div>
-                    </div>
-
-                    <div className="order-3 min-w-0 lg:order-none">
-                      {materia.nextExamen ? (
-                        <>
-                          <div className="text-sm text-accent">{examDisplayName(materia.nextExamen)}</div>
-                          <div className="truncate text-sm text-foreground-muted">
-                            {fechaLarga(materia.nextExamen.date) || materia.nextExamen.fileName || "Sin fecha"}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-sm text-foreground-subtle">Sin fecha definida</span>
-                      )}
-                    </div>
-
-                    <div className="order-4 text-right lg:order-none lg:text-center">
-                      {materia.nextExamen?.date ? (
-                        <>
-                          <div className="font-serif text-2xl">{diasHasta(materia.nextExamen.date) ?? "—"}</div>
-                          <div className="text-xs text-foreground-muted">días</div>
-                        </>
-                      ) : (
-                        <span className="text-foreground-subtle max-lg:hidden">—</span>
-                      )}
-                    </div>
-
-                    <div className="text-right lg:text-center">
-                      {materia.temas.length > 0 ? (
-                        <>
-                          <div className="font-serif text-2xl">{materia.preparation}%</div>
-                          {getMasteryDots(materia.temas)}
-                        </>
-                      ) : (
-                        <span className="text-foreground-subtle max-lg:hidden">—</span>
-                      )}
-                    </div>
-
-                    <div className="order-5 col-span-2 lg:order-none lg:col-span-1 lg:text-right">
-                      {isChatPicker ? (
-                        <span className="text-sm text-accent">Abrir chat →</span>
-                      ) : !materia.nextExamen ? (
-                        <span className="text-sm text-accent">Cargar examen →</span>
-                      ) : materia.temas.length === 0 ? (
-                        <span className="text-sm text-accent">Agregar temas →</span>
-                      ) : materia.preparation === 0 ? (
-                        <span className="text-sm text-accent">Practicar →</span>
-                      ) : materia.preparation < 100 ? (
-                        <span className="text-sm text-accent">Continuar preparación →</span>
-                      ) : (
-                        <span className="text-sm text-accent">Listo para rendir</span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {grupos.map(({ grupo, eventos: lista }) => (
+                <div key={grupo}>
+                  <h3 className="px-2 pb-1 text-xs leading-4 text-foreground-subtle">{grupo}</h3>
+                  <ul>
+                    {lista.map((evento) => (
+                      <EventoFila key={evento.id} evento={evento} />
+                    ))}
+                  </ul>
+                </div>
               ))}
             </div>
+          )}
+        </section>
 
-            <div className="mt-8">
-              <Link href="/materias/nueva" className="text-sm text-accent hover:underline">
-                + Crear materia
+        <section aria-labelledby="materias-titulo" className="mt-10">
+          <h2 id="materias-titulo" className="t-meta mb-3">
+            Materias
+          </h2>
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+            {resumenes.map((resumen) => (
+              <li key={resumen.materia.id}>
+                <MateriaCard resumen={resumen} />
+              </li>
+            ))}
+            <li>
+              <Link
+                href={rutas.nuevaMateria}
+                className="flex h-[120px] items-center justify-center gap-2 rounded-lg border border-dashed border-border-subtle text-sm text-foreground-muted transition-colors duration-(--dur-fast) ease-(--ease-out) hover:border-border hover:bg-hover hover:text-foreground"
+              >
+                <Icon name="plus" size={16} />
+                Nueva materia
               </Link>
-            </div>
-          </>
-        )}
+            </li>
+          </ul>
+        </section>
       </div>
     </AppShell>
+  );
+}
+
+function EventoFila({ evento }: { evento: EventoResumen }) {
+  return (
+    <li>
+      <Link
+        href={rutas.evento(evento.materiaId, evento.id)}
+        className="flex h-11 items-center gap-3 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
+      >
+        <span
+          aria-hidden="true"
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: materiaTone(evento.materiaId).color }}
+        />
+        <span className="min-w-0 flex-1 truncate text-sm">
+          <span className="text-foreground">{evento.name}</span>
+          <span className="text-foreground-muted"> · {evento.materiaName}</span>
+        </span>
+        <span className="shrink-0 font-mono text-[11px] text-foreground-muted">{cuandoEvento(evento)}</span>
+      </Link>
+    </li>
+  );
+}
+
+function MateriaCard({ resumen }: { resumen: MateriaResumen }) {
+  const { materia, proximoEvento, clasesCount } = resumen;
+  const info = materiaInfo(materia);
+  const clases = cantidad(clasesCount, "clase", "clases");
+  return (
+    <Card href={rutas.materia(materia.id)} className="h-[120px] px-4 py-3.5">
+      <span className="flex h-full flex-col justify-between">
+        <span className="min-w-0">
+          <span className="block truncate font-serif text-[22px] leading-7">{materia.name}</span>
+          {info && <span className="t-meta mt-0.5 block truncate">{info}</span>}
+        </span>
+        <span className="block truncate text-[13px] leading-[18px] text-foreground-muted">
+          {proximoEvento ? `Próximo: ${proximoEvento.name}` : "Sin fechas"} · {clases}
+        </span>
+      </span>
+    </Card>
   );
 }

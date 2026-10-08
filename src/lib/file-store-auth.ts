@@ -543,8 +543,22 @@ export async function getStudyFileLectura(fileId: string): Promise<LecturaArchiv
   );
 }
 
+export async function getStudyFileLecturasByStorageKeys(
+  storageKeys: string[]
+): Promise<Map<string, LecturaArchivo>> {
+  const meta = await loadStudyFileMeta(storageKeys, false);
+  return new Map([...meta].map(([storageKey, value]) => [storageKey, value.lectura]));
+}
+
 export async function getStudyFileMetaByStorageKeys(
   storageKeys: string[]
+): Promise<Map<string, StoredStudyFileMeta>> {
+  return loadStudyFileMeta(storageKeys, true);
+}
+
+async function loadStudyFileMeta(
+  storageKeys: string[],
+  includeText: boolean
 ): Promise<Map<string, StoredStudyFileMeta>> {
   await ensureSchema();
   const db = getLibsqlClient();
@@ -559,7 +573,8 @@ export async function getStudyFileMetaByStorageKeys(
   const placeholders = uniqueIds.map(() => "?").join(", ");
   const [result, partRows] = await Promise.all([
     db.execute({
-      sql: `SELECT id, name, mime_type, size_bytes, extracted_text, extraction_status,
+      sql: `SELECT id, name, mime_type, size_bytes,
+                   ${includeText ? "extracted_text" : "NULL AS extracted_text"}, extraction_status,
                    extraction_detail, upload_status, page_count
             FROM study_files_auth
             WHERE user_id = ? AND id IN (${placeholders})`,

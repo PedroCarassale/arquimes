@@ -238,8 +238,13 @@ export function summarizeExamen(
   return {
     name: examDisplayName(examen),
     typeLabel:
-      examen.kind === "entrega" ? "Entrega de trabajo práctico" : examTypeLabel(examen.type),
+      examen.kind === "entrega"
+        ? "Entrega"
+        : examen.kind === "evento"
+          ? "Otro"
+          : examTypeLabel(examen.type),
     date: examen.date || "",
+    hora: examen.hora || undefined,
     objective:
       examen.description?.trim() || examen.objective?.trim() || undefined,
     temas: temas.map((t) => t.name),
@@ -344,7 +349,7 @@ export function composeStudyReply(
       `«${quote}»`,
       "",
       examHint ||
-        "Eso es lo que dice tu material. Cubrirlo en el apunte no es lo mismo que haberlo practicado para rendir.",
+        "Eso es lo que dice tu material. Si querés, lo desarrollamos paso a paso.",
     ].join("\n"),
     citations: [match.source.name],
   };
@@ -365,9 +370,9 @@ function emptyMaterialReply(
     return [
       `En ${ctx.materiaName} tenés ${names}, pero no pude leer el texto.`,
       hints.length ? hints.join(" ") : "Puede ser una imagen, video o PDF sin texto seleccionable.",
-      "Subí un .txt, .md o un PDF con texto para que pueda responder desde tu material.",
+      "Subí un .txt, .md o un PDF con texto, o anotá una clase, para que pueda responder desde tu material.",
       examLine,
-      "Mientras no pueda leer el contenido, no voy a decirte que estás preparado.",
+      "Mientras no pueda leer el contenido, no voy a inventarlo.",
     ]
       .filter(Boolean)
       .join(" ");
@@ -375,16 +380,16 @@ function emptyMaterialReply(
 
   if (ctx.exams.length > 0) {
     return [
-      `Todavía no hay apuntes ni archivos de examen con texto en ${ctx.materiaName}.`,
+      `Todavía no hay apuntes ni clases con texto en ${ctx.materiaName}.`,
       examLine,
-      "Sin ese material no puedo estudiar el contenido con vos ni afirmar que estás preparado para rendir.",
-      "Cargá apuntes en Apuntes y preguntame de nuevo.",
+      "Sin ese material no puedo estudiar el contenido con vos y no voy a inventarlo.",
+      "Subí material en Apuntes o anotá una clase y preguntame de nuevo.",
     ]
       .filter(Boolean)
       .join(" ");
   }
 
-  return `Todavía no hay apuntes ni archivos de examen en ${ctx.materiaName}. No voy a inventar el programa ni decirte que estás preparado. Cargá material en Apuntes y preguntame de nuevo.`;
+  return `Todavía no hay apuntes ni clases en ${ctx.materiaName}. No voy a inventar el contenido. Subí material en Apuntes o anotá una clase y preguntame de nuevo.`;
 }
 
 function noMatchReply(
@@ -412,7 +417,7 @@ function noMatchReply(
     `Revisé el material de ${ctx.materiaName} y no encontré una respuesta directa a eso.`,
     `Lo que sí está en tus archivos: ${covered}.${unread}`,
     examLine,
-    "Si el tema entra en el examen, cargá un apunte que lo cubra. No puedo afirmar que estés preparado sobre algo que no está en tu material.",
+    "Si necesitás ese tema, subí un apunte que lo cubra o anotalo en una clase, y lo vemos juntos. No voy a inventar algo que no está en tu material.",
   ]
     .filter(Boolean)
     .join(" ");
@@ -424,7 +429,8 @@ function examHintLine(ctx: StudyContext): string {
   const temas =
     exam.temas.length > 0 ? ` Temas: ${exam.temas.join(", ")}.` : "";
   const objective = exam.objective ? ` Objetivo: ${exam.objective}.` : "";
-  return `Examen cargado: ${exam.name} (${exam.typeLabel}, ${exam.date}).${temas}${objective}`.trim();
+  const cuando = [exam.date, exam.hora].filter(Boolean).join(" ");
+  return `En el calendario: ${exam.name} (${exam.typeLabel}${cuando ? `, ${cuando}` : ""}).${temas}${objective}`.trim();
 }
 
 function findBestPassage(
@@ -609,7 +615,7 @@ function unreadableHintFromStatus(status?: string, detail?: string | null): stri
     return "El PDF parece escaneado y falta configurar OCR para extraer texto.";
   }
   if (status === "ocr-pending" || status === "uploading") {
-    return "Todavía estoy leyendo este archivo. Dejá abierta la pantalla de apuntes o exámenes hasta que termine.";
+    return "Todavía estoy leyendo este archivo. Dejá Arquímedes abierto hasta que termine.";
   }
   if (status === "pdf-ocr-empty") {
     return "Intenté OCR, pero no devolvió texto legible.";

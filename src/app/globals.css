@@ -12,6 +12,18 @@
   --border-subtle: rgba(255, 255, 255, 0.06);
   --surface: #111111;
   --surface-elevated: #1a1a1a;
+  --surface-overlay: #1f1f1f;
+  --hover: rgba(255, 255, 255, 0.045);
+  --selected: rgba(255, 255, 255, 0.08);
+  --pressed: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --accent-hover: rgb(247, 178, 102);
+  --ring: rgba(243, 164, 75, 0.5);
+  --danger: #f2877d;
+  --danger-muted: rgba(242, 135, 125, 0.12);
+  --dur-fast: 120ms;
+  --dur-pop: 160ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --shake-distance: 6px;
   --shake-overshoot: 4px;
   --shake-dur-a: 80ms;
@@ -20,7 +32,6 @@
   --revert-dur: 280ms;
   --tabs-dur: 250ms;
   --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --tabs-pill-bg: rgb(243, 164, 75);
   --toast-open: 350ms;
   --toast-close: 250ms;
   --toast-distance: 12px;
@@ -46,9 +57,27 @@
   --color-border-subtle: var(--border-subtle);
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-hover: var(--hover);
+  --color-selected: var(--selected);
+  --color-pressed: var(--pressed);
+  --color-border-strong: var(--border-strong);
+  --color-accent-hover: var(--accent-hover);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-danger-muted: var(--danger-muted);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-ibm-plex-mono);
   --font-serif: var(--font-cormorant);
+}
+
+@theme {
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -80,6 +109,116 @@ summary {
 button:disabled,
 [role="button"][aria-disabled="true"] {
   cursor: not-allowed;
+}
+
+@layer base {
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
+  }
+}
+
+.t-display {
+  font-family: var(--font-cormorant), serif;
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.t-greeting {
+  font-family: var(--font-cormorant), serif;
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.t-doc-title {
+  font-family: var(--font-cormorant), serif;
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 500;
+}
+
+.t-section {
+  font-family: var(--font-cormorant), serif;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 500;
+}
+
+.t-meta {
+  font-family: var(--font-ibm-plex-mono), monospace;
+  font-size: 11px;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--foreground-subtle);
+}
+
+.t-pop-in {
+  animation: t-pop-in var(--dur-pop) var(--ease-out);
+}
+
+.t-fade-in {
+  animation: t-fade-in var(--dur-pop) var(--ease-out);
+}
+
+.t-sheet-in {
+  animation: t-sheet-in 220ms var(--ease-out);
+}
+
+@keyframes t-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes t-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes t-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.t-tooltip {
+  animation: t-fade-in var(--dur-fast) var(--ease-out);
+}
+
+.t-no-scrollbar {
+  scrollbar-width: none;
+}
+
+.t-no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -164,27 +303,6 @@ input[type="file"] {
 
 .t-tab {
   transition: color var(--tabs-dur) var(--tabs-ease);
-}
-
-.t-tabs-pill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  width: 0;
-  border-radius: 999px;
-  background: var(--tabs-pill-bg);
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    transform var(--tabs-dur) var(--tabs-ease),
-    width var(--tabs-dur) var(--tabs-ease),
-    opacity 120ms ease-out;
-  will-change: transform, width;
-}
-
-.t-tabs-pill.is-ready {
-  opacity: 1;
 }
 
 .t-toast {
@@ -489,15 +607,4 @@ select {
 .chat-markdown li.task-list-item input {
   margin-right: 0.5rem;
   accent-color: var(--accent);
-}
-
-.note-editor {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.9rem;
-  line-height: 1.75;
-  tab-size: 2;
-}
-
-.note-editor::placeholder {
-  color: var(--foreground-subtle);
 }

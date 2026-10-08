@@ -1,57 +1,10 @@
-export type MasteryState =
-  | "no_estudiado"
-  | "empezado"
-  | "estudiado"
-  | "necesita_practica"
-  | "dominado";
-
-export type ExamType = "parcial" | "final";
-
-export interface PlanPreparacionSemana {
-  semana: number;
-  foco: string;
-  temas: string[];
-  meta: string;
-}
-
-export interface PlanPreparacionDia {
-  dia: number;
-  fecha: string;
-  foco: string;
-  tareas: string[];
-  checkpoint: string;
-}
-
-export interface PlanPreparacionHito {
-  titulo: string;
-  fecha: string;
-  criterio: string;
-}
-
-export interface PlanPreparacion {
-  version: "1";
-  generatedAt: string;
-  resumen: {
-    objetivo: string;
-    diasHastaParcial: number;
-    minutosPorDia: number;
-  };
-  semanas: PlanPreparacionSemana[];
-  agendaDiaria: PlanPreparacionDia[];
-  hitos: PlanPreparacionHito[];
-}
+export type ExamType = "parcial" | "recuperatorio" | "final";
 
 export interface Materia {
   id: string;
   name: string;
   faculty?: string;
   catedra?: string;
-  preparacion?: {
-    temas: string[];
-    fechaParcial: string;
-    plan?: PlanPreparacion;
-    updatedAt: string;
-  };
   createdAt: string;
 }
 
@@ -84,7 +37,7 @@ export interface LecturaArchivo {
   paginasTotales: number;
 }
 
-export type EvaluacionKind = "examen" | "entrega";
+export type EvaluacionKind = "examen" | "entrega" | "evento";
 
 export interface ExamenEnPreparacion {
   id: string;
@@ -93,6 +46,7 @@ export interface ExamenEnPreparacion {
   description?: string;
   type?: ExamType;
   date?: string;
+  hora?: string;
   name?: string;
   objective?: string;
   modality?: string;
@@ -133,6 +87,7 @@ export type StudyExamSummary = {
   name: string;
   typeLabel: string;
   date: string;
+  hora?: string;
   objective?: string;
   temas: string[];
 };
@@ -157,27 +112,8 @@ export interface Tema {
   id: string;
   examenId: string;
   name: string;
-  masteryState: MasteryState;
   createdAt: string;
 }
-
-export type PracticeOutcome = "lo_tengo" | "todavia_no";
-
-export const MASTERY_LABELS: Record<MasteryState, string> = {
-  no_estudiado: "No estudiado",
-  empezado: "Empezado",
-  estudiado: "Estudiado",
-  necesita_practica: "Necesita práctica",
-  dominado: "Dominado",
-};
-
-export const MASTERY_ORDER: MasteryState[] = [
-  "no_estudiado",
-  "empezado",
-  "estudiado",
-  "necesita_practica",
-  "dominado",
-];
 
 export interface Nota {
   id: string;
@@ -212,4 +148,61 @@ export interface ArtefactoVersion {
 export type WorkspaceFocus = {
   kind: "nota" | "artefacto" | "material" | "examen";
   id: string;
+};
+
+export type Evento = ExamenEnPreparacion;
+
+export type EventoResumen = {
+  id: string;
+  materiaId: string;
+  materiaName: string;
+  kind: EvaluacionKind;
+  type?: ExamType;
+  name: string;
+  date?: string;
+  hora?: string;
+  temasCount: number;
+};
+
+export type ApunteItem =
+  | {
+      origen: "archivo";
+      id: string;
+      name: string;
+      type: string;
+      size: number;
+      addedAt: string;
+      lectura?: LecturaArchivo;
+      esExamen: boolean;
+      examenId?: string;
+      fileId?: string;
+    }
+  | {
+      origen: "generado";
+      id: string;
+      titulo: string;
+      tipo: ArtefactoTipo;
+      version: number;
+      createdAt: string;
+      updatedAt: string;
+    };
+
+export type MateriaResumen = {
+  materia: Materia;
+  proximoEvento?: EventoResumen;
+  clasesCount: number;
+  apuntesCount: number;
+};
+
+export type MateriaIndice = {
+  clases: { id: string; titulo: string; updatedAt: string }[];
+  apuntes: ApunteItem[];
+  eventos: EventoResumen[];
+};
+
+export type ArtefactoCreado = {
+  id: string;
+  titulo: string;
+  tipo: ArtefactoTipo;
+  version: number;
 };

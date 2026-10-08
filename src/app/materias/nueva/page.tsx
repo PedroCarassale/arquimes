@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { apiFetch } from "@/lib/api";
+import { rutas } from "@/lib/routes";
 
-export default function CrearMateriaPage() {
+const LABEL = "mb-1.5 block text-[13px] leading-[18px] text-foreground-muted";
+
+export default function NuevaMateriaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [faculty, setFaculty] = useState("");
   const [catedra, setCatedra] = useState("");
+  const [faculty, setFaculty] = useState("");
 
-  async function handleCreate() {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) return;
     if (!name.trim()) {
-      setError("El nombre es requerido");
+      setError("Poné un nombre.");
       return;
     }
 
@@ -33,154 +39,86 @@ export default function CrearMateriaPage() {
           catedra: catedra.trim(),
         }),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Error al crear la materia");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data?.id !== "string") {
+        throw new Error(data?.error || "No se pudo crear la materia.");
       }
-
-      const materia = await res.json();
-      router.push(`/materias/${materia.id}`);
-      router.refresh();
+      router.push(rutas.materia(data.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      setError(err instanceof Error ? err.message : "No se pudo crear la materia.");
       setLoading(false);
     }
   }
 
   return (
     <AppShell>
-      <div className="px-4 py-6 sm:p-6 lg:p-8">
-        <div className="mb-6 flex items-start justify-between gap-4 sm:mb-8 sm:items-center">
+      <div className="mx-auto w-full max-w-[480px] px-4 pb-16 pt-10 md:px-8 md:pt-[12vh]">
+        <h1 className="t-doc-title">Nueva materia</h1>
+        <p className="mt-2 text-sm leading-6 text-foreground-muted">
+          Acá vas a guardar tus clases, apuntes y fechas de esta materia.
+        </p>
+
+        <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">
           <div>
-            <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2">
-              Materias
-            </div>
-            <h1 className="font-serif text-2xl leading-tight sm:text-3xl">Crear o unirse a una materia</h1>
+            <label htmlFor="materia-nombre" className={LABEL}>
+              Nombre
+            </label>
+            <Input
+              id="materia-nombre"
+              size="lg"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Análisis Matemático II"
+              autoComplete="off"
+              autoFocus
+              required
+              invalid={Boolean(error) && !name.trim()}
+              aria-describedby={error ? "materia-error" : undefined}
+            />
           </div>
-          <Link
-            href="/"
-            className="shrink-0 text-sm border border-border px-3 py-2 hover:bg-surface transition-colors sm:px-4"
-          >
-            Entrada
-          </Link>
-        </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-12">
-          <div className="border border-border p-5 sm:p-8">
-            <div className="text-xs font-mono text-accent uppercase tracking-wider mb-4">
-              Crear una materia
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-3">
+            <div>
+              <label htmlFor="materia-catedra" className={LABEL}>
+                Cátedra <span className="text-foreground-subtle">· opcional</span>
+              </label>
+              <Input
+                id="materia-catedra"
+                size="lg"
+                value={catedra}
+                onChange={(event) => setCatedra(event.target.value)}
+                placeholder="Cátedra Sadosky"
+                autoComplete="off"
+              />
             </div>
-            <h2 className="font-serif text-2xl mb-2">Empezá tu propio espacio</h2>
-            <p className="text-sm text-foreground-muted mb-8">
-              Cargá tus apuntes, prepará exámenes e invitá a otras personas cuando quieras.
+            <div>
+              <label htmlFor="materia-facultad" className={LABEL}>
+                Facultad <span className="text-foreground-subtle">· opcional</span>
+              </label>
+              <Input
+                id="materia-facultad"
+                size="lg"
+                value={faculty}
+                onChange={(event) => setFaculty(event.target.value)}
+                placeholder="FCEN · UBA"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p id="materia-error" role="alert" className="text-sm text-danger">
+              {error}
             </p>
+          )}
 
-            <div className="space-y-6">
-              <div>
-                <label
-                  htmlFor="nombre-materia"
-                  className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
-                >
-                  Nombre de la materia
-                </label>
-                <input
-                  id="nombre-materia"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Análisis Matemático II"
-                  autoComplete="off"
-                  aria-label="Nombre de la materia"
-                  className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="universidad"
-                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
-                  >
-                    Universidad
-                  </label>
-                  <input
-                    id="universidad"
-                    type="text"
-                    value={faculty}
-                    onChange={(e) => setFaculty(e.target.value)}
-                    placeholder="UTN La Plata"
-                    autoComplete="off"
-                    aria-label="Universidad"
-                    className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="carrera"
-                    className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
-                  >
-                    Carrera
-                  </label>
-                  <input
-                    id="carrera"
-                    type="text"
-                    placeholder="Ingeniería"
-                    autoComplete="off"
-                    aria-label="Carrera"
-                    className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="catedra"
-                  className="block text-xs font-mono text-foreground-muted uppercase tracking-wider mb-2"
-                >
-                  Cátedra · Opcional
-                </label>
-                <input
-                  id="catedra"
-                  type="text"
-                  value={catedra}
-                  onChange={(e) => setCatedra(e.target.value)}
-                  placeholder="Agregar cátedra"
-                  autoComplete="off"
-                  aria-label="Cátedra"
-                  className="w-full h-12 px-4 bg-surface border border-border text-foreground placeholder:text-foreground-subtle focus:outline-none focus:border-accent transition-colors"
-                />
-              </div>
-
-              {error && (
-                <p role="alert" className="text-sm text-red-500">{error}</p>
-              )}
-
-              <button
-                type="button"
-                onClick={handleCreate}
-                disabled={loading}
-                aria-label="Crear materia"
-                className="w-full h-12 bg-accent text-background font-mono text-sm uppercase tracking-wider hover:bg-accent/90 transition-colors disabled:opacity-50"
-              >
-                {loading ? "Creando..." : "Crear materia →"}
-              </button>
-            </div>
-          </div>
-
-          <div className="border border-border-subtle p-5 opacity-40 sm:p-8">
-            <div className="text-xs font-mono text-foreground-muted uppercase tracking-wider mb-4">
-              Unirme a una materia
-            </div>
-            <h2 className="font-serif text-2xl mb-2">Encontrá un espacio existente</h2>
-            <p className="text-sm text-foreground-muted mb-8">
-              Buscá por universidad y cátedra o ingresá un código de invitación.
-            </p>
-            <div className="text-sm text-foreground-subtle text-center py-8">
-              Próximamente
-            </div>
-          </div>
-        </div>
+          <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full sm:w-auto">
+            {loading ? "Creando…" : "Crear materia"}
+          </Button>
+        </form>
       </div>
     </AppShell>
   );

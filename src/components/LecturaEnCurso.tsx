@@ -77,11 +77,9 @@ export function LecturaEnCurso() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-4 bottom-4 z-40 border border-border bg-surface-elevated p-3 shadow-lg sm:left-auto sm:right-6 sm:w-80"
+      className="t-pop-in fixed inset-x-4 bottom-4 z-40 rounded-lg border border-white/[0.08] bg-surface-overlay p-3 shadow-pop sm:left-auto sm:right-5 sm:bottom-5 sm:w-80"
     >
-      <div className="mb-2 text-[11px] font-mono uppercase tracking-wider text-foreground-muted">
-        Leyendo material para el chat
-      </div>
+      <div className="t-meta mb-2">Leyendo para el chat</div>
       <ul className="space-y-3">
         {items.map((item) => {
           const { paginasLeidas, paginasTotales, estado } = item.lectura;
@@ -89,16 +87,16 @@ export function LecturaEnCurso() {
             estado === "leyendo" ? (paginasTotales ? paginasLeidas / paginasTotales : 0) : 1;
           return (
             <li key={item.fileId}>
-              <div className="truncate text-sm" title={item.name}>
+              <div className="truncate text-sm text-foreground" title={item.name}>
                 {item.name}
               </div>
               <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-foreground-muted">
                 <span>{lecturaLabel(item.lectura)}</span>
                 {estado === "leyendo" && <span>{Math.round(fraction * 100)}%</span>}
               </div>
-              <div className="mt-1 h-px w-full bg-border">
+              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-hover">
                 <div
-                  className="h-px bg-accent transition-[width] duration-500 motion-reduce:transition-none"
+                  className="h-full rounded-full bg-accent transition-[width] duration-500 motion-reduce:transition-none"
                   style={{ width: `${Math.max(2, fraction * 100)}%` }}
                 />
               </div>
@@ -106,7 +104,7 @@ export function LecturaEnCurso() {
           );
         })}
       </ul>
-      <p className="mt-3 text-[11px] text-foreground-subtle">
+      <p className="mt-3 text-xs leading-5 text-foreground-subtle">
         Podés seguir usando la app. Si cerrás la pestaña, la lectura sigue la próxima vez que entres.
       </p>
     </div>

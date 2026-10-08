@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { createEvaluacion, createTema, getMateria } from "@/lib/db";
-import { parseEvaluacionInput } from "@/lib/evaluacion-input";
+import { EVALUACION_ERRORES, parseEvaluacionInput } from "@/lib/evaluacion-input";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -20,13 +20,17 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const input = parseEvaluacionInput(body);
     if (!input.name) {
-      return NextResponse.json({ error: "Poné un nombre." }, { status: 400 });
+      return NextResponse.json({ error: EVALUACION_ERRORES.nombre }, { status: 400 });
+    }
+    if (input.error) {
+      return NextResponse.json({ error: input.error }, { status: 400 });
     }
     const evaluacion = await createEvaluacion(id, {
       kind: input.kind ?? "examen",
       name: input.name,
       type: input.type,
-      date: input.date,
+      date: input.date || undefined,
+      hora: input.hora || undefined,
       description: input.description,
     });
     for (const tema of input.temas) {
@@ -34,6 +38,6 @@ export async function POST(
     }
     return NextResponse.json(evaluacion, { status: 201 });
   } catch (error) {
-    return apiErrorResponse(error, "No pude guardar la evaluación.");
+    return apiErrorResponse(error, "No pude guardar el evento.");
   }
 }

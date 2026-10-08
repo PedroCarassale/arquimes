@@ -7,7 +7,7 @@ import {
   updateEvaluacion,
   updateExamenNote,
 } from "@/lib/db";
-import { parseEvaluacionInput } from "@/lib/evaluacion-input";
+import { EVALUACION_ERRORES, parseEvaluacionInput } from "@/lib/evaluacion-input";
 import { requireServerSession } from "@/lib/auth-session";
 import { apiErrorResponse } from "@/lib/api-error";
 
@@ -48,14 +48,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Examen no encontrado" }, { status: 404 });
     }
 
-    const body = await request.json();
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     if (typeof body.note !== "string") {
       const input = parseEvaluacionInput(body);
+      if ("name" in body && !input.name) {
+        return NextResponse.json({ error: EVALUACION_ERRORES.nombre }, { status: 400 });
+      }
+      if (input.error) {
+        return NextResponse.json({ error: input.error }, { status: 400 });
+      }
       const updated = await updateEvaluacion(id, {
         kind: input.kind,
         name: input.name,
         type: "type" in body ? input.type ?? null : undefined,
         date: input.date,
+        hora: input.hora,
         description: "description" in body ? input.description ?? "" : undefined,
       });
       return NextResponse.json(updated);

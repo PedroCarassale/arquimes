@@ -10,13 +10,19 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { usePathname } from "next/navigation";
 import type { WorkspaceFocus } from "@/lib/types";
+import { tabKey } from "@/lib/tabs";
+import type { IconName } from "@/components/ui/Icon";
+import { tabsStore } from "./tabs-store";
 
 export type FocusInfo = WorkspaceFocus & { titulo: string };
 
 type AskOptions = { send?: boolean };
 
-type WorkspaceValue = {
+type OpenChatOptions = { focusComposer?: boolean };
+
+export type WorkspaceValue = {
   materiaId: string;
   materiaName: string;
   focus: FocusInfo | null;
@@ -24,20 +30,29 @@ type WorkspaceValue = {
   focusEnabled: boolean;
   setFocusEnabled: (enabled: boolean) => void;
   chatOpen: boolean;
-  openChat: () => void;
+  openChat: (opts?: OpenChatOptions) => void;
   closeChat: () => void;
   toggleChat: () => void;
   mobileChatOpen: boolean;
   askChat: (text: string, options?: AskOptions) => void;
   registerAsk: (handler: (text: string, options?: AskOptions) => void) => () => void;
+  registerComposerFocus: (handler: () => void) => () => void;
   refreshToken: number;
   bumpRefresh: () => void;
 };
 
+type ChatLayout = {
+  reportColumnFits: (fits: boolean) => void;
+  closeOverlay: () => void;
+  isChatVisible: () => boolean;
+};
+
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
+const ChatLayoutContext = createContext<ChatLayout | null>(null);
 
 const CHAT_OPEN_KEY = "arq.chat.open";
 const CHAT_OPEN_EVENT = "arq-chat-open";
+const DESKTOP_QUERY = "(min-width: 1024px)";
 
 function readChatOpen(): boolean {
   try {
@@ -64,7 +79,7 @@ function subscribeChatOpen(callback: () => void) {
 }
 
 function isDesktop() {
-  return typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  return typeof window !== "undefined" && window.matchMedia(DESKTOP_QUERY).matches;
 }
 
 export function WorkspaceProvider({
@@ -83,21 +98,56 @@ export function WorkspaceProvider({
   const [refreshToken, setRefreshToken] = useState(0);
   const askHandler = useRef<((text: string, options?: AskOptions) => void) | null>(null);
   const pendingAsk = useRef<{ text: string; options?: AskOptions } | null>(null);
+  const composerHandler = useRef<(() => void) | null>(null);
+  const pendingComposerFocus = useRef(false);
+  const columnFits = useRef(true);
+  const overlayOpen = useRef(false);
 
-  const openChat = useCallback(() => {
-    if (isDesktop()) writeChatOpen(true);
-    else setMobileChatOpen(true);
+  useEffect(() => {
+    overlayOpen.current = mobileChatOpen;
+  }, [mobileChatOpen]);
+
+  const columnMode = useCallback(() => isDesktop() && columnFits.current, []);
+
+  const focusComposer = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (composerHandler.current) composerHandler.current();
+        else pendingComposerFocus.current = true;
+      });
+    });
   }, []);
+
+  const openChat = useCallback(
+    (opts?: OpenChatOptions) => {
+      if (columnMode()) writeChatOpen(true);
+      else setMobileChatOpen(true);
+      if (opts?.focusComposer) focusComposer();
+    },
+    [columnMode, focusComposer]
+  );
 
   const closeChat = useCallback(() => {
-    if (isDesktop()) writeChatOpen(false);
+    if (columnMode()) writeChatOpen(false);
     else setMobileChatOpen(false);
-  }, []);
+  }, [columnMode]);
 
   const toggleChat = useCallback(() => {
-    if (isDesktop()) writeChatOpen(!readChatOpen());
+    if (columnMode()) writeChatOpen(!readChatOpen());
     else setMobileChatOpen((open) => !open);
+  }, [columnMode]);
+
+  const closeOverlay = useCallback(() => setMobileChatOpen(false), []);
+
+  const reportColumnFits = useCallback((fits: boolean) => {
+    columnFits.current = fits;
+    if (fits && isDesktop()) setMobileChatOpen(false);
   }, []);
+
+  const isChatVisible = useCallback(
+    () => (columnMode() ? readChatOpen() : overlayOpen.current),
+    [columnMode]
+  );
 
   const setFocus = useCallback((next: FocusInfo | null) => {
     setFocusState((current) => {
@@ -126,6 +176,17 @@ export function WorkspaceProvider({
     };
   }, []);
 
+  const registerComposerFocus = useCallback((handler: () => void) => {
+    composerHandler.current = handler;
+    if (pendingComposerFocus.current) {
+      pendingComposerFocus.current = false;
+      window.requestAnimationFrame(() => handler());
+    }
+    return () => {
+      if (composerHandler.current === handler) composerHandler.current = null;
+    };
+  }, []);
+
   const bumpRefresh = useCallback(() => setRefreshToken((n) => n + 1), []);
 
   const value = useMemo<WorkspaceValue>(
@@ -143,6 +204,7 @@ export function WorkspaceProvider({
       mobileChatOpen,
       askChat,
       registerAsk,
+      registerComposerFocus,
       refreshToken,
       bumpRefresh,
     }),
@@ -159,12 +221,22 @@ export function WorkspaceProvider({
       mobileChatOpen,
       askChat,
       registerAsk,
+      registerComposerFocus,
       refreshToken,
       bumpRefresh,
     ]
   );
 
-  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
+  const layout = useMemo<ChatLayout>(
+    () => ({ reportColumnFits, closeOverlay, isChatVisible }),
+    [reportColumnFits, closeOverlay, isChatVisible]
+  );
+
+  return (
+    <WorkspaceContext.Provider value={value}>
+      <ChatLayoutContext.Provider value={layout}>{children}</ChatLayoutContext.Provider>
+    </WorkspaceContext.Provider>
+  );
 }
 
 export function useWorkspace(): WorkspaceValue {
@@ -177,11 +249,32 @@ export function useOptionalWorkspace(): WorkspaceValue | null {
   return useContext(WorkspaceContext);
 }
 
-export function FocusRegister({ kind, id, titulo }: FocusInfo) {
+export function useChatLayout(): ChatLayout {
+  const value = useContext(ChatLayoutContext);
+  if (!value) throw new Error("useChatLayout fuera de una materia");
+  return value;
+}
+
+function useTabTitle(title: string, icon?: string) {
+  const { materiaId } = useWorkspace();
+  const pathname = usePathname();
+  const key = tabKey(pathname);
+  useEffect(() => {
+    tabsStore.setTitle(materiaId, key, title, icon);
+  }, [materiaId, key, title, icon]);
+}
+
+export function FocusRegister({ kind, id, titulo, icon }: FocusInfo & { icon?: IconName }) {
   const { setFocus } = useWorkspace();
+  useTabTitle(titulo, icon);
   useEffect(() => {
     setFocus({ kind, id, titulo });
     return () => setFocus(null);
   }, [kind, id, titulo, setFocus]);
+  return null;
+}
+
+export function TabMeta({ title }: { title: string }) {
+  useTabTitle(title);
   return null;
 }

@@ -4,11 +4,10 @@ import {
   Material,
   ExamenEnPreparacion,
   EvaluacionKind,
+  EventoResumen,
+  ExamType,
   Tema,
-  MasteryState,
   GroundingPayload,
-  PracticeOutcome,
-  PlanPreparacion,
 } from "./types";
 import {
   groundingFromContext,
@@ -17,14 +16,16 @@ import {
   summarizeExamen,
   type StudyContext,
 } from "./study-chat";
-import { nextMasteryFromPractice } from "./practice";
 import {
   deleteStudyFileByStorageKey,
+  getStudyFileLecturasByStorageKeys,
   getStudyFileMetaByStorageKeys,
   parseStorageKey,
 } from "./file-store-auth";
+import { examTypeLabel } from "./format";
 import { getLibsqlClient } from "./libsql";
 import { requireUserId } from "./auth-session";
+import { deleteChatSessionsForMateria } from "./chat-store-auth";
 import {
   deleteWorkspaceForMateria,
   listArtefactos,
@@ -103,37 +104,46 @@ async function ensureSchema() {
       );
       const columns = await db.execute("PRAGMA table_info(examenes)");
       const names = new Set(columns.rows.map((row) => String(row.name)));
-      if (!names.has("kind")) {
-        await db.execute("ALTER TABLE examenes ADD COLUMN kind TEXT");
+      for (const column of ["kind", "description", "hora"]) {
+        if (names.has(column)) continue;
+        try {
+          await db.execute(`ALTER TABLE examenes ADD COLUMN ${column} TEXT`);
+        } catch (error) {
+          if (!(error instanceof Error && /duplicate column/i.test(error.message))) {
+            throw error;
+          }
+        }
       }
-      if (!names.has("description")) {
-        await db.execute("ALTER TABLE examenes ADD COLUMN description TEXT");
-      }
-    })();
+      await db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_examenes_user_date ON examenes (user_id, date)"
+      );
+    })().catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
   }
 
   await schemaReady;
 }
 
 function toMateria(row: SqlRow): Materia {
-  const preparacionRaw =
-    typeof row.preparacion_json === "string" ? row.preparacion_json : "";
-  let preparacion: Materia["preparacion"] | undefined;
-  if (preparacionRaw) {
-    try {
-      preparacion = JSON.parse(preparacionRaw) as Materia["preparacion"];
-    } catch {
-      preparacion = undefined;
-    }
-  }
   return {
     id: String(row.id),
     name: String(row.name),
     faculty: row.faculty ? String(row.faculty) : undefined,
     catedra: row.catedra ? String(row.catedra) : undefined,
-    preparacion,
     createdAt: String(row.created_at),
   };
+}
+
+function toEvaluacionKind(value: unknown): EvaluacionKind {
+  return value === "entrega" ? "entrega" : value === "evento" ? "evento" : "examen";
+}
+
+function toExamType(value: unknown): ExamType | undefined {
+  return value === "parcial" || value === "recuperatorio" || value === "final"
+    ? value
+    : undefined;
 }
 
 function toMaterial(row: SqlRow): Material {
@@ -155,10 +165,11 @@ function toExamen(row: SqlRow): ExamenEnPreparacion {
   return {
     id: String(row.id),
     materiaId: String(row.materia_id),
-    kind: row.kind === "entrega" ? "entrega" : "examen",
+    kind: toEvaluacionKind(row.kind),
     description: row.description ? String(row.description) : undefined,
-    type: row.type ? (String(row.type) as ExamenEnPreparacion["type"]) : undefined,
+    type: toExamType(row.type),
     date: row.date ? String(row.date) : undefined,
+    hora: row.hora ? String(row.hora) : undefined,
     name: row.name ? String(row.name) : undefined,
     objective: row.objective ? String(row.objective) : undefined,
     modality: row.modality ? String(row.modality) : undefined,
@@ -182,7 +193,6 @@ function toTema(row: SqlRow): Tema {
     id: String(row.id),
     examenId: String(row.examen_id),
     name: String(row.name),
-    masteryState: String(row.mastery_state) as MasteryState,
     createdAt: String(row.created_at),
   };
 }
@@ -194,7 +204,7 @@ async function queryMateriaById(
   await ensureSchema();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, name, faculty, catedra, preparacion_json, created_at
+    sql: `SELECT id, name, faculty, catedra, created_at
           FROM materias
           WHERE user_id = ? AND id = ?`,
     args: [userId, id],
@@ -224,7 +234,7 @@ export async function getMaterias(): Promise<Materia[]> {
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, name, faculty, catedra, preparacion_json, created_at
+    sql: `SELECT id, name, faculty, catedra, created_at
           FROM materias
           WHERE user_id = ?
           ORDER BY datetime(created_at) DESC`,
@@ -268,69 +278,6 @@ export async function createMateria(
     faculty,
     catedra,
     createdAt,
-  };
-}
-
-export async function updateMateriaPreparacion(
-  id: string,
-  input: {
-    temas: string[];
-    fechaParcial: string;
-    resetPlan?: boolean;
-  }
-): Promise<Materia | undefined> {
-  await ensureSchema();
-  const userId = await requireUserId();
-  const materia = await queryMateriaById(userId, id);
-  if (!materia) return undefined;
-
-  const updatedAt = new Date().toISOString();
-  const preparacion: Materia["preparacion"] = {
-    temas: input.temas,
-    fechaParcial: input.fechaParcial,
-    plan: input.resetPlan === false ? materia.preparacion?.plan : undefined,
-    updatedAt,
-  };
-  const db = getLibsqlClient();
-  await db.execute({
-    sql: `UPDATE materias
-          SET preparacion_json = ?
-          WHERE user_id = ? AND id = ?`,
-    args: [JSON.stringify(preparacion), userId, id],
-  });
-
-  return {
-    ...materia,
-    preparacion,
-  };
-}
-
-export async function saveMateriaPlanPreparacion(
-  id: string,
-  plan: PlanPreparacion
-): Promise<Materia | undefined> {
-  await ensureSchema();
-  const userId = await requireUserId();
-  const materia = await queryMateriaById(userId, id);
-  if (!materia) return undefined;
-
-  const updatedAt = new Date().toISOString();
-  const preparacion: Materia["preparacion"] = {
-    temas: materia.preparacion?.temas || [],
-    fechaParcial: materia.preparacion?.fechaParcial || "",
-    plan,
-    updatedAt,
-  };
-  const db = getLibsqlClient();
-  await db.execute({
-    sql: `UPDATE materias
-          SET preparacion_json = ?
-          WHERE user_id = ? AND id = ?`,
-    args: [JSON.stringify(preparacion), userId, id],
-  });
-  return {
-    ...materia,
-    preparacion,
   };
 }
 
@@ -380,6 +327,7 @@ export async function deleteMateria(id: string): Promise<void> {
   );
 
   await deleteWorkspaceForMateria(id);
+  await deleteChatSessionsForMateria(id);
 
   await Promise.all(
     [...new Set(storageKeys)].map((storageKey) =>
@@ -401,6 +349,27 @@ export async function getMateriales(materiaId: string): Promise<Material[]> {
     args: [userId, materiaId],
   });
   return result.rows.map((row) => toMaterial(row as SqlRow));
+}
+
+export async function listMaterialesConLectura(materiaId: string): Promise<Material[]> {
+  await ensureSchema();
+  const userId = await requireUserId();
+  const result = await getLibsqlClient().execute({
+    sql: `SELECT id, materia_id, name, type, size, storage_key, added_at, kind, exam_id
+          FROM materiales
+          WHERE user_id = ? AND materia_id = ?
+          ORDER BY datetime(added_at) DESC`,
+    args: [userId, materiaId],
+  });
+  const materiales = result.rows.map((row) => toMaterial(row as SqlRow));
+  const lecturas = await getStudyFileLecturasByStorageKeys(
+    materiales.map((m) => m.storageKey).filter(Boolean)
+  );
+  return materiales.map((material) => ({
+    ...material,
+    fileId: parseStorageKey(material.storageKey) || undefined,
+    lectura: lecturas.get(material.storageKey),
+  }));
 }
 
 export async function withLectura(materiales: Material[]): Promise<Material[]> {
@@ -511,16 +480,27 @@ export async function deleteMaterial(id: string): Promise<void> {
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const row = await db.execute({
-    sql: `SELECT storage_key FROM materiales WHERE user_id = ? AND id = ?`,
+    sql: `SELECT storage_key, kind, exam_id FROM materiales WHERE user_id = ? AND id = ?`,
     args: [userId, id],
   });
-  const storageKey = row.rows[0]?.storage_key
-    ? String(row.rows[0].storage_key)
-    : undefined;
-  await db.execute({
-    sql: `DELETE FROM materiales WHERE user_id = ? AND id = ?`,
-    args: [userId, id],
-  });
+  const current = row.rows[0] as SqlRow | undefined;
+  if (!current) return;
+  const storageKey = current.storage_key ? String(current.storage_key) : undefined;
+  const statements = [
+    {
+      sql: `DELETE FROM materiales WHERE user_id = ? AND id = ?`,
+      args: [userId, id],
+    },
+  ];
+  if (current.kind === "examen") {
+    statements.push({
+      sql: `UPDATE examenes
+            SET material_id = NULL, file_name = NULL, file_type = NULL, file_size = NULL, file_content_base64 = NULL
+            WHERE user_id = ? AND (material_id = ?${current.exam_id ? " OR id = ?" : ""})`,
+      args: current.exam_id ? [userId, id, String(current.exam_id)] : [userId, id],
+    });
+  }
+  await db.batch(statements, "write");
   await deleteStudyFileByStorageKey(storageKey);
 }
 
@@ -531,7 +511,7 @@ export async function getExamenes(
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, materia_id, kind, description, type, date, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
+    sql: `SELECT id, materia_id, kind, description, type, date, hora, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
           FROM examenes
           WHERE user_id = ? AND materia_id = ?
           ORDER BY datetime(created_at) DESC`,
@@ -547,7 +527,7 @@ export async function getExamen(
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, materia_id, kind, description, type, date, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
+    sql: `SELECT id, materia_id, kind, description, type, date, hora, name, objective, modality, created_at, material_id, file_name, file_type, file_size, note, file_content_base64
           FROM examenes
           WHERE user_id = ? AND id = ?`,
     args: [userId, id],
@@ -639,6 +619,7 @@ export type EvaluacionInput = {
   name: string;
   type?: ExamenEnPreparacion["type"];
   date?: string;
+  hora?: string;
   description?: string;
 };
 
@@ -650,18 +631,20 @@ export async function createEvaluacion(
   const userId = await requireUserId();
   const id = uuid();
   const createdAt = new Date().toISOString();
+  const type = input.kind === "examen" ? input.type || undefined : undefined;
   await getLibsqlClient().execute({
     sql: `INSERT INTO examenes (
-      id, user_id, materia_id, kind, description, type, date, name, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, user_id, materia_id, kind, description, type, date, hora, name, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       id,
       userId,
       materiaId,
       input.kind,
       input.description || null,
-      input.type || null,
+      type || null,
       input.date || null,
+      input.hora || null,
       input.name,
       createdAt,
     ],
@@ -670,9 +653,10 @@ export async function createEvaluacion(
     id,
     materiaId,
     kind: input.kind,
-    description: input.description,
-    type: input.type,
-    date: input.date,
+    description: input.description || undefined,
+    type,
+    date: input.date || undefined,
+    hora: input.hora || undefined,
     name: input.name,
     createdAt,
   };
@@ -692,8 +676,10 @@ export async function updateEvaluacion(
   };
   if (input.kind !== undefined) set("kind", input.kind);
   if (input.name !== undefined) set("name", input.name);
-  if (input.type !== undefined) set("type", input.type);
+  if (input.kind !== undefined && input.kind !== "examen") set("type", null);
+  else if (input.type !== undefined) set("type", input.type);
   if (input.date !== undefined) set("date", input.date);
+  if (input.hora !== undefined) set("hora", input.hora);
   if (input.description !== undefined) set("description", input.description);
   if (fields.length > 0) {
     await getLibsqlClient().execute({
@@ -727,11 +713,13 @@ export async function deleteExamen(id: string): Promise<void> {
 
   const userId = await requireUserId();
   const db = getLibsqlClient();
-  if (examen.materialId) {
-    await deleteMaterial(examen.materialId);
-  }
   await db.batch(
     [
+      {
+        sql: `UPDATE materiales SET kind = NULL, exam_id = NULL
+              WHERE user_id = ? AND (exam_id = ? OR id = ?)`,
+        args: [userId, id, examen.materialId ?? null],
+      },
       {
         sql: `DELETE FROM temas WHERE user_id = ? AND examen_id = ?`,
         args: [userId, id],
@@ -750,7 +738,7 @@ export async function getTemas(examenId: string): Promise<Tema[]> {
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT id, examen_id, name, mastery_state, created_at
+    sql: `SELECT id, examen_id, name, created_at
           FROM temas
           WHERE user_id = ? AND examen_id = ?
           ORDER BY datetime(created_at) ASC`,
@@ -768,13 +756,12 @@ export async function createTema(
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const createdAt = new Date().toISOString();
-  const masteryState: MasteryState = "no_estudiado";
   await db.execute({
     sql: `INSERT INTO temas (id, user_id, examen_id, name, mastery_state, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [id, userId, examenId, name, masteryState, createdAt],
+          VALUES (?, ?, ?, ?, 'no_estudiado', ?)`,
+    args: [id, userId, examenId, name, createdAt],
   });
-  return { id, examenId, name, masteryState, createdAt };
+  return { id, examenId, name, createdAt };
 }
 
 export async function getTemaNamesForMateria(
@@ -800,7 +787,7 @@ export async function getTemasForMateria(materiaId: string): Promise<Tema[]> {
   const userId = await requireUserId();
   const db = getLibsqlClient();
   const result = await db.execute({
-    sql: `SELECT t.id, t.examen_id, t.name, t.mastery_state, t.created_at
+    sql: `SELECT t.id, t.examen_id, t.name, t.created_at
           FROM temas t
           INNER JOIN examenes e
             ON e.id = t.examen_id
@@ -840,7 +827,7 @@ export async function getStudyContext(
   const notaSources = notas
     .filter((nota) => nota.contenido.trim())
     .map((nota) => ({
-      name: `Nota · ${nota.titulo}`,
+      name: `Clase · ${nota.titulo}`,
       kind: "nota" as const,
       text: nota.contenido,
       notaId: nota.id,
@@ -874,63 +861,74 @@ export async function getStudyGrounding(
   return ctx ? groundingFromContext(ctx) : null;
 }
 
-export async function updateTemaMastery(
-  id: string,
-  masteryState: MasteryState
-): Promise<void> {
+export async function listEventos(
+  opts: {
+    desde?: string;
+    hasta?: string;
+    materiaId?: string;
+    incluirSinFecha?: boolean;
+  } = {}
+): Promise<EventoResumen[]> {
   await ensureSchema();
   const userId = await requireUserId();
-  const db = getLibsqlClient();
-  await db.execute({
-    sql: `UPDATE temas
-          SET mastery_state = ?
-          WHERE user_id = ? AND id = ?`,
-    args: [masteryState, userId, id],
-  });
-}
+  const where = ["e.user_id = ?"];
+  const args: string[] = [userId];
+  if (opts.materiaId) {
+    where.push("e.materia_id = ?");
+    args.push(opts.materiaId);
+  }
+  const conFecha = ["COALESCE(e.date, '') != ''"];
+  if (opts.desde) {
+    conFecha.push("e.date >= ?");
+    args.push(opts.desde);
+  }
+  if (opts.hasta) {
+    conFecha.push("e.date <= ?");
+    args.push(opts.hasta);
+  }
+  const fecha = `(${conFecha.join(" AND ")})`;
+  where.push(opts.incluirSinFecha ? `(${fecha} OR COALESCE(e.date, '') = '')` : fecha);
 
-export async function applyPracticeOutcome(
-  temaId: string,
-  materiaId: string,
-  outcome: PracticeOutcome
-): Promise<{ tema: Tema; previous: MasteryState } | undefined> {
-  await ensureSchema();
-  const userId = await requireUserId();
-  const db = getLibsqlClient();
-
-  const temaResult = await db.execute({
-    sql: `SELECT id, examen_id, name, mastery_state, created_at
-          FROM temas
-          WHERE user_id = ? AND id = ?`,
-    args: [userId, temaId],
-  });
-  const temaRow = temaResult.rows[0] as SqlRow | undefined;
-  if (!temaRow) return undefined;
-  const tema = toTema(temaRow);
-
-  const examen = await db.execute({
-    sql: `SELECT id FROM examenes
-          WHERE user_id = ? AND id = ? AND materia_id = ?`,
-    args: [userId, tema.examenId, materiaId],
-  });
-  if (!examen.rows[0]) return undefined;
-
-  const previous = tema.masteryState;
-  const next = nextMasteryFromPractice(previous, outcome);
-  await db.execute({
-    sql: `UPDATE temas
-          SET mastery_state = ?
-          WHERE user_id = ? AND id = ?`,
-    args: [next, userId, temaId],
+  const result = await getLibsqlClient().execute({
+    sql: `SELECT e.id, e.materia_id, m.name AS materia_name, e.kind, e.type, e.name, e.file_name,
+                 e.date, e.hora, e.created_at, COUNT(t.id) AS temas_count
+          FROM examenes e
+          INNER JOIN materias m
+            ON m.id = e.materia_id
+           AND m.user_id = e.user_id
+          LEFT JOIN temas t
+            ON t.examen_id = e.id
+           AND t.user_id = e.user_id
+          WHERE ${where.join(" AND ")}
+          GROUP BY e.id
+          ORDER BY COALESCE(e.date, '') = '' ASC,
+                   e.date ASC,
+                   COALESCE(e.hora, '') = '' ASC,
+                   e.hora ASC,
+                   e.created_at ASC`,
+    args,
   });
 
-  return {
-    tema: {
-      ...tema,
-      masteryState: next,
-    },
-    previous,
-  };
+  return result.rows.map((raw) => {
+    const row = raw as SqlRow;
+    const kind = toEvaluacionKind(row.kind);
+    const type = kind === "examen" ? toExamType(row.type) : undefined;
+    const name =
+      (row.name ? String(row.name).trim() : "") ||
+      (row.file_name ? String(row.file_name).trim() : "") ||
+      (kind === "entrega" ? "Entrega" : kind === "evento" ? "Evento" : examTypeLabel(type));
+    return {
+      id: String(row.id),
+      materiaId: String(row.materia_id),
+      materiaName: String(row.materia_name),
+      kind,
+      type,
+      name,
+      date: row.date ? String(row.date) : undefined,
+      hora: row.hora ? String(row.hora) : undefined,
+      temasCount: Number(row.temas_count) || 0,
+    };
+  });
 }
 
 export async function deleteTema(id: string): Promise<void> {

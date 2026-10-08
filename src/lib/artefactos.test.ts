@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  apunteDesdeChat,
   extractArtefactos,
   normalizeTemaName,
   parseExamen,
@@ -90,6 +91,28 @@ test("parses multiple choice and open questions with temas", () => {
   assert.equal(open.opciones.length, 0);
   assert.match(open.enunciado, /Mostrá el desarrollo/);
   assert.equal(open.respuesta, "vale $1/2$.\nPor regla de Barrow.");
+});
+
+test("prepares a chat reply to be saved in apuntes", () => {
+  const now = new Date("2026-10-08T15:00:00Z");
+  const reply = [
+    "## Teorema de Bolzano",
+    "",
+    "Si $f$ es continua en $[a,b]$…",
+    "",
+    `[[artefacto:${ID_A}]]`,
+    "",
+    "Idea clave: cambia de signo.",
+    '<!-- ARQUIMES_CITATIONS: ["apunte.pdf"] -->',
+  ].join("\n");
+  const saved = apunteDesdeChat(reply, undefined, now);
+  assert.equal(saved.titulo, "Teorema de Bolzano");
+  assert.doesNotMatch(saved.contenido, /artefacto:|ARQUIMES_CITATIONS/);
+  assert.match(saved.contenido, /Idea clave: cambia de signo\.$/);
+
+  assert.equal(apunteDesdeChat(reply, "  Mi título ", now).titulo, "Mi título");
+  assert.equal(apunteDesdeChat("Sin encabezado.", undefined, now).titulo, "Apunte del chat · 8 oct");
+  assert.equal(apunteDesdeChat(`[[artefacto:${ID_B}]]`, undefined, now).contenido, "");
 });
 
 test("normalizes tema names for matching", () => {

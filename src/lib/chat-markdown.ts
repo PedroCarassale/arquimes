@@ -17,18 +17,27 @@ export function preprocessAssistantMarkdown(value: unknown): string {
   if (!markdown) return "";
 
   return mapOutsideFencedCode(markdown, (prose) =>
-    withProtectedInlineCode(prose, (safeProse) => {
-      const legacyNormalized = safeProse
-        .replace(/\\\(([\s\S]+?)\\\)/g, (_, expression: string) => {
-          return `$${expression}$`;
-        })
-        .replace(/\\\[([\s\S]+?)\\\]/g, (_, expression: string) => {
-          return `$$\n${expression.trim()}\n$$`;
-        });
-
-      return normalizeDisplayMath(legacyNormalized);
-    })
+    withProtectedInlineCode(prose, (safeProse) =>
+      normalizeDisplayMath(convertLegacyMathDelimiters(safeProse))
+    )
   );
+}
+
+export function normalizeMathDelimiters(markdown: string): string {
+  if (!markdown) return "";
+  return mapOutsideFencedCode(markdown, (prose) =>
+    withProtectedInlineCode(prose, convertLegacyMathDelimiters)
+  );
+}
+
+function convertLegacyMathDelimiters(prose: string): string {
+  return prose
+    .replace(/\\\(([\s\S]+?)\\\)/g, (_, expression: string) => {
+      return `$${expression}$`;
+    })
+    .replace(/\\\[([\s\S]+?)\\\]/g, (_, expression: string) => {
+      return `$$\n${expression.trim()}\n$$`;
+    });
 }
 
 function normalizeDisplayMath(markdown: string): string {

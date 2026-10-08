@@ -1,10 +1,10 @@
-# Arquimedes
+# Arquímedes
 
-**¿Qué tan preparado estoy para rendir este examen?**
+**La facu organizada.**
 
-Arquimedes es una app privada de preparación de exámenes universitarios. Creás una materia, cargás la info del examen (apuntes + archivo + temas), practicás y estudiás con chat multi-sesión.
+Arquímedes es el lugar donde organizás toda tu vida de estudio en la facu: tus materias, las clases que tomás, tus apuntes, el calendario de exámenes y entregas, y un chat que estudia con vos usando lo que cargaste.
 
-No hay comunidad en este corte.
+Cada materia tiene cuatro secciones: **Inicio · Clases · Apuntes · Calendario**. Todo es privado: no hay nada compartido.
 
 ## Stack
 
@@ -73,7 +73,6 @@ En este corte se usan tablas nuevas con `user_id`; ese estado antiguo puede qued
 .cursor/skills/verify-arquimes/bin/doctor
 .cursor/skills/verify-arquimes/bin/drive-cargar-examen
 .cursor/skills/verify-arquimes/bin/drive-chat-estudio
-.cursor/skills/verify-arquimes/bin/drive-practica
 .cursor/skills/verify-arquimes/bin/cleanup
 ```
 
@@ -81,25 +80,16 @@ No uses el deploy de Vercel como prueba: es otro origen y otra cookie.
 
 ## Qué hay en este corte
 
-1. Crear una materia personal
-2. Cargar info del examen en flujo unificado:
-   - Paso 1: cargar apuntes
-   - Paso 2: cargar archivo del examen + nota opcional
-   - Paso 3: definir temas del examen
-3. Listar, editar y borrar exámenes en `/materias/[id]/examenes`
-4. Resumen honesto: si no hay examen, temas o práctica, lo dice
-5. Chat multi-sesión por materia (`/materias/[id]/chat`):
-   - crear, abrir, renombrar y borrar sesiones
-   - compositor libre y área de conversación amplia para estudiar sin distracciones
-   - tutoría progresiva con mapa de temas, fórmulas KaTeX, ejemplos y chequeos de comprensión
-   - recuperación por consulta sobre apuntes, archivo de examen, nota y temas
-   - extracción robusta de PDF con `pdf-parse` (capa de texto)
-   - fallback OCR opcional por `PDF_OCR_API_URL` para escaneados
-   - persistencia durable de títulos/mensajes
-6. Práctica: una pregunta corta por tema; responder mueve el dominio y el % de preparado
-7. Preparación opcional (`/materias/[id]/preparacion`):
-   - form por materia con `Temas a evaluar` + `Fecha del parcial`
-   - generación/regeneración de plan con OpenAI desde servidor
-   - contrato de respuesta estructurada (JSON Schema estricto) documentado en `docs/preparacion-plan-schema.md`
-
-En Resumen, la preparación/plan no se fuerza: si no está configurado, se muestra solo una CTA ligera para ir a `Preparación`.
+1. Inicio global (`/`): saludo, «Seguir donde dejaste», lo que se viene en los próximos 14 días y tus materias.
+2. Crear una materia personal (`/materias/nueva`): nombre, cátedra y facultad opcionales.
+3. Inicio de la materia (`/materias/[id]`): próximo evento, accesos rápidos (empezar clase, preguntarle al chat, subir apuntes, cargar fecha), clases recientes, lo que se viene y apuntes recientes.
+4. Clases (`/materias/[id]/clases`): notas de clase con un editor tipo Notion (Markdown, fórmulas KaTeX, tareas y tablas) con autoguardado.
+5. Apuntes (`/materias/[id]/apuntes`): tus archivos (PDF, fotos, videos, texto) y lo que guardaste del chat.
+6. Calendario (`/materias/[id]/calendario` y `/calendario`): exámenes, entregas y otros eventos con fecha y hora, con sus temas como etiquetas.
+7. Chat de estudio por materia, siempre a mano:
+   - responde con tus clases, apuntes y fechas, y cita las fuentes que usa
+   - si no hay material legible, lo dice sin inventar contenido
+   - puede armar documentos y exámenes de práctica que quedan en Apuntes
+   - extracción de PDF con `pdf-parse` (capa de texto) y OCR opcional por `PDF_OCR_API_URL` para escaneados
+   - persistencia durable de hilos y mensajes
+8. Pestañas dentro de cada materia, que sobreviven a una recarga, y un lanzador con Ctrl/Cmd+K.

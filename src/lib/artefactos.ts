@@ -1,4 +1,5 @@
 import type { ArtefactoTipo } from "./types";
+import { fechaCorta, hoyYmd } from "./fechas.ts";
 
 export type ArtefactoBlock = {
   id?: string;
@@ -62,6 +63,29 @@ export function splitArtefactoMarkers(
   const rest = content.slice(last).trim();
   if (rest) parts.push({ kind: "text", text: rest });
   return parts;
+}
+
+const CITATIONS_COMMENT = /<!--\s*ARQUIMES_CITATIONS:[\s\S]*?-->/gi;
+const ANY_HEADING = /^#{1,6}\s+(.+?)\s*#*\s*$/m;
+
+export function apunteDesdeChat(
+  contenido: string,
+  titulo?: string,
+  now: Date = new Date()
+): { titulo: string; contenido: string } {
+  const limpio = splitArtefactoMarkers(contenido.replace(CITATIONS_COMMENT, ""))
+    .flatMap((part) => (part.kind === "text" ? [part.text] : []))
+    .join("\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const heading = limpio.match(ANY_HEADING)?.[1]?.replace(/[*_`]/g, "").trim();
+  return {
+    titulo:
+      titulo?.trim() ||
+      heading ||
+      `Apunte del chat · ${fechaCorta(hoyYmd(now)) ?? ""}`.trim(),
+    contenido: limpio,
+  };
 }
 
 function stripFence(value: string): string {

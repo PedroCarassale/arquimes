@@ -12,7 +12,7 @@ export default async function MateriaLayout({
   const { id } = await params;
   const materia = await getMateria(id);
   if (!materia) notFound();
-  const info = [materia.faculty, materia.catedra].filter(Boolean).join(" · ");
+  const info = [materia.catedra, materia.faculty].filter(Boolean).join(" · ");
   return (
     <MateriaWorkspace materiaId={materia.id} materiaName={materia.name} materiaInfo={info || undefined}>
       {children}

@@ -1,7 +1,18 @@
 import { v4 as uuid } from "uuid";
 import { getLibsqlClient } from "./libsql";
 import { requireUserId } from "./auth-session";
-import type { Artefacto, ArtefactoTipo, ArtefactoVersion, Nota } from "./types";
+import { getMaterias, listEventos, listMaterialesConLectura } from "./db-auth";
+import { hoyYmd } from "./fechas";
+import type {
+  ApunteItem,
+  Artefacto,
+  ArtefactoTipo,
+  ArtefactoVersion,
+  EventoResumen,
+  MateriaIndice,
+  MateriaResumen,
+  Nota,
+} from "./types";
 
 type SqlRow = Record<string, unknown>;
 
@@ -48,7 +59,13 @@ async function ensureSchema() {
         ],
         "write"
       )
-      .then(() => undefined);
+      .then(
+        () => undefined,
+        (error: unknown) => {
+          schemaReady = null;
+          throw error;
+        }
+      );
   }
   await schemaReady;
 }
@@ -107,20 +124,29 @@ export async function getNota(id: string): Promise<Nota | undefined> {
 
 export async function createNota(
   materiaId: string,
-  input: { titulo: string; contenido?: string }
+  input: { titulo?: string; contenido?: string } = {}
 ): Promise<Nota> {
   await ensureSchema();
   const userId = await requireUserId();
+  const db = getLibsqlClient();
+  let titulo = input.titulo?.trim() ?? "";
+  if (!titulo) {
+    const count = await db.execute({
+      sql: `SELECT COUNT(*) AS total FROM notas WHERE user_id = ? AND materia_id = ?`,
+      args: [userId, materiaId],
+    });
+    titulo = `Clase ${(Number(count.rows[0]?.total) || 0) + 1}`;
+  }
   const now = new Date().toISOString();
   const nota: Nota = {
     id: uuid(),
     materiaId,
-    titulo: input.titulo.trim() || "Nota sin título",
+    titulo,
     contenido: input.contenido ?? "",
     createdAt: now,
     updatedAt: now,
   };
-  await getLibsqlClient().execute({
+  await db.execute({
     sql: `INSERT INTO notas (id, user_id, materia_id, titulo, contenido, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
     args: [nota.id, userId, materiaId, nota.titulo, nota.contenido, now, now],
@@ -137,7 +163,7 @@ export async function updateNota(
   const current = await getNota(id);
   if (!current) return undefined;
   const titulo =
-    input.titulo !== undefined ? input.titulo.trim() || "Nota sin título" : current.titulo;
+    input.titulo !== undefined ? input.titulo.trim() || "Sin título" : current.titulo;
   const contenido = input.contenido ?? current.contenido;
   const updatedAt = new Date().toISOString();
   await getLibsqlClient().execute({
@@ -309,4 +335,110 @@ export async function deleteArtefacto(id: string): Promise<void> {
     ],
     "write"
   );
+}
+
+export async function listApuntes(materiaId: string): Promise<ApunteItem[]> {
+  await ensureSchema();
+  const userId = await requireUserId();
+  const [materiales, generados] = await Promise.all([
+    listMaterialesConLectura(materiaId),
+    getLibsqlClient().execute({
+      sql: `SELECT id, tipo, titulo, version, created_at, updated_at FROM artefactos
+            WHERE user_id = ? AND materia_id = ?`,
+      args: [userId, materiaId],
+    }),
+  ]);
+  const items: { at: string; item: ApunteItem }[] = [
+    ...materiales.map((material) => ({
+      at: material.addedAt,
+      item: {
+        origen: "archivo" as const,
+        id: material.id,
+        name: material.name,
+        type: material.type,
+        size: material.size,
+        addedAt: material.addedAt,
+        lectura: material.lectura,
+        esExamen: material.kind === "examen",
+        examenId: material.examId,
+        fileId: material.fileId,
+      },
+    })),
+    ...generados.rows.map((row) => ({
+      at: String(row.updated_at),
+      item: {
+        origen: "generado" as const,
+        id: String(row.id),
+        titulo: String(row.titulo),
+        tipo: (row.tipo === "examen" ? "examen" : "documento") as ArtefactoTipo,
+        version: Number(row.version) || 1,
+        createdAt: String(row.created_at),
+        updatedAt: String(row.updated_at),
+      },
+    })),
+  ];
+  return items
+    .sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0))
+    .map(({ item }) => item);
+}
+
+export async function getMateriasResumen(): Promise<MateriaResumen[]> {
+  const materias = await getMaterias();
+  if (materias.length === 0) return [];
+  await ensureSchema();
+  const userId = await requireUserId();
+  const [counts, eventos] = await Promise.all([
+    getLibsqlClient().execute({
+      sql: `SELECT materia_id, SUM(clases) AS clases, SUM(apuntes) AS apuntes FROM (
+              SELECT materia_id, 1 AS clases, 0 AS apuntes FROM notas WHERE user_id = ?
+              UNION ALL
+              SELECT materia_id, 0, 1 FROM materiales WHERE user_id = ?
+              UNION ALL
+              SELECT materia_id, 0, 1 FROM artefactos WHERE user_id = ?
+            )
+            GROUP BY materia_id`,
+      args: [userId, userId, userId],
+    }),
+    listEventos({ desde: hoyYmd() }),
+  ]);
+  const countsByMateria = new Map(
+    counts.rows.map((row) => [
+      String(row.materia_id),
+      { clases: Number(row.clases) || 0, apuntes: Number(row.apuntes) || 0 },
+    ])
+  );
+  const proximos = new Map<string, EventoResumen>();
+  for (const evento of eventos) {
+    if (!proximos.has(evento.materiaId)) proximos.set(evento.materiaId, evento);
+  }
+  return materias.map((materia) => ({
+    materia,
+    proximoEvento: proximos.get(materia.id),
+    clasesCount: countsByMateria.get(materia.id)?.clases ?? 0,
+    apuntesCount: countsByMateria.get(materia.id)?.apuntes ?? 0,
+  }));
+}
+
+export async function getMateriaIndice(materiaId: string): Promise<MateriaIndice> {
+  await ensureSchema();
+  const userId = await requireUserId();
+  const [clases, apuntes, eventos] = await Promise.all([
+    getLibsqlClient().execute({
+      sql: `SELECT id, titulo, updated_at FROM notas
+            WHERE user_id = ? AND materia_id = ?
+            ORDER BY datetime(updated_at) DESC`,
+      args: [userId, materiaId],
+    }),
+    listApuntes(materiaId),
+    listEventos({ materiaId, incluirSinFecha: true }),
+  ]);
+  return {
+    clases: clases.rows.map((row) => ({
+      id: String(row.id),
+      titulo: String(row.titulo),
+      updatedAt: String(row.updated_at),
+    })),
+    apuntes,
+    eventos,
+  };
 }

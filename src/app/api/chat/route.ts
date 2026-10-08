@@ -9,6 +9,7 @@ import { getArtefacto, getNota, saveArtefacto } from "@/lib/workspace-store";
 import type { StudyContext } from "@/lib/study-chat";
 import type { ChatFocus } from "@/lib/chat-service";
 import { examDisplayName } from "@/lib/format";
+import { evaluacionTipoLabel } from "@/lib/evaluaciones";
 import type { Artefacto } from "@/lib/types";
 import {
   addTurn,
@@ -228,8 +229,9 @@ async function resolveFocus(
     if (!examen || examen.materiaId !== ctx.materiaId) return null;
     const temas = await getTemas(id);
     const contenido = [
-      examen.kind === "entrega" ? "Entrega de trabajo práctico" : "Examen",
-      examen.date ? `Fecha: ${examen.date}` : "",
+      `Tipo: ${evaluacionTipoLabel(examen)}`,
+      examen.date ? `Fecha: ${examen.date}` : "Fecha: sin cargar",
+      examen.hora ? `Hora: ${examen.hora}` : "",
       examen.description ? `Descripción: ${examen.description}` : "",
       temas.length ? `Temas: ${temas.map((t) => t.name).join(", ")}` : "Temas: sin cargar",
     ]

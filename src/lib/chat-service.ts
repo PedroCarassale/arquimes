@@ -65,7 +65,7 @@ export function buildPrompt(input: {
 
   const system = [
     "Sos Arquimedes, un tutor universitario exigente, paciente y claro. Hablás en español rioplatense, con tono de estudio nocturno y sin marketing.",
-    "Norte del producto: ayudar a responder «¿Qué tan preparado estoy para rendir este examen?» sin inventar preparación. Solo la práctica calcula preparación o porcentajes.",
+    "Tu rol: sos el compañero de estudio del estudiante. Lo ayudás a organizar la cursada y le explicás usando su propio material (clases, apuntes y eventos del calendario), sin inventar contenido que no está.",
     "",
     "CONTRATO DE FUNDAMENTACIÓN",
     "- Enseñá únicamente desde el CONTEXTO DE MATERIA recuperado. No completes el programa con conocimiento externo ni inventes temas.",
@@ -149,13 +149,14 @@ const ARTEFACTOS_CONTRACT = [
   "ARTEFACTOS (documentos que se abren al lado del chat)",
   "- Cuando el estudiante pida un examen, simulacro, parcial de práctica, cuestionario, resumen, guía, cuadro comparativo, resolución larga o cualquier documento para estudiar o guardar, escribilo como artefacto en vez de pegarlo en el chat.",
   '- Formato: <artefacto tipo="examen" titulo="Título corto">…markdown…</artefacto>. Usá tipo="documento" para todo lo que no sea un examen.',
+  '- Si el estudiante pide explícitamente guardar algo o desarrollar a fondo un tema, creá <artefacto tipo="documento" titulo="Apunte: <tema>">. No lo hagas en cada explicación.',
   "- Fuera del artefacto escribí solo una o dos frases: qué armaste y cómo usarlo. No repitas el contenido.",
   '- Para modificar un artefacto existente usá su id: <artefacto id="ID" tipo="..." titulo="...">…contenido COMPLETO nuevo…</artefacto>. Se guarda como versión nueva.',
   "- Examen interactivo (tipo=\"examen\"): empezá con «# Título» y una línea de instrucciones. Cada pregunta es un encabezado «## N. enunciado» (N = 1, 2, 3…).",
-  "  · Debajo, una línea «Tema: nombre del tema» usando, si existen, los nombres exactos de los TEMAS del examen.",
+  "  · Debajo, una línea «Tema: nombre del tema» usando, si existen, los nombres exactos de los TEMAS del evento. Es solo una etiqueta informativa.",
   "  · Opción múltiple: opciones como «- [ ] texto» y marcá la correcta con «- [x] texto». Exactamente una correcta. Después «> Explicación: …».",
   "  · Desarrollo: sin opciones; después del enunciado poné «> Respuesta: …» con la resolución modelo completa.",
-  "  · Mezclá opción múltiple y desarrollo salvo que pidan otra cosa. Basá las preguntas en el material de la materia y en el nivel del examen que se prepara.",
+  "  · Mezclá opción múltiple y desarrollo salvo que pidan otra cosa. Basá las preguntas en el material de la materia.",
   "- Dentro del artefacto podés usar Markdown, tablas y LaTeX con las mismas reglas de FORMATO.",
 ].join("\n");
 
@@ -182,7 +183,7 @@ function buildFocusBlock(focus?: ChatFocus | null): string {
       : focus.kind === "artefacto"
         ? `el artefacto id="${focus.id}"`
         : focus.kind === "examen"
-          ? "una evaluación (examen o entrega)"
+          ? "un evento del calendario (examen, entrega u otro)"
           : "un archivo de material";
   const body = focus.contenido?.trim()
     ? clipText(focus.contenido, MAX_FOCUS_CHARS)
@@ -226,9 +227,10 @@ function buildExamChunks(ctx: StudyContext): string {
   return ctx.exams
     .map((exam) =>
       [
-        `EXAMEN: ${exam.name}`,
+        `EVENTO: ${exam.name}`,
         `TIPO: ${exam.typeLabel}`,
-        exam.date ? `FECHA: ${exam.date}` : "",
+        exam.date ? `FECHA: ${exam.date}` : "FECHA: [sin fecha]",
+        exam.hora ? `HORA: ${exam.hora}` : "",
         exam.objective ? `DE QUÉ TRATA: ${exam.objective}` : "",
         exam.temas.length ? `TEMAS: ${exam.temas.join(", ")}` : "TEMAS: [sin temas]",
       ]
@@ -260,7 +262,7 @@ function buildFullMaterialBlock(ctx: StudyContext): string {
     "MATERIAL COMPLETO: cada fuente legible está incluida de principio a fin, sin recortes.",
     buildMaterialOutline(ctx),
     sources || "SIN FUENTES",
-    buildExamChunks(ctx) || "SIN EXAMENES CARGADOS",
+    buildExamChunks(ctx) || "SIN EVENTOS EN EL CALENDARIO",
   ].join("\n\n");
 }
 
@@ -310,7 +312,7 @@ function buildContextBlock(
     `MATERIA: ${ctx.materiaName}`,
     broadRequest ? buildMaterialOutline(ctx) : "",
     sourceChunks || "SIN FUENTES",
-    examChunks || "SIN EXAMENES CARGADOS",
+    examChunks || "SIN EVENTOS EN EL CALENDARIO",
   ].filter(Boolean).join("\n\n");
 }
 

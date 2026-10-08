@@ -2,194 +2,246 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
+import { materiaTone } from "@/lib/materia-tone";
+import { HUB_KEY, useMateriaSnapshots } from "@/lib/materia-snapshot";
+import { rutas } from "@/lib/routes";
+import { tabKey, tabKindFromPath, type Tab, type TabKind } from "@/lib/tabs";
+import { cx } from "@/components/ui/cx";
+import { Icon, type IconName } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
+import { Menu, type MenuItem } from "@/components/ui/Menu";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { useMediaQuery } from "@/components/ui/useIsClient";
+import { tabsStore } from "@/components/workspace/tabs-store";
 
-type IconProps = { className?: string };
+type MateriaLite = { id: string; name: string };
+type Pref = "1" | "0" | null;
 
-function HomeIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M3 11.5L12 4l9 7.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7.5 10.5V20h9v-9.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+const COLLAPSED_KEY = "arq.sidebar.collapsed";
+const COLLAPSED_EVENT = "arq-sidebar";
+const NARROW_QUERY = "(max-width: 1279px)";
+
+let memoryPref: Pref = null;
+let memoryOnly = false;
+let animated = false;
+let cachedMaterias: MateriaLite[] | null = null;
+
+function readPref(): Pref {
+  if (memoryOnly) return memoryPref;
+  try {
+    const value = window.localStorage.getItem(COLLAPSED_KEY);
+    return value === "1" || value === "0" ? value : null;
+  } catch {
+    return memoryPref;
+  }
 }
 
-function BookIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M5.5 5A2.5 2.5 0 018 2.5h10.5V19H8a2.5 2.5 0 100 5h10.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 2.5V24"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+function writePref(value: "1" | "0") {
+  memoryPref = value;
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, value);
+  } catch {
+    memoryOnly = true;
+  }
+  animated = true;
+  window.dispatchEvent(new Event(COLLAPSED_EVENT));
 }
 
-function FolderIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M3 7.5h6l2 2H21v8.5A2.5 2.5 0 0118.5 20h-13A2.5 2.5 0 013 17.5v-10z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+function subscribePref(callback: () => void) {
+  window.addEventListener(COLLAPSED_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(COLLAPSED_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
 }
 
-function MenuIcon({ className = "h-5 w-5" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
+const serverPref = (): Pref => null;
+const readAnimated = () => animated;
+const serverAnimated = () => false;
+
+export function materiaIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/materias\/([^/]+)/);
+  return match && match[1] !== "nueva" ? match[1] : null;
 }
 
-function CloseIcon({ className = "h-5 w-5" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DotsIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <circle cx="12" cy="5.5" r="1.5" />
-      <circle cx="12" cy="12" r="1.5" />
-      <circle cx="12" cy="18.5" r="1.5" />
-    </svg>
-  );
-}
-
-function UserIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <circle cx="12" cy="8.5" r="3.5" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M5.5 19a6.5 6.5 0 0113 0"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function LogoutIcon({ className = "h-4 w-4" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M10 6.5h-4a2.5 2.5 0 00-2.5 2.5v6A2.5 2.5 0 006 17.5h4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M13.5 9.5L17 12l-3.5 2.5M9 12h8"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-let cachedMaterias: { id: string; name: string }[] | null = null;
-
-export function Sidebar() {
+export function useSidebarLayout(): { collapsed: boolean; animate: boolean; toggle: () => void } {
   const pathname = usePathname();
-  const router = useRouter();
-  const { data: session } = authClient.useSession();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerPath, setDrawerPath] = useState(pathname);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const materiaId = pathname.match(/^\/materias\/([^/]+)/)?.[1];
-  const [materias, setMaterias] = useState<{ id: string; name: string }[] | null>(cachedMaterias);
+  const pref = useSyncExternalStore(subscribePref, readPref, serverPref);
+  const animate = useSyncExternalStore(subscribePref, readAnimated, serverAnimated);
+  const narrow = useMediaQuery(NARROW_QUERY);
+  const collapsed = pref === "1" || (pref === null && materiaIdFromPath(pathname) !== null && narrow);
+  const toggle = useCallback(() => writePref(collapsed ? "0" : "1"), [collapsed]);
+  return { collapsed, animate, toggle };
+}
+
+type Seccion = { label: string; icon: IconName; base: (m: string) => string; kinds: TabKind[] };
+
+const SECCIONES: Seccion[] = [
+  { label: "Inicio", icon: "home", base: rutas.materia, kinds: ["inicio"] },
+  { label: "Clases", icon: "clase", base: rutas.clases, kinds: ["clases", "clase"] },
+  { label: "Apuntes", icon: "apunte", base: (m) => rutas.apuntes(m), kinds: ["apuntes", "archivo", "generado"] },
+  { label: "Calendario", icon: "calendario", base: (m) => rutas.calendario(m), kinds: ["calendario", "evento"] },
+];
+
+const CONECTORES = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "a", "en", "para"]);
+
+function iniciales(name: string): string {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word && !CONECTORES.has(word.toLowerCase()));
+  if (words.length === 0) return "·";
+  const first = Array.from(words[0]);
+  const second = words[1] ? Array.from(words[1])[0] : first[1] ?? "";
+  return `${first[0]}${second}`.toUpperCase();
+}
+
+const ROW =
+  "flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors duration-(--dur-fast) ease-(--ease-out) pointer-coarse:h-10";
+
+function rowTone(active: boolean) {
+  return active ? "bg-selected text-foreground" : "text-foreground-muted hover:bg-hover hover:text-foreground";
+}
+
+function NavRow({ href, icon, label, active }: { href: string; icon: IconName; label: string; active: boolean }) {
+  return (
+    <Link href={href} aria-current={active ? "page" : undefined} className={cx(ROW, rowTone(active))}>
+      <Icon name={icon} size={16} className="shrink-0" />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
+function RailLink({
+  href,
+  label,
+  active = false,
+  size = 40,
+  children,
+}: {
+  href: string;
+  label: string;
+  active?: boolean;
+  size?: 32 | 40;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip label={label} side="right">
+      <Link
+        href={href}
+        aria-label={label}
+        aria-current={active ? "page" : undefined}
+        className={cx(
+          "inline-flex shrink-0 items-center justify-center rounded-md transition-colors duration-(--dur-fast) ease-(--ease-out)",
+          size === 40 ? "h-10 w-10" : "h-8 w-8",
+          rowTone(active)
+        )}
+      >
+        {children}
+      </Link>
+    </Tooltip>
+  );
+}
+
+function ToneDot({ id, className }: { id: string; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cx("h-1.5 w-1.5 shrink-0 rounded-full", className)}
+      style={{ backgroundColor: materiaTone(id).color }}
+    />
+  );
+}
+
+function useMaterias(fetchKey: string, activeId: string | null): MateriaLite[] | null {
+  const snapshots = useMateriaSnapshots();
+  const [materias, setMaterias] = useState<MateriaLite[] | null>(cachedMaterias);
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/materias", { credentials: "include" })
-      .then((response) => (response.ok ? response.json() : []))
-      .then((list: { id: string; name: string }[]) => {
+      .then((response) => (response.ok ? response.json() : null))
+      .then((list: unknown) => {
         if (cancelled || !Array.isArray(list)) return;
-        cachedMaterias = list.map(({ id, name }) => ({ id, name }));
+        cachedMaterias = list
+          .filter((item): item is MateriaLite => typeof item?.id === "string" && typeof item?.name === "string")
+          .map(({ id, name }) => ({ id, name }));
         setMaterias(cachedMaterias);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [fetchKey]);
 
-  const items = useMemo(
-    () => [
-      { href: "/", label: "Tus materias", Icon: HomeIcon },
-      { href: "/archivos", label: "Archivos", Icon: FolderIcon },
-    ],
-    []
+  return useMemo(() => {
+    let list = materias;
+    if (!list && snapshots) {
+      const ids = snapshots.get(HUB_KEY)?.materiaIds;
+      if (ids) {
+        list = ids.flatMap((id) => {
+          const name = snapshots.get(id)?.name;
+          return name ? [{ id, name }] : [];
+        });
+      }
+    }
+    if (activeId && list && !list.some((item) => item.id === activeId)) {
+      const name = snapshots?.get(activeId)?.name;
+      if (name) list = [...list, { id: activeId, name }];
+    }
+    return list;
+  }, [materias, snapshots, activeId]);
+}
+
+function useSeccionHrefs(materiaId: string | null): string[] {
+  const tabs = useSyncExternalStore(
+    tabsStore.subscribe,
+    () => (materiaId ? tabsStore.getSnapshot(materiaId) : tabsStore.getServerSnapshot()),
+    tabsStore.getServerSnapshot
   );
+  return useMemo(() => {
+    if (!materiaId) return [];
+    return SECCIONES.map((seccion) => {
+      const base = seccion.base(materiaId);
+      const saved = tabs.find((tab: Tab) => tabKey(tab.href) === tabKey(base));
+      return saved?.href ?? base;
+    });
+  }, [materiaId, tabs]);
+}
 
-  const profileName = session?.user?.name?.trim() || "Cuenta";
-  const profileInitial = profileName[0]?.toUpperCase() || "U";
-  const profileEmail = session?.user?.email || "Sesión activa";
-  const profileImage =
-    typeof session?.user?.image === "string" && session.user.image.trim()
-      ? session.user.image
-      : null;
+function Avatar({ name, image, size }: { name: string; image: string | null; size: 28 | 32 }) {
+  const classes = size === 32 ? "h-8 w-8 text-[13px]" : "h-7 w-7 text-xs";
+  if (image) {
+    return <img src={image} alt="" className={cx("shrink-0 rounded-full object-cover", classes)} />;
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className={cx("flex shrink-0 items-center justify-center rounded-full bg-selected font-medium text-foreground", classes)}
+    >
+      {name[0]?.toUpperCase() || "U"}
+    </span>
+  );
+}
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current?.contains(event.target as Node)) return;
-      setMenuOpen(false);
-    }
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
-    }
-
-    window.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [menuOpen]);
+export function Sidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const { collapsed, animate, toggle } = useSidebarLayout();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerPath, setDrawerPath] = useState(pathname);
+  const materiaId = materiaIdFromPath(pathname);
+  const materias = useMaterias(materiaId ?? pathname, materiaId);
+  const seccionHrefs = useSeccionHrefs(materiaId);
+  const activeKind = materiaId ? tabKindFromPath(materiaId, pathname) : null;
 
   if (drawerPath !== pathname) {
     setDrawerPath(pathname);
     setDrawerOpen(false);
-    setMenuOpen(false);
   }
 
   useEffect(() => {
@@ -206,175 +258,251 @@ export function Sidebar() {
     };
   }, [drawerOpen]);
 
-  async function handleSignOut() {
-    await authClient.signOut();
-    router.push("/login");
-    router.refresh();
-  }
+  const profileName = session?.user?.name?.trim() || "Cuenta";
+  const profileEmail = session?.user?.email || "Sesión activa";
+  const profileImage =
+    typeof session?.user?.image === "string" && session.user.image.trim() ? session.user.image : null;
+
+  const accountItems: MenuItem[] = [
+    { label: "Ver perfil", onSelect: () => router.push("/perfil") },
+    {
+      label: "Cerrar sesión",
+      onSelect: () => {
+        void authClient.signOut().then(() => {
+          router.push("/login");
+          router.refresh();
+        });
+      },
+    },
+  ];
+
+  const inicioActive = pathname === "/";
+  const calendarioActive = pathname === rutas.calendarioGlobal || pathname.startsWith(`${rutas.calendarioGlobal}/`);
+  const nuevaActive = pathname === rutas.nuevaMateria;
+
+  const expanded = (
+    <>
+      <div className="flex h-14 shrink-0 items-center justify-between gap-2 pl-5 pr-3 lg:h-12 lg:pl-4 lg:pr-2.5">
+        <Link href={rutas.inicio} className="truncate font-serif text-xl leading-none tracking-tight">
+          Arquímedes
+        </Link>
+        <IconButton
+          icon="panel"
+          label="Contraer barra"
+          size={28}
+          onClick={toggle}
+          className="max-lg:hidden"
+        />
+        <IconButton
+          icon="x"
+          label="Cerrar menú"
+          size={40}
+          onClick={() => setDrawerOpen(false)}
+          className="-mr-1 lg:hidden"
+        />
+      </div>
+
+      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col px-2.5">
+        <div className="space-y-0.5">
+          <NavRow href={rutas.inicio} icon="home" label="Inicio" active={inicioActive} />
+          <NavRow href={rutas.calendarioGlobal} icon="calendario" label="Calendario" active={calendarioActive} />
+        </div>
+
+        <div className="mt-6 flex h-7 items-center justify-between pl-2.5">
+          <span className="t-meta">Materias</span>
+          <Tooltip label="Nueva materia">
+            <Link
+              href={rutas.nuevaMateria}
+              aria-label="Nueva materia"
+              aria-current={nuevaActive ? "page" : undefined}
+              className={cx(
+                "inline-flex h-7 w-7 items-center justify-center rounded-sm transition-colors duration-(--dur-fast) ease-(--ease-out) pointer-coarse:h-10 pointer-coarse:w-10",
+                rowTone(nuevaActive)
+              )}
+            >
+              <Icon name="plus" size={16} />
+            </Link>
+          </Tooltip>
+        </div>
+
+        <div className="-mx-2.5 mt-1 min-h-0 flex-1 overflow-y-auto px-2.5 pb-4">
+          {materias !== null && materias.length === 0 ? (
+            <NavRow href={rutas.nuevaMateria} icon="plus" label="Crear materia" active={false} />
+          ) : (
+            <ul className="space-y-0.5">
+              {(materias ?? []).map((materia) => {
+                const active = materia.id === materiaId;
+                return (
+                  <li key={materia.id}>
+                    <Link
+                      href={rutas.materia(materia.id)}
+                      title={materia.name}
+                      className={cx(
+                        ROW,
+                        active
+                          ? "font-medium text-foreground hover:bg-hover"
+                          : "text-foreground-muted hover:bg-hover hover:text-foreground"
+                      )}
+                    >
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                        <ToneDot id={materia.id} />
+                      </span>
+                      <span className="truncate">{materia.name}</span>
+                    </Link>
+                    {active && (
+                      <div className="mt-0.5 space-y-0.5 pl-3">
+                        {SECCIONES.map((seccion, index) => (
+                          <NavRow
+                            key={seccion.label}
+                            href={seccionHrefs[index] ?? seccion.base(materia.id)}
+                            icon={seccion.icon}
+                            label={seccion.label}
+                            active={activeKind !== null && seccion.kinds.includes(activeKind)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </nav>
+
+      <div className="shrink-0 border-t border-border-subtle p-2.5">
+        <div className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5">
+          <Avatar name={profileName} image={profileImage} size={32} />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium leading-[18px]" title={profileName}>
+              {profileName}
+            </div>
+            <div className="truncate text-xs leading-4 text-foreground-subtle" title={profileEmail}>
+              {profileEmail}
+            </div>
+          </div>
+          <Menu
+            label="Cuenta"
+            placement="bottom-end"
+            width={200}
+            items={accountItems}
+            trigger={(props) => <IconButton icon="more" label="Abrir menú de cuenta" size={28} {...props} />}
+          />
+        </div>
+      </div>
+    </>
+  );
+
+  const rail = (
+    <>
+      <div className="flex shrink-0 flex-col items-center gap-1 pt-2.5">
+        <IconButton icon="panel" label="Expandir barra" size={28} tooltipSide="right" onClick={toggle} />
+        <RailLink href={rutas.inicio} label="Arquímedes">
+          <span className="font-serif text-xl leading-none">A</span>
+        </RailLink>
+        <RailLink href={rutas.inicio} label="Inicio" active={inicioActive}>
+          <Icon name="home" size={16} />
+        </RailLink>
+        <RailLink href={rutas.calendarioGlobal} label="Calendario" active={calendarioActive}>
+          <Icon name="calendario" size={16} />
+        </RailLink>
+        <div aria-hidden="true" className="my-1.5 h-px w-6 bg-border-subtle" />
+      </div>
+      <nav aria-label="Materias" className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto pb-3">
+        {(materias ?? []).map((materia) => {
+          const active = materia.id === materiaId;
+          return (
+            <div key={materia.id} className="flex flex-col items-center gap-1">
+              <Tooltip label={materia.name} side="right">
+                <Link
+                  href={rutas.materia(materia.id)}
+                  aria-label={materia.name}
+                  className={cx(
+                    "relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md font-mono text-[11px] transition-colors duration-(--dur-fast) ease-(--ease-out)",
+                    active ? "bg-selected text-foreground" : "bg-hover text-foreground-muted hover:bg-selected hover:text-foreground"
+                  )}
+                >
+                  {iniciales(materia.name)}
+                  <ToneDot id={materia.id} className="absolute right-0.5 top-0.5" />
+                </Link>
+              </Tooltip>
+              {active &&
+                SECCIONES.map((seccion, index) => (
+                  <RailLink
+                    key={seccion.label}
+                    href={seccionHrefs[index] ?? seccion.base(materia.id)}
+                    label={seccion.label}
+                    size={32}
+                    active={activeKind !== null && seccion.kinds.includes(activeKind)}
+                  >
+                    <Icon name={seccion.icon} size={16} />
+                  </RailLink>
+                ))}
+            </div>
+          );
+        })}
+        <RailLink href={rutas.nuevaMateria} label="Nueva materia" size={32} active={nuevaActive}>
+          <Icon name="plus" size={16} />
+        </RailLink>
+      </nav>
+      <div className="flex shrink-0 justify-center border-t border-border-subtle py-2.5">
+        <Menu
+          label="Cuenta"
+          placement="right-start"
+          width={200}
+          items={accountItems}
+          trigger={(props) => (
+            <Tooltip label={profileName} side="right">
+              <button
+                type="button"
+                aria-label="Abrir menú de cuenta"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
+                {...props}
+              >
+                <Avatar name={profileName} image={profileImage} size={28} />
+              </button>
+            </Tooltip>
+          )}
+        />
+      </div>
+    </>
+  );
 
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-subtle bg-background/95 px-4 backdrop-blur lg:hidden">
-        <Link href="/" className="font-serif text-xl tracking-tight">
-          Arquimedes
+        <Link href={rutas.inicio} className="font-serif text-xl tracking-tight">
+          Arquímedes
         </Link>
-        <button
-          type="button"
+        <IconButton
+          icon="menu"
+          label="Abrir menú"
+          size={40}
           onClick={() => setDrawerOpen(true)}
-          aria-label="Abrir menú"
           aria-expanded={drawerOpen}
           aria-controls="app-sidebar"
-          className="-mr-2 flex h-10 w-10 items-center justify-center text-foreground-muted transition-colors hover:text-foreground"
-        >
-          <MenuIcon />
-        </button>
+          className="-mr-2"
+        />
       </header>
       {drawerOpen && (
         <div
           aria-hidden="true"
           onClick={() => setDrawerOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="t-fade-in fixed inset-0 z-40 bg-black/60 lg:hidden"
         />
       )}
       <aside
         id="app-sidebar"
-        className={`fixed left-0 top-0 bottom-0 z-50 flex w-[260px] max-w-[85vw] flex-col border-r border-border-subtle bg-background transition-transform duration-200 ease-out lg:z-auto lg:w-[208px] lg:translate-x-0 ${
+        aria-label="Barra lateral"
+        className={cx(
+          "fixed bottom-0 left-0 top-0 z-50 flex w-[260px] max-w-[85vw] flex-col border-r border-border-subtle bg-background duration-(--dur-pop) ease-(--ease-out) motion-reduce:transition-none lg:z-auto lg:max-w-none lg:translate-x-0",
+          animate ? "transition-[translate,width]" : "transition-[translate]",
+          collapsed ? "lg:w-14" : "lg:w-[208px]",
           drawerOpen ? "translate-x-0" : "-translate-x-full max-lg:invisible"
-        }`}
+        )}
       >
-        <div className="flex items-center justify-between p-6 max-lg:px-4 max-lg:py-3">
-          <Link href="/" className="font-serif text-xl tracking-tight">
-            Arquimedes
-          </Link>
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Cerrar menú"
-            className="-mr-2 flex h-10 w-10 items-center justify-center text-foreground-muted transition-colors hover:text-foreground lg:hidden"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        <nav className="flex min-h-0 flex-1 flex-col px-3">
-          {items.map((item) => {
-            const isActive = item.href === "/" ? pathname === "/" || pathname === "/materias" : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-3 transition-colors lg:py-2 ${
-                  isActive
-                    ? "bg-surface-elevated text-foreground"
-                    : "text-foreground-muted hover:text-foreground hover:bg-surface"
-                }`}
-              >
-                <item.Icon className="h-4 w-4 shrink-0" />
-                <span className="text-sm">{item.label}</span>
-              </Link>
-            );
-          })}
-          <div className="mt-6 flex items-center justify-between px-3 pb-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">Materias</span>
-            <Link
-              href="/materias/nueva"
-              aria-label="Nueva materia"
-              title="Nueva materia"
-              className="font-mono text-xs text-foreground-muted hover:text-accent"
-            >
-              +
-            </Link>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-            {materias === null ? null : materias.length === 0 ? (
-              <Link href="/materias/nueva" className="block px-3 py-2 text-sm text-foreground-muted hover:text-accent">
-                Crear tu primera materia
-              </Link>
-            ) : (
-              materias.map((materia) => {
-                const active = materia.id === materiaId;
-                return (
-                  <Link
-                    key={materia.id}
-                    href={`/materias/${materia.id}`}
-                    aria-current={active ? "page" : undefined}
-                    className={`flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-surface-elevated text-foreground shadow-[inset_2px_0_0_var(--accent)]"
-                        : "text-foreground-muted hover:bg-surface hover:text-foreground"
-                    }`}
-                  >
-                    <BookIcon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{materia.name}</span>
-                  </Link>
-                );
-              })
-            )}
-          </div>
-        </nav>
-
-        <div className="relative border-t border-border-subtle p-4" ref={menuRef}>
-          <div className="flex items-center gap-3 rounded-lg border border-border-subtle bg-surface px-2 py-2">
-            {profileImage ? (
-              <img
-                src={profileImage}
-                alt={`Avatar de ${profileName}`}
-                className="h-10 w-10 shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-10 w-10 shrink-0 rounded-full bg-surface-elevated flex items-center justify-center text-sm font-medium">
-                {profileInitial}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium" title={profileName}>
-                {profileName}
-              </div>
-              <div className="truncate text-xs text-foreground-muted" title={profileEmail}>
-                {profileEmail}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label="Abrir menú de cuenta"
-              className="shrink-0 rounded-md border border-border-subtle p-2 text-foreground-muted transition-colors hover:border-border hover:text-foreground"
-            >
-              <DotsIcon />
-            </button>
-          </div>
-
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute bottom-[78px] right-4 z-10 w-44 overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-lg"
-            >
-              <Link
-                href="/perfil"
-                role="menuitem"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
-              >
-                <UserIcon />
-                Ver perfil
-              </Link>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  void handleSignOut();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground-muted transition-colors hover:bg-surface hover:text-foreground"
-              >
-                <LogoutIcon />
-                Cerrar sesión
-              </button>
-            </div>
-          )}
-        </div>
+        <div className={cx("flex min-h-0 flex-1 flex-col", collapsed && "lg:hidden")}>{expanded}</div>
+        <div className={cx("hidden min-h-0 flex-1 flex-col", collapsed && "lg:flex")}>{rail}</div>
       </aside>
     </>
   );

@@ -355,7 +355,7 @@ export function AuthScreen({
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleBusy || !googleEnabled}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 border border-border bg-[#0c0d10] px-3 text-sm font-mono transition-colors hover:border-accent enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 border border-border bg-[#0c0d10] px-3 text-sm font-mono transition-colors hover:bg-hover enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {googleEnabled && <GoogleGIcon />}
           <span>

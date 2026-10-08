@@ -2,20 +2,11 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
-export type ResumenVariant = "sin_examen" | "sin_temas" | "con_temas";
-
 export interface MateriaSnapshot {
   name?: string;
   info?: string;
-  resumenVariant?: ResumenVariant;
-  hasPreparacionConfig?: boolean;
-  temasCount?: number;
   materialesCount?: number;
-  examenesCount?: number;
-  hasPlan?: boolean;
-  chatSessionsCount?: number;
   materiaIds?: string[];
-  practicaVariant?: "sin_temas_sin_archivos" | "sin_temas_con_archivos" | "pregunta";
 }
 
 const STORAGE_KEY = "arquimedes:materia-snapshots";
@@ -47,6 +38,12 @@ function persist(map: Map<string, MateriaSnapshot>) {
   } catch {}
 }
 
+function commit(next: Map<string, MateriaSnapshot>) {
+  snapshots = next;
+  persist(next);
+  for (const listener of listeners) listener();
+}
+
 export function rememberMateria(id: string, patch: MateriaSnapshot) {
   const map = load();
   const previous = map.get(id);
@@ -57,9 +54,19 @@ export function rememberMateria(id: string, patch: MateriaSnapshot) {
       (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key])
     );
   if (!changed) return;
-  snapshots = new Map(map).set(id, next);
-  persist(snapshots);
-  for (const listener of listeners) listener();
+  commit(new Map(map).set(id, next));
+}
+
+export function forgetMateria(id: string) {
+  const map = load();
+  const hub = map.get(HUB_KEY);
+  if (!map.has(id) && !hub?.materiaIds?.includes(id)) return;
+  const next = new Map(map);
+  next.delete(id);
+  if (hub?.materiaIds) {
+    next.set(HUB_KEY, { ...hub, materiaIds: hub.materiaIds.filter((item) => item !== id) });
+  }
+  commit(next);
 }
 
 function subscribe(listener: () => void) {

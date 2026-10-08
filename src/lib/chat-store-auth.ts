@@ -142,6 +142,28 @@ export async function deleteChatSession(sessionId: string): Promise<boolean> {
   return Number(deleteSession.rowsAffected) > 0 || Number(deleteMessages.rowsAffected) > 0;
 }
 
+export async function deleteChatSessionsForMateria(materiaId: string): Promise<void> {
+  await ensureSchema();
+  const db = getLibsqlClient();
+  const userId = await requireUserId();
+  await db.batch(
+    [
+      {
+        sql: `DELETE FROM chat_messages_auth
+              WHERE session_id IN (
+                SELECT id FROM chat_sessions_auth WHERE user_id = ? AND materia_id = ?
+              )`,
+        args: [userId, materiaId],
+      },
+      {
+        sql: `DELETE FROM chat_sessions_auth WHERE user_id = ? AND materia_id = ?`,
+        args: [userId, materiaId],
+      },
+    ],
+    "write"
+  );
+}
+
 export async function getChatSession(
   sessionId: string
 ): Promise<ChatSession | null> {

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --experimental-strip-types --test src/lib/*.test.ts",
     "test:chat-format": "node --experimental-strip-types --test src/lib/chat-message.test.ts",
     "test:chat-grounding": "node --experimental-strip-types --test src/lib/chat-service.test.ts",
     "test:chat-markdown": "node --experimental-strip-types --test src/lib/chat-markdown.test.ts",
@@ -15,6 +16,8 @@
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "@libsql/kysely-libsql": "^0.4.1",
+    "@milkdown/crepe": "7.22.2",
+    "@milkdown/kit": "7.22.2",
     "better-auth": "^1.7.5",
     "better-sqlite3": "^13.0.3",
     "fflate": "^0.8.3",
