@@ -1,97 +1,89 @@
 # Arquimedes — Product Vision
 
-> Canonical source of truth for this product. Do not contradict.
+> Canonical source of truth for this product. Do not contradict. The detailed build spec for the current version is `docs/arquimedes-v2-spec.md`; if the two ever disagree, the spec wins and the orchestrator must be told.
 
 ## North Star
 
-Help a student constantly answer: **¿Qué tan preparado estoy para rendir este examen?**
+Arquimedes is where a university student **organizes their whole study life at the facultad**: their materias, the clases they take, their apuntes, their calendar of exams and deadlines, and a chat that studies with them using what they uploaded.
 
-Arquimedes is NOT a PDF library, flashcard app, generic chatbot, or study calendar. Those may exist later only in service of exam prep.
+Arquimedes is NOT a readiness score, a flashcard app, a generic chatbot, or a community. There is no "¿qué tan preparado estoy?" percentage, no mastery states, and no práctica that moves a score.
 
-## Locked Product Sequence (Pedro, 2026-09-02)
+## Locked Product Sequence (Pedro, 2026-10-08)
 
-- **v1 is self-driven / private.** The student creates their own space (a materia / curso) and uploads their own material (PDFs, videos, images, notes, anything).
-- Community courses, shared libraries, public discovery, and "everybody uploads into one materia" come LATER. Zero community UI, routes, copy, or data models that imply sharing in this slice.
-- The eventual vision (do not implement all of it now) also includes: exam-from-past-papers analytics, a per-materia study chat, practice that updates mastery, study plans, docentes.
-- **Sequence: private space + ingest first.**
+- **Private only.** Each student owns their materias and everything inside them. One user per account.
+- **No sharing in this phase, in any form.** No community, shared libraries, public discovery, invitations, "unirme a una materia", downloading other people's apuntes, or "Próximamente" placeholders. No UI, routes, copy, or data models that imply sharing.
+- Each materia has exactly four sections: **Inicio · Clases · Apuntes · Calendario**. Chat-generated artifacts live inside Apuntes for now.
+- Later (do not build now): docentes, study planner, calendar sync, notifications.
 
-## Current Slice (v1)
+## Current Slice (v2)
 
-1. Student can create a personal materia. Spanish product copy. Empty state should invite creating one, not browsing a catalog.
-2. Inside a materia they can upload files (at least PDF, common video types, images, and generic files). Files belong to that materia and list back. Do not OCR, transcribe, or RAG yet — ingest + belonging is enough.
-3. They can declare they are preparing an exam by uploading the exam file (PDF/image/doc) with an optional one-line note.
-4. The materia home answers the north-star question honestly for this depth: if there is no exam, no topics, or no practice yet, say so in plain Spanish and point at the next action (subir material, cargar examen, agregar temas). If topics exist, show per-topic states starting at "no estudiado" (no estudiado / empezado / estudiado / necesita práctica / dominado). Do not fake a high readiness score.
-5. Skip a marketing landing. First useful screen is "tus materias" / crear materia.
-6. Always-on study chat answers from that student's materia (notas, apuntes and uploaded exam files). If there is no readable material, say so in Spanish. Do not fake preparado. Persist the thread in the session store.
-7. Short práctica on exam temas updates mastery so Resumen's preparación estimada can move.
+Full detail, layout numbers, contracts and work packages: `docs/arquimedes-v2-spec.md`.
 
-### Materia workspace (Pedro, 2026-10-07)
-
-Each materia is a Claude-artifacts-style workspace (plan: `docs/workspace-materia-plan.md`):
-
-- Persistent, collapsible, resizable **chat panel on the left**; content on the right. The chat knows what the student has open (nota, generado, archivo, evaluación) and can use it as focus.
-- Sections: **Inicio** (honest readiness) · **Notas** (Markdown class notes, "Nueva clase") · **Exámenes** (future parciales/finales and TP entregas with fecha, descripción, temas) · **Generados** · **Material** (uploaded files).
-- **Generados** are artifacts the chat writes (`<artefacto tipo="examen|documento">` → stored, versioned, opened beside the chat, switchable from a top strip). `tipo="examen"` is Markdown with a question convention rendered as an interactive exam; correcting it moves mastery of matching temas.
+1. Global home `/`: greeting, "Seguir donde dejaste", "Se viene" (next 14 days across materias), materia cards; a centered empty state that invites creating the first materia. Global `/calendario` with every materia's events.
+2. Inside a materia: a browser-like **tab workspace** (URL is the source of truth, tabs persisted per materia), a chat column on the left (collapsible, resizable), a Notion-style launcher (`+` tab and Ctrl/Cmd+K), and a sidebar tree with the materia's four sections.
+3. **Inicio de la materia**: honest status line, four action tiles (Empezar clase · Preguntarle al chat · Subir apuntes · Cargar fecha), recent clases, upcoming events, recent apuntes, and a single "Primeros pasos" card when the materia is empty.
+4. **Clases**: notes taken per class in a live Markdown editor (Milkdown Crepe) with slash menu, tasks, tables, code and KaTeX math; autosave; stored as Markdown.
+5. **Apuntes**: uploaded files (PDF, images, video, text, exam files) plus documents/exams generated by the chat, in one list with filters, drag-and-drop upload and reading status.
+6. **Calendario**: month grid + agenda, quick-create popover, events of kind examen / entrega / evento with fecha, hora, temas (plain chips) and a Markdown description.
+7. **Chat**: answers from the student's own material (clases, apuntes, exam files, events), cites files, can create artifacts that open as tabs, and can save any answer to Apuntes. If there is no readable material, it says so in Spanish and does not invent content.
 
 ## Visual Identity
 
-Dark, editorial, technological.
+Dark, editorial, technological — and softer than v1.
 
-- Near-black background
-- Warm white/light gray type
-- Serif for big titles, sans for UI, mono for metrics/labels
-- Accent yellow: approximately `rgb(243, 164, 75)` — use only for progress, alerts, primary actions
-- Palettes stay mostly mono; accent sparingly
-- Tight grids, thin low-contrast rules, little/no rounded-card chrome, no decorative gradients
+- Near-black background, warm white/light gray type
+- Serif (Cormorant) for big titles, sans (Inter) for UI, mono (IBM Plex Mono) for metrics/labels
+- Accent yellow `rgb(243, 164, 75)` used sparingly: primary action, progress, alerts, focus ring, "today"
+- Palettes stay mostly mono; per-materia tones are low-saturation dots only
+- Soft radius scale: 4 / 6 / 8 / 12 / 16 px (buttons 8, cards 12, modals 16, pills full)
+- Layered translucent hovers (`--hover`, `--selected`, `--pressed`) instead of solid grays or accent borders; no `hover:border-accent`
+- Thin low-contrast rules, no decorative gradients, minimum text size 11px
 - ASCII/dot textures may appear as background identity, not as noise on study screens
 - Respect `prefers-reduced-motion`
-- Brand mark: stippled Archimedes engraving with compass
+- Brand mark: stippled Archimedes engraving with compass (`assets/brand/`)
 
 ## Domain Model
 
-- **Materia**: private, owned by this student. Name, optional faculty/cátedra fields that stay personal (not a global catalog).
-- **Material**: file belonging to one materia (name, type, size, addedAt, storage key).
-- **ExamenEnPreparacion**: the exam file the student uploaded (bytes in session store), optional one-line note (`Parcial 2023`), optional date/type leftovers from older records.
+- **Materia**: private, owned by this student. Name, optional facultad/cátedra fields that stay personal (not a global catalog).
+- **Clase** (table `notas`): one class's notes. Título (default «Clase N»), contenido in Markdown, createdAt/updatedAt.
+- **Apunte**: either a **material** (uploaded file in `materiales`: name, type, size, addedAt, storage key, reading status; exam files included) or an **artefacto** (document or practice exam generated by the chat, in `artefactos`, versioned).
+- **Evento** (table `examenes`): kind `examen` | `entrega` | `evento`; optional type (`parcial` | `recuperatorio` | `final`); name, fecha (`YYYY-MM-DD`, local), hora (`HH:MM`, optional), descripción (Markdown), temas (plain text chips, no state). May link a legacy exam file.
+- **ChatMessage**: per-materia study thread, persisted. Assistant replies cite files when they use them.
 
-- **Tema**: name + mastery state (no estudiado / empezado / estudiado / necesita práctica / dominado). Practice answers move it.
-- **ChatMessage**: per-materia study thread. Assistant replies cite files when they use them.
-- **Nota**: Markdown note owned by a materia (título, contenido). Read by the chat as a source.
-- **Evaluación**: an `examenes` row with `kind` (`examen` | `entrega`), fecha, descripción and temas.
-- **Artefacto**: chat-generated document (`examen` | `documento`) with version history.
-
-Single-user persistence. No auth/multi-tenant unless it is the smallest way to keep data. No fake community seed data.
+Single-user persistence per account (better-auth). No multi-tenant sharing. No fake seed data.
 
 ## Stack
 
-- Next.js App Router
+- Next.js 16 App Router
 - TypeScript
-- Tailwind CSS
-- SQLite (better-sqlite3) for local persistence
-- Spanish UI strings
+- Tailwind CSS v4
+- libSQL (`@libsql/client`; local file or Turso) for persistence
+- Milkdown Crepe 7.22.2 for the Markdown editor; react-markdown + remark-math + KaTeX for rendering
+- Spanish (rioplatense, voseo) UI strings
 - English code/comments only if comments are necessary (prefer none)
 
-## Out of Scope (This Slice)
+## Out of Scope (This Phase)
 
-- Community features
+- Community, sharing, invitations, public materias — in any form, including "Próximamente"
+- Readiness percentages, mastery states per tema, práctica that updates a score
 - Docentes
-- Past-exam intelligence
-- Study planner
-- OCR/transcription/vector RAG (chat reads stored text bytes; it does not invent a syllabus)
-- Paper design tooling
-- User accounts beyond single-user
+- Study planner, Google Calendar sync, notifications
+- New OCR/transcription/vector RAG (chat reads stored text; it does not invent a syllabus)
+- Editing chat-generated documents in the editor
+- User accounts beyond one user per account
 - Marketing site
 
 ## Success Criteria
 
 A stranger can:
 1. Create a materia
-2. Upload a PDF
-3. Optionally add an exam + topics
-4. See an honest readiness screen
-5. Ask the study chat something the uploaded file can answer, and get a reply that uses it
-6. Answer one práctica item and see the tema leave no estudiado
+2. Start a clase and write notes with formulas that autosave and survive a reload
+3. Upload a PDF and see it in Apuntes
+4. Add a parcial with date and time and see it in the materia calendar and the global calendar
+5. Ask the study chat something the uploaded file can answer, get a reply that uses it, and save that reply to Apuntes
+6. Move between all of it with tabs that survive a reload
 
-There is no community surface. Visual identity is recognizably dark/editorial and uses the Archimedes mark.
+There is no readiness, mastery, práctica or community surface. Visual identity is recognizably dark/editorial, softer (radii and layered hovers), and uses the Archimedes mark.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
