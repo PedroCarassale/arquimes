@@ -69,6 +69,7 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-ibm-plex-mono);
   --font-serif: var(--font-cormorant);
+  --font-serif--font-feature-settings: "lnum" 1;
 }
 
 @theme {
@@ -133,6 +134,7 @@ button:disabled,
   line-height: 44px;
   font-weight: 500;
   letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums;
 }
 
 .t-greeting {
@@ -141,6 +143,7 @@ button:disabled,
   line-height: 40px;
   font-weight: 500;
   letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums;
 }
 
 .t-doc-title {
@@ -148,6 +151,7 @@ button:disabled,
   font-size: 32px;
   line-height: 38px;
   font-weight: 500;
+  font-variant-numeric: lining-nums;
 }
 
 .t-section {
@@ -155,6 +159,7 @@ button:disabled,
   font-size: 24px;
   line-height: 30px;
   font-weight: 500;
+  font-variant-numeric: lining-nums;
 }
 
 .t-meta {
@@ -237,8 +242,8 @@ button:disabled,
 }
 
 @media (pointer: coarse) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-  textarea,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.t-doc-title):not(.t-display):not(.t-greeting):not(.t-section),
+  textarea:not(.t-doc-title):not(.t-display):not(.t-greeting):not(.t-section),
   select {
     font-size: 16px;
   }
@@ -249,6 +254,7 @@ input[type="file"] {
 }
 
 .t-input {
+  border-radius: var(--radius-md);
   transition: border-color 150ms ease-out;
   will-change: transform;
 }
@@ -451,6 +457,7 @@ select {
   font-family: var(--font-serif), serif;
   font-weight: 600;
   line-height: 1.2;
+  font-variant-numeric: lining-nums;
 }
 
 .chat-markdown h1 {
@@ -503,38 +510,68 @@ select {
 }
 
 .chat-markdown blockquote {
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--border-strong);
   padding-left: 0.9rem;
   color: var(--foreground-muted);
 }
 
 .chat-markdown code:not(pre code) {
-  border: 1px solid var(--border);
-  background: var(--background);
-  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-xs);
+  background: var(--selected);
+  padding: 0.1em 0.35em;
   font-family: var(--font-mono), monospace;
   font-size: 0.85em;
 }
 
 .chat-markdown pre {
   overflow-x: auto;
-  border: 1px solid var(--border);
-  background: var(--background);
-  padding: 0.8rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 0.75rem 0.9rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.chat-markdown pre code {
+  font-family: inherit;
+  font-size: inherit;
 }
 
 .chat-markdown table {
   display: block;
+  width: max-content;
   max-width: 100%;
   overflow-x: auto;
-  border-collapse: collapse;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .chat-markdown th,
 .chat-markdown td {
-  border: 1px solid var(--border);
-  padding: 0.4rem 0.55rem;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 1px solid var(--border-subtle);
+  padding: 0.4rem 0.7rem;
   text-align: left;
+  vertical-align: top;
+}
+
+.chat-markdown th:first-child,
+.chat-markdown td:first-child {
+  border-left: 0;
+}
+
+.chat-markdown tr:last-child > td {
+  border-bottom: 0;
+}
+
+.chat-markdown th {
+  background: var(--hover);
+  color: var(--foreground);
+  font-weight: 500;
 }
 
 .chat-markdown .katex-display {
@@ -604,7 +641,25 @@ select {
   margin-left: -1.3rem;
 }
 
-.chat-markdown li.task-list-item input {
-  margin-right: 0.5rem;
-  accent-color: var(--accent);
+.chat-markdown li.task-list-item input[type="checkbox"] {
+  appearance: none;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin: 0 0.55rem 0 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: transparent center / 10px 10px no-repeat;
+  vertical-align: -2px;
+  cursor: default;
+}
+
+.chat-markdown li.task-list-item input[type="checkbox"]:checked {
+  border-color: var(--foreground-muted);
+  background-color: var(--foreground-muted);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5.2 4.1 7.2 8 3' fill='none' stroke='%230a0a0a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.chat-markdown li.task-list-item:has(> input:checked) {
+  color: var(--foreground-muted);
 }

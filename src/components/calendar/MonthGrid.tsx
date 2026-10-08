@@ -83,7 +83,7 @@ export function MonthGrid({
                 </span>
                 {eventos.length > 0 && (
                   <>
-                    <div className="pointer-events-auto flex min-w-0 flex-col gap-0.5 max-md:hidden">
+                    <div className="@container pointer-events-auto flex min-w-0 flex-col gap-0.5 max-md:hidden">
                       {visibles.map((evento) => (
                         <EventChip key={evento.id} evento={evento} global={global} onPreview={onPreview} />
                       ))}

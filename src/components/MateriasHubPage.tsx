@@ -10,12 +10,13 @@ import { getServerSession } from "@/lib/auth-session";
 import { listEventos } from "@/lib/db";
 import { fechaLarga, hoyYmd, sumarDias } from "@/lib/fechas";
 import { RememberMaterias } from "@/lib/materia-snapshot";
-import { materiaTone } from "@/lib/materia-tone";
+import { assignMateriaTones, materiaTone, type MateriaTones } from "@/lib/materia-tone";
 import { rutas } from "@/lib/routes";
 import type { EventoResumen, MateriaResumen } from "@/lib/types";
 import { getMateriasResumen } from "@/lib/workspace-store";
 
 const GRUPOS: GrupoSeVieneGlobal[] = ["Esta semana", "La que viene", "Más adelante"];
+const MARK_MASK = "radial-gradient(closest-side at 50% 46%, #000 52%, transparent 100%)";
 
 function materiaInfo(materia: MateriaResumen["materia"]): string {
   return [materia.catedra, materia.faculty].filter(Boolean).join(" · ");
@@ -28,6 +29,8 @@ export async function MateriasHubPage() {
     getMateriasResumen(),
     listEventos({ desde: hoy, hasta: sumarDias(hoy, 13) }),
   ]);
+
+  const tones = assignMateriaTones(resumenes.map(({ materia }) => materia.id));
 
   const remember = (
     <RememberMaterias
@@ -51,7 +54,8 @@ export async function MateriasHubPage() {
               height={96}
               unoptimized
               preload
-              className="h-24 w-auto opacity-50"
+              className="h-24 w-auto opacity-50 mix-blend-screen"
+              style={{ maskImage: MARK_MASK, WebkitMaskImage: MARK_MASK }}
             />
             <h1 className="mt-8 font-serif text-[28px] leading-[34px]">Empezá por tu primera materia</h1>
             <p className="mt-2 text-sm leading-6 text-foreground-muted">
@@ -107,7 +111,7 @@ export async function MateriasHubPage() {
                   <h3 className="px-2 pb-1 text-xs leading-4 text-foreground-subtle">{grupo}</h3>
                   <ul>
                     {lista.map((evento) => (
-                      <EventoFila key={evento.id} evento={evento} />
+                      <EventoFila key={evento.id} evento={evento} tones={tones} />
                     ))}
                   </ul>
                 </div>
@@ -142,23 +146,30 @@ export async function MateriasHubPage() {
   );
 }
 
-function EventoFila({ evento }: { evento: EventoResumen }) {
+function EventoFila({ evento, tones }: { evento: EventoResumen; tones: MateriaTones }) {
   return (
     <li>
       <Link
         href={rutas.evento(evento.materiaId, evento.id)}
-        className="flex h-11 items-center gap-3 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
+        className="flex min-h-11 items-center gap-3 rounded-md px-2 py-1.5 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover md:py-0"
       >
         <span
           aria-hidden="true"
-          className="h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ backgroundColor: materiaTone(evento.materiaId).color }}
+          className="h-1.5 w-1.5 shrink-0 self-start rounded-full mt-[7px] md:mt-0 md:self-center"
+          style={{ backgroundColor: materiaTone(evento.materiaId, tones).color }}
         />
-        <span className="min-w-0 flex-1 truncate text-sm">
-          <span className="text-foreground">{evento.name}</span>
-          <span className="text-foreground-muted"> · {evento.materiaName}</span>
+        <span className="flex min-w-0 flex-1 flex-col md:flex-row md:items-baseline md:gap-1.5">
+          <span className="min-w-0 truncate text-sm leading-5 text-foreground">{evento.name}</span>
+          <span className="flex min-w-0 text-[13px] leading-[18px] text-foreground-muted md:max-w-[45%] md:shrink-0 md:gap-1.5 md:text-sm md:leading-5">
+            <span aria-hidden="true" className="hidden md:inline">
+              ·
+            </span>
+            <span className="min-w-0 truncate">{evento.materiaName}</span>
+          </span>
         </span>
-        <span className="shrink-0 font-mono text-[11px] text-foreground-muted">{cuandoEvento(evento)}</span>
+        <span className="shrink-0 self-start font-mono text-[11px] leading-5 text-foreground-muted md:self-center">
+          {cuandoEvento(evento)}
+        </span>
       </Link>
     </li>
   );

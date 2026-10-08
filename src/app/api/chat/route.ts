@@ -211,7 +211,7 @@ async function resolveFocus(
   if (kind === "nota") {
     const nota = await getNota(id);
     return nota && nota.materiaId === ctx.materiaId
-      ? { kind, id, titulo: nota.titulo, contenido: nota.contenido }
+      ? { kind, id, titulo: nota.titulo || "Sin título", contenido: nota.contenido }
       : null;
   }
   if (kind === "artefacto") {

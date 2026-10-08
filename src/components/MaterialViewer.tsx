@@ -79,7 +79,7 @@ export function MaterialViewer({
       }
       setConfirmOpen(false);
       bumpRefresh();
-      if (tabs.some((tab) => tabKey(tab.href) === tabKey(pathname))) close(pathname);
+      if (tabs.some((tab) => tabKey(tab.href) === tabKey(pathname))) close(pathname, { deleted: true });
       else router.replace(rutas.apuntes(materiaId));
     } catch (error) {
       setConfirmOpen(false);

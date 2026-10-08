@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
 import { Button, IconButton, MOBILE_QUERY, SegmentedControl, toast, useMediaQuery } from "@/components/ui";
 import { hoyYmd, mesActual, mesGrid, mesTitulo, mesVecino, parseYmd, sumarDias } from "@/lib/fechas";
+import { assignMateriaTones } from "@/lib/materia-tone";
 import { rutas } from "@/lib/routes";
 import type { EventoResumen } from "@/lib/types";
 import { Agenda } from "./Agenda";
 import { AGENDA_DIAS } from "./constants";
 import { DayPopover } from "./DayPopover";
+import { MateriaTonesContext } from "./EventChip";
 import { EventoPreviewPopover } from "./EventoPreviewPopover";
 import { agruparPorDia, calendarioHref } from "./eventos";
 import { MonthGrid } from "./MonthGrid";
@@ -44,6 +46,10 @@ export function CalendarView({
   const router = useRouter();
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const global = scope.tipo === "global";
+  const tones = useMemo(
+    () => (scope.tipo === "global" ? assignMateriaTones(scope.materias.map((materia) => materia.id)) : undefined),
+    [scope]
+  );
   const hoy = hoyYmd();
   const [mesVisible, setMesVisible] = useOptimistic(mes);
   const [pending, startTransition] = useTransition();
@@ -137,7 +143,7 @@ export function CalendarView({
 
   const vacio = (
     <div className="px-2 py-3">
-      <p className="text-sm text-foreground-muted">Nada por delante.</p>
+      <p className="text-sm text-foreground-muted">Sin fechas cargadas</p>
       <button
         type="button"
         onClick={(event) => openCrear(hoy, event.currentTarget)}
@@ -151,102 +157,104 @@ export function CalendarView({
   const crearAnchor = overlay?.tipo === "crear" ? (overlay.anchor === "nuevo" ? nuevoBtn : overlay.anchor) : null;
 
   return (
-    <div className="@container w-full px-4 pb-12 pt-3 md:px-8 md:pt-4">
-      <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2">
-        {vistaActiva === "mes" ? (
-          <div className="flex min-w-0 items-center gap-3">
-            <h1 className="t-section min-w-0 truncate" aria-live="polite">
-              {mesTitulo(mesVisible)}
-            </h1>
-            <div className="flex items-center gap-1">
-              <IconButton icon="chevron-left" label="Mes anterior" size={28} onClick={() => irAMes(mesVecino(mesVisible, -1))} />
-              <IconButton icon="chevron-right" label="Mes siguiente" size={28} onClick={() => irAMes(mesVecino(mesVisible, 1))} />
-              <Button variant="secondary" size="sm" onClick={() => irAMes(mesActual())} className="ml-1">
-                Hoy
-              </Button>
+    <MateriaTonesContext.Provider value={tones}>
+      <div className="@container w-full px-4 pb-12 pt-3 md:px-8 md:pt-4">
+        <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2">
+          {vistaActiva === "mes" ? (
+            <div className="flex min-w-0 items-center gap-3">
+              <h1 className="t-section min-w-0 truncate" aria-live="polite">
+                {mesTitulo(mesVisible)}
+              </h1>
+              <div className="flex items-center gap-1">
+                <IconButton icon="chevron-left" label="Mes anterior" size={28} onClick={() => irAMes(mesVecino(mesVisible, -1))} />
+                <IconButton icon="chevron-right" label="Mes siguiente" size={28} onClick={() => irAMes(mesVecino(mesVisible, 1))} />
+                <Button variant="secondary" size="sm" onClick={() => irAMes(mesActual())} className="ml-1">
+                  Hoy
+                </Button>
+              </div>
             </div>
+          ) : (
+            <h1 className="t-section min-w-0 truncate">Próximas fechas</h1>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <SegmentedControl value={vistaActiva} options={VISTAS} onChange={cambiarVista} size="sm" ariaLabel="Vista del calendario" />
+            <Button
+              ref={setNuevoBtn}
+              variant="primary"
+              size="sm"
+              icon="plus"
+              aria-label="Nuevo evento"
+              onClick={(event) => openCrear(hoy, event.currentTarget)}
+            >
+              <span className="max-sm:hidden">Nuevo evento</span>
+            </Button>
+          </div>
+        </div>
+
+        {vistaActiva === "mes" ? (
+          <div className="mt-3 grid gap-8 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
+            <div aria-busy={pending || undefined} className="min-w-0">
+              <MonthGrid
+                mes={mesVisible}
+                hoy={hoy}
+                porDia={porDia}
+                global={global}
+                isMobile={isMobile}
+                onCreate={openCrear}
+                onDay={openDia}
+                onPreview={openPreview}
+              />
+            </div>
+            <aside aria-label="Próximas fechas" className="min-w-0 @min-[900px]:pt-[22px]">
+              <h2 className="px-2 pb-3 text-sm font-medium text-foreground">Próximas fechas</h2>
+              <Agenda eventos={agenda} global={global} onPreview={openPreview} empty={vacio} />
+            </aside>
           </div>
         ) : (
-          <h1 className="t-section min-w-0 truncate">Próximas fechas</h1>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <SegmentedControl value={vistaActiva} options={VISTAS} onChange={cambiarVista} size="sm" ariaLabel="Vista del calendario" />
-          <Button
-            ref={setNuevoBtn}
-            variant="primary"
-            size="sm"
-            icon="plus"
-            aria-label="Nuevo evento"
-            onClick={(event) => openCrear(hoy, event.currentTarget)}
-          >
-            <span className="max-sm:hidden">Nuevo evento</span>
-          </Button>
-        </div>
-      </div>
-
-      {vistaActiva === "mes" ? (
-        <div className="mt-3 grid gap-8 @min-[900px]:grid-cols-[minmax(0,1fr)_320px]">
-          <div aria-busy={pending || undefined} className="min-w-0">
-            <MonthGrid
-              mes={mesVisible}
+          <div className="mt-3 max-w-[720px]">
+            <WeekStrip
+              dias={semana}
               hoy={hoy}
               porDia={porDia}
               global={global}
-              isMobile={isMobile}
-              onCreate={openCrear}
-              onDay={openDia}
-              onPreview={openPreview}
+              onDay={onDayTap}
+              className="mb-5 md:hidden"
             />
-          </div>
-          <aside aria-label="Próximas fechas" className="min-w-0 @min-[900px]:pt-[22px]">
-            <h2 className="px-2 pb-3 text-sm font-medium text-foreground">Próximas fechas</h2>
             <Agenda eventos={agenda} global={global} onPreview={openPreview} empty={vacio} />
-          </aside>
-        </div>
-      ) : (
-        <div className="mt-3 max-w-[720px]">
-          <WeekStrip
-            dias={semana}
-            hoy={hoy}
-            porDia={porDia}
-            global={global}
-            onDay={onDayTap}
-            className="mb-5 md:hidden"
-          />
-          <Agenda eventos={agenda} global={global} onPreview={openPreview} empty={vacio} />
-        </div>
-      )}
+          </div>
+        )}
 
-      {overlay?.tipo === "crear" && (
-        <QuickCreatePopover
-          key={overlay.seq}
-          open
-          anchor={crearAnchor}
-          scope={scope}
-          fecha={overlay.fecha}
+        {overlay?.tipo === "crear" && (
+          <QuickCreatePopover
+            key={overlay.seq}
+            open
+            anchor={crearAnchor}
+            scope={scope}
+            fecha={overlay.fecha}
+            onClose={() => setOverlay(null)}
+            onCreated={onCreated}
+          />
+        )}
+        {overlay?.tipo === "dia" && (
+          <DayPopover
+            key={overlay.seq}
+            open
+            anchor={overlay.anchor}
+            fecha={overlay.fecha}
+            eventos={porDia.get(overlay.fecha) ?? []}
+            global={global}
+            onClose={() => setOverlay(null)}
+            onNuevo={(fecha) => openCrear(fecha, overlay.anchor)}
+            onPreview={(evento) => openPreview(evento, overlay.anchor)}
+          />
+        )}
+        <EventoPreviewPopover
+          key={overlay?.tipo === "preview" ? overlay.seq : "preview"}
+          evento={overlay?.tipo === "preview" ? overlay.evento : null}
+          anchor={overlay?.tipo === "preview" ? overlay.anchor : null}
           onClose={() => setOverlay(null)}
-          onCreated={onCreated}
         />
-      )}
-      {overlay?.tipo === "dia" && (
-        <DayPopover
-          key={overlay.seq}
-          open
-          anchor={overlay.anchor}
-          fecha={overlay.fecha}
-          eventos={porDia.get(overlay.fecha) ?? []}
-          global={global}
-          onClose={() => setOverlay(null)}
-          onNuevo={(fecha) => openCrear(fecha, overlay.anchor)}
-          onPreview={(evento) => openPreview(evento, overlay.anchor)}
-        />
-      )}
-      <EventoPreviewPopover
-        key={overlay?.tipo === "preview" ? overlay.seq : "preview"}
-        evento={overlay?.tipo === "preview" ? overlay.evento : null}
-        anchor={overlay?.tipo === "preview" ? overlay.anchor : null}
-        onClose={() => setOverlay(null)}
-      />
-    </div>
+      </div>
+    </MateriaTonesContext.Provider>
   );
 }

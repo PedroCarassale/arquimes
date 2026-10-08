@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { SinSubidasPendientes, SubidasDeMateria } from "@/components/SubidasDeMateria";
 import {
   Button,
@@ -10,6 +10,7 @@ import {
   IconButton,
   Input,
   Menu,
+  Popover,
   SegmentedControl,
   apunteIconName,
   cx,
@@ -25,7 +26,6 @@ import { useRememberMateria } from "@/lib/materia-snapshot";
 import { materialFileUrl } from "@/lib/material-viewer";
 import { rutas } from "@/lib/routes";
 import { expandStudyFiles, rereadStudyFile, validateStudyFile } from "@/lib/study-upload";
-import { tabKey } from "@/lib/tabs";
 import type { ApunteItem } from "@/lib/types";
 import { enqueueUploads } from "@/lib/upload-queue";
 import { enLectura, lecturaEstado, metaArchivo, metaGenerado } from "./apunte-format";
@@ -74,7 +74,7 @@ export function ApuntesLibrary({
   orden: ApuntesOrden;
 }) {
   const { refreshToken, bumpRefresh } = useWorkspace();
-  const { tabs, close } = useTabs();
+  const { close } = useTabs();
   const [items, setItems] = useState(initialItems);
   const [tipo, setTipo] = useState(tipoProp);
   const [orden, setOrden] = useState(ordenProp);
@@ -84,6 +84,7 @@ export function ApuntesLibrary({
   const [borrando, setBorrando] = useState<ApunteItem | null>(null);
   const dragDepth = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const firstToken = useRef(refreshToken);
 
   if (synced.initialItems !== initialItems || synced.tipoProp !== tipoProp || synced.ordenProp !== ordenProp) {
@@ -183,7 +184,7 @@ export function ApuntesLibrary({
       }
       setItems((current) => current.filter((entry) => !(entry.origen === item.origen && entry.id === item.id)));
       const href = apunteHref(materiaId, item);
-      if (tabs.some((tab) => tabKey(tab.href) === tabKey(href))) close(href);
+      close(href, { deleted: true });
       bumpRefresh();
     } catch (error) {
       toast({ message: error instanceof Error ? error.message : "No se pudo borrar.", tone: "error" });
@@ -250,14 +251,16 @@ export function ApuntesLibrary({
 
         {items.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center gap-2">
-            <div className="relative w-full sm:w-60">
+            <div className="relative min-w-48 flex-1 sm:min-w-40 sm:max-w-80">
               <Icon
                 name="search"
                 size={14}
                 className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-subtle"
               />
               <Input
-                type="search"
+                ref={searchRef}
+                type="text"
+                role="searchbox"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -268,12 +271,32 @@ export function ApuntesLibrary({
                 }}
                 placeholder="Buscar en apuntes"
                 aria-label="Buscar en apuntes"
-                className="pl-8"
+                autoComplete="off"
+                className={cx("pl-8", query && "pr-8")}
               />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Borrar búsqueda"
+                  onClick={() => {
+                    setQuery("");
+                    searchRef.current?.focus();
+                  }}
+                  className="absolute right-1 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-sm text-foreground-subtle transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover hover:text-foreground pointer-coarse:h-8 pointer-coarse:w-8"
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              )}
             </div>
-            <SegmentedControl value={tipo} options={TIPO_OPTIONS} onChange={changeTipo} ariaLabel="Qué mostrar" />
-            <SegmentedControl value={orden} options={ORDEN_OPTIONS} onChange={changeOrden} ariaLabel="Ordenar por" />
-            <Button variant="secondary" icon="upload" onClick={openPicker} className="ml-auto">
+            <SegmentedControl
+              value={tipo}
+              options={TIPO_OPTIONS}
+              onChange={changeTipo}
+              ariaLabel="Qué mostrar"
+              className="max-sm:order-2"
+            />
+            <OrdenMenu value={orden} onChange={changeOrden} className="max-sm:order-3" />
+            <Button variant="secondary" icon="upload" onClick={openPicker} className="ml-auto max-sm:order-1">
               Subir
             </Button>
           </div>
@@ -336,6 +359,79 @@ export function ApuntesLibrary({
         onCancel={() => setBorrando(null)}
       />
     </div>
+  );
+}
+
+function OrdenMenu({
+  value,
+  onChange,
+  className,
+}: {
+  value: ApuntesOrden;
+  onChange: (next: ApuntesOrden) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const current = ORDEN_OPTIONS.find((option) => option.value === value) ?? ORDEN_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = window.requestAnimationFrame(() => {
+      listRef.current?.querySelector<HTMLButtonElement>("[aria-checked=true]")?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=menuitemradio]"));
+    const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const delta = event.key === "ArrowDown" ? 1 : -1;
+    buttons[(index + delta + buttons.length) % buttons.length]?.focus();
+  }
+
+  return (
+    <>
+      <Button
+        ref={setAnchor}
+        variant="ghost"
+        iconRight="chevron-down"
+        onClick={() => setOpen((isOpen) => !isOpen)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Ordenar por: ${current.label}`}
+        className={cx("px-2.5", className)}
+      >
+        {current.label}
+      </Button>
+      <Popover open={open} onClose={() => setOpen(false)} anchor={anchor} placement="bottom-end" width={180} title="Ordenar por">
+        <div ref={listRef} role="menu" aria-label="Ordenar por" onKeyDown={onKeyDown} className="p-1">
+          <p className="t-meta px-2 pb-1 pt-1.5 max-md:hidden">Ordenar por</p>
+          {ORDEN_OPTIONS.map((option) => {
+            const checked = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={checked}
+                onClick={() => {
+                  setOpen(false);
+                  onChange(option.value);
+                }}
+                className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-foreground outline-none transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-selected focus:bg-selected focus-visible:shadow-none pointer-coarse:h-11"
+              >
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                {checked && <Icon name="check" size={16} className="text-foreground-muted" />}
+              </button>
+            );
+          })}
+        </div>
+      </Popover>
+    </>
   );
 }
 
@@ -405,6 +501,7 @@ function ApunteRow({
     <li className="group flex h-[52px] items-center rounded-md transition-colors duration-(--dur-fast) ease-(--ease-out) focus-within:bg-hover hover:bg-hover">
       <TabLink
         href={apunteHref(materiaId, item)}
+        tabTitle={title}
         className="flex h-full min-w-0 flex-1 items-center gap-3 rounded-md pl-2 pr-2"
       >
         <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-hover text-foreground-muted">

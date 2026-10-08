@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { Icon, cx } from "@/components/ui";
 import { TabLink } from "@/components/workspace/TabLink";
-import { cuentaRegresiva, fechaCorta, formatHora, grupoAgenda } from "@/lib/fechas";
+import { fechaCorta, formatHora, grupoAgenda } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import type { EventoResumen } from "@/lib/types";
 import { MateriaDot } from "./EventChip";
-import { kindIcon, tipoCorto } from "./eventos";
+import { cuentaJuntoAFecha, kindIcon, tipoCorto } from "./eventos";
 
 function agrupar(eventos: EventoResumen[]): { titulo: string; eventos: EventoResumen[] }[] {
   const grupos: { titulo: string; eventos: EventoResumen[] }[] = [];
@@ -25,39 +25,56 @@ function agrupar(eventos: EventoResumen[]): { titulo: string; eventos: EventoRes
 export function AgendaRow({
   evento,
   global,
+  enDia = false,
   onPreview,
   onNavigate,
 }: {
   evento: EventoResumen;
   global: boolean;
+  enDia?: boolean;
   onPreview?: (evento: EventoResumen, anchor: HTMLElement) => void;
   onNavigate?: () => void;
 }) {
   const hora = formatHora(evento.hora);
-  const cuenta = cuentaRegresiva(evento.date);
+  const cuenta = enDia ? null : cuentaJuntoAFecha(evento.date);
   const className =
     "group flex h-[52px] w-full min-w-0 items-center gap-3 rounded-md px-2 text-left transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover";
   const content: ReactNode = (
     <>
-      <span className="flex w-12 shrink-0 flex-col font-mono text-[11px] leading-4">
-        <span className="text-foreground">{fechaCorta(evento.date) ?? "—"}</span>
-        {hora && <span className="text-foreground-subtle">{hora}</span>}
-      </span>
+      {enDia ? (
+        <span className="flex w-10 shrink-0 font-mono text-[11px] leading-4 text-foreground">
+          {hora ?? <Icon name={kindIcon(evento.kind)} size={12} className="text-foreground-muted" />}
+        </span>
+      ) : (
+        <span className="flex w-12 shrink-0 flex-col font-mono text-[11px] leading-4">
+          <span className="text-foreground">{fechaCorta(evento.date) ?? "—"}</span>
+          {hora && <span className="text-foreground-subtle">{hora}</span>}
+        </span>
+      )}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm leading-5 text-foreground">{evento.name}</span>
-        <span className="flex min-w-0 items-center gap-1.5 text-xs leading-4 text-foreground-muted">
-          <Icon name={kindIcon(evento.kind)} size={12} className="shrink-0" />
-          <span className="shrink-0">{tipoCorto(evento)}</span>
+        <span
+          className={cx(
+            "min-w-0 items-center gap-1.5 text-xs leading-4 text-foreground-muted",
+            !global
+              ? "flex"
+              : enDia
+                ? "grid grid-cols-[minmax(3ch,max-content)_auto_auto_minmax(6ch,1fr)_auto]"
+                : "grid grid-cols-[auto_minmax(3ch,max-content)_auto_auto_minmax(6ch,1fr)_auto]"
+          )}
+        >
+          {!enDia && <Icon name={kindIcon(evento.kind)} size={12} className="shrink-0" />}
+          <span className="min-w-0 truncate">{tipoCorto(evento)}</span>
           {global && (
             <>
               <span aria-hidden="true">·</span>
               <MateriaDot materiaId={evento.materiaId} />
-              <span className="truncate">{evento.materiaName}</span>
+              <span className="min-w-0 truncate">{evento.materiaName}</span>
             </>
           )}
+          {cuenta && <span className="ml-auto shrink-0 whitespace-nowrap pl-2 font-mono text-[11px]">{cuenta}</span>}
         </span>
       </span>
-      {cuenta && <span className="shrink-0 font-mono text-[11px] text-foreground-muted">{cuenta}</span>}
     </>
   );
 

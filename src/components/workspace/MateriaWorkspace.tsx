@@ -59,9 +59,11 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLElement>(null);
   const width = useRef(DEFAULT_WIDTH);
+  const separatorRef = useRef<HTMLDivElement | null>(null);
   const dragging = useRef(false);
   const [fits, setFits] = useState(true);
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const launcherReturn = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     try {
@@ -70,6 +72,7 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
       if (Number.isFinite(stored)) {
         width.current = clampWidth(stored);
         asideRef.current?.style.setProperty("--chat-w", `${width.current}px`);
+        separatorRef.current?.setAttribute("aria-valuenow", String(width.current));
       }
     } catch {}
   }, []);
@@ -94,6 +97,10 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
       const key = event.key.toLowerCase();
       if (mod && !event.altKey && !event.shiftKey && key === "k") {
         event.preventDefault();
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && !focused.closest("[data-arq-launcher]")) {
+          launcherReturn.current = focused === document.body ? null : focused;
+        }
         setLauncherOpen(true);
         return;
       }
@@ -141,9 +148,15 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [materiaId, pathname, router, isChatVisible, openChat, closeChat, closeOverlay, mobileChatOpen, fits, chatOpen]);
 
+  const syncSeparator = useCallback((node: HTMLDivElement | null) => {
+    separatorRef.current = node;
+    node?.setAttribute("aria-valuenow", String(width.current));
+  }, []);
+
   const applyWidth = useCallback((next: number) => {
     width.current = next;
     asideRef.current?.style.setProperty("--chat-w", `${next}px`);
+    separatorRef.current?.setAttribute("aria-valuenow", String(next));
   }, []);
 
   const persistWidth = useCallback(() => {
@@ -180,7 +193,6 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
       event.preventDefault();
       const delta = event.key === "ArrowRight" ? KEY_STEP : -KEY_STEP;
       applyWidth(clampWidth(width.current + delta, rowRef.current?.getBoundingClientRect().width));
-      event.currentTarget.setAttribute("aria-valuenow", String(width.current));
       persistWidth();
     },
     [applyWidth, persistWidth]
@@ -214,6 +226,7 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
               aria-label="Cambiar ancho del chat"
               aria-valuemin={MIN_WIDTH}
               aria-valuemax={MAX_WIDTH}
+              ref={syncSeparator}
               onPointerDown={startDrag}
               onPointerMove={onDrag}
               onPointerUp={endDrag}
@@ -227,10 +240,12 @@ function WorkspaceFrame({ children }: { children: React.ReactNode }) {
           <Suspense fallback={<div aria-hidden="true" className="h-11 shrink-0 border-b border-border-subtle md:h-10" />}>
             <TabBar columnChat={lgColumn} />
           </Suspense>
-          <main className="relative min-h-0 flex-1 overflow-y-auto">{children}</main>
+          <div data-arq-workspace-content="" className="relative min-h-0 flex-1 overflow-y-auto">
+            {children}
+          </div>
         </div>
       </div>
-      <LauncherOverlay open={launcherOpen} onClose={() => setLauncherOpen(false)} />
+      <LauncherOverlay open={launcherOpen} onClose={() => setLauncherOpen(false)} returnFocus={launcherReturn} />
     </div>
   );
 }

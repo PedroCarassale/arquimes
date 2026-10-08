@@ -12,6 +12,7 @@ import {
   Popover,
   buttonClasses,
   cx,
+  isIconName,
   toast,
   useMediaQuery,
   type IconName,
@@ -23,8 +24,15 @@ import { fechaCorta } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import { validateStudyFile } from "@/lib/study-upload";
 import { tabKey } from "@/lib/tabs";
-import type { ArtefactoCreado, ChatMessage, ChatSession, GroundingPayload, WorkspaceFocus } from "@/lib/types";
-import { enqueueUploads } from "@/lib/upload-queue";
+import type {
+  ArtefactoCreado,
+  ArtefactoVersion,
+  ChatMessage,
+  ChatSession,
+  GroundingPayload,
+  WorkspaceFocus,
+} from "@/lib/types";
+import { enqueueUploads, onUploadComplete } from "@/lib/upload-queue";
 import { TabLink } from "./TabLink";
 import { useWorkspace } from "./WorkspaceContext";
 import { useTabs } from "./tabs-store";
@@ -39,10 +47,27 @@ type ChatState = {
 
 type ChatPart = ReturnType<typeof splitArtefactoMarkers>[number];
 
+type VersionResumen = { version: number; titulo: string; at: number };
+
+type HistorialArtefacto = { latest: number; versiones: VersionResumen[] };
+
+type ArtefactoEnMensaje = ArtefactoCreado & { latest: number; tituloActual: string };
+
+function idsEnMensajes(messages: ChatMessage[]): string[] {
+  const ids = new Set<string>();
+  for (const message of messages) {
+    if (message.role !== "assistant") continue;
+    for (const part of splitArtefactoMarkers(message.content)) {
+      if (part.kind === "artefacto") ids.add(part.id);
+    }
+  }
+  return [...ids];
+}
+
 const SUGERENCIAS = [
-  "Armame un simulacro con corrección",
-  "Haceme una guía de estudio con mis apuntes",
-  "Explicame paso a paso el tema que más me cuesta",
+  "Armame un simulacro",
+  "Armame un plan para la entrega",
+  "Haceme una guía de estudio",
   "¿Qué fechas tengo cerca y qué entra en cada una?",
 ];
 
@@ -50,10 +75,31 @@ const FOCUS_META: Record<WorkspaceFocus["kind"], { label: string; icon: IconName
   nota: { label: "Clase", icon: "clase" },
   artefacto: { label: "Del chat", icon: "generado" },
   material: { label: "Archivo", icon: "apunte" },
-  examen: { label: "Evento", icon: "evento" },
+  examen: { label: "Examen", icon: "examen" },
+};
+
+const EVENTO_LABEL: Partial<Record<IconName, string>> = {
+  examen: "Examen",
+  entrega: "Entrega",
+  evento: "Evento",
 };
 
 const DESKTOP_QUERY = "(min-width: 1024px)";
+const LECTURA_POLL_MS = 4000;
+
+function focusChip(kind: WorkspaceFocus["kind"], tabIcon?: string): { label: string; icon: IconName } {
+  const meta = FOCUS_META[kind];
+  if (!tabIcon || !isIconName(tabIcon)) return meta;
+  const icon = tabIcon;
+  if (kind === "examen") return { label: EVENTO_LABEL[icon] ?? meta.label, icon };
+  return { label: meta.label, icon };
+}
+
+function groundingReading(grounding: GroundingPayload | null): boolean {
+  return Boolean(
+    grounding?.sources.some((source) => source.lectura?.estado === "subiendo" || source.lectura?.estado === "leyendo")
+  );
+}
 
 function typingOutsideChat(): boolean {
   const el = document.activeElement;
@@ -82,7 +128,7 @@ export function ChatPanel() {
     refreshToken,
     bumpRefresh,
   } = useWorkspace();
-  const { openInBackground } = useTabs();
+  const { tabs, activeKey, openInBackground } = useTabs();
   const isDesktop = useMediaQuery(DESKTOP_QUERY, true);
   const [state, setState] = useState<ChatState>({
     sessions: [],
@@ -92,6 +138,8 @@ export function ChatPanel() {
     provider: { configured: true, message: "" },
   });
   const [artefactos, setArtefactos] = useState<Map<string, ArtefactoCreado>>(new Map());
+  const [historiales, setHistoriales] = useState<Map<string, HistorialArtefacto>>(new Map());
+  const [creadosPorMensaje, setCreadosPorMensaje] = useState<Map<string, ArtefactoCreado[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -106,11 +154,13 @@ export function ChatPanel() {
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const loadSeq = useRef(0);
+  const groundingSeq = useRef(0);
   const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
 
   const load = useCallback(
     async (sessionId?: string) => {
       const seq = ++loadSeq.current;
+      groundingSeq.current += 1;
       const params = new URLSearchParams({ materiaId });
       if (sessionId) params.set("sessionId", sessionId);
       const response = await apiFetch(`/api/chat?${params}`);
@@ -128,11 +178,56 @@ export function ChatPanel() {
     [materiaId]
   );
 
+  const refreshGrounding = useCallback(async () => {
+    const seq = ++groundingSeq.current;
+    try {
+      const response = await apiFetch(`/api/chat?${new URLSearchParams({ materiaId })}`);
+      if (!response.ok) return;
+      const payload = await response.json().catch(() => null);
+      if (!payload || seq !== groundingSeq.current) return;
+      setState((current) => ({
+        ...current,
+        grounding: payload.grounding ?? current.grounding,
+        provider: payload.provider ?? current.provider,
+      }));
+    } catch {}
+  }, [materiaId]);
+
   useEffect(() => {
     load()
       .catch((err) => setError(err instanceof Error ? err.message : "No se pudo cargar el chat."))
       .finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(
+    () =>
+      onUploadComplete((item) => {
+        if (item.materiaId === materiaId) void refreshGrounding();
+      }),
+    [materiaId, refreshGrounding]
+  );
+
+  const refreshKey = `${refreshToken}|${activeKey}`;
+  const lastRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (lastRefreshKey.current === refreshKey) return;
+    lastRefreshKey.current = refreshKey;
+    void refreshGrounding();
+  }, [refreshKey, refreshGrounding]);
+
+  const esperandoClase =
+    !loading &&
+    state.messages.length === 0 &&
+    state.grounding !== null &&
+    state.grounding.readableCount === 0 &&
+    focus?.kind === "nota" &&
+    focusEnabled;
+  const reading = groundingReading(state.grounding);
+  useEffect(() => {
+    if (!reading) return;
+    const timer = window.setInterval(() => void refreshGrounding(), LECTURA_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [reading, refreshGrounding]);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,6 +241,64 @@ export function ChatPanel() {
       cancelled = true;
     };
   }, [materiaId, refreshToken]);
+
+  const historialesPendientes = useMemo(
+    () =>
+      idsEnMensajes(state.messages)
+        .filter((id) => {
+          const artefacto = artefactos.get(id);
+          return artefacto && artefacto.version > 1 && historiales.get(id)?.latest !== artefacto.version;
+        })
+        .sort()
+        .join(","),
+    [state.messages, artefactos, historiales]
+  );
+
+  useEffect(() => {
+    if (!historialesPendientes) return;
+    let cancelled = false;
+    Promise.all(
+      historialesPendientes.split(",").map(async (id) => {
+        const response = await apiFetch(`/api/artefactos/${id}`);
+        if (!response.ok) return null;
+        const data = (await response.json()) as { version: number; versiones?: ArtefactoVersion[] };
+        const versiones = (data.versiones ?? [])
+          .map((v) => ({ version: v.version, titulo: v.titulo, at: Date.parse(v.createdAt) }))
+          .sort((a, b) => a.version - b.version);
+        return [id, { latest: data.version, versiones }] as const;
+      })
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        setHistoriales((current) => {
+          const next = new Map(current);
+          for (const entry of entries) if (entry) next.set(entry[0], entry[1]);
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [historialesPendientes]);
+
+  const artefactoDeMensaje = useCallback(
+    (message: ChatMessage, id: string): ArtefactoEnMensaje | undefined => {
+      const actual = artefactos.get(id);
+      if (!actual) return undefined;
+      const base = { ...actual, latest: actual.version, tituloActual: actual.titulo };
+      const creado = creadosPorMensaje.get(message.id)?.find((a) => a.id === id);
+      if (creado) return { ...base, titulo: creado.titulo, version: creado.version };
+      const at = Date.parse(message.createdAt);
+      const historial = historiales.get(id);
+      if (!historial || Number.isNaN(at)) return base;
+      let elegida: VersionResumen | undefined;
+      for (const v of historial.versiones) if (v.at <= at) elegida = v;
+      if (!elegida || elegida.version >= actual.version) return base;
+      return { ...base, titulo: elegida.titulo, version: elegida.version };
+    },
+    [artefactos, creadosPorMensaje, historiales]
+  );
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -193,7 +346,7 @@ export function ChatPanel() {
         toast({ message: `Se guardó «${first.titulo}» en Apuntes`, action: { label: "Abrir", href } });
         return;
       }
-      if (tabKey(pathname) === tabKey(href)) router.refresh();
+      if (tabKey(pathname) === tabKey(href) && !window.location.search) router.refresh();
       else router.push(href);
     },
     [bumpRefresh, materiaId, openInBackground, pathname, router]
@@ -236,6 +389,8 @@ export function ChatPanel() {
             for (const a of created) next.set(a.id, a);
             return next;
           });
+          const respuesta = (payload.turn as ChatMessage[]).find((m) => m.role === "assistant");
+          if (respuesta) setCreadosPorMensaje((current) => new Map(current).set(respuesta.id, created));
         }
         setState((current) => ({
           ...current,
@@ -369,6 +524,7 @@ export function ChatPanel() {
 
   const activeSession = state.sessions.find((s) => s.id === state.activeSessionId);
   const hasReadable = (state.grounding?.readableCount ?? 0) > 0;
+  const chip = focus ? focusChip(focus.kind, tabs.find((tab) => tabKey(tab.href) === activeKey)?.icon) : null;
 
   return (
     <div data-arq-chat="" className="flex h-full min-h-0 w-full flex-col bg-background">
@@ -471,6 +627,7 @@ export function ChatPanel() {
         ) : state.messages.length === 0 ? (
           <EmptyChat
             hasReadable={hasReadable}
+            enClase={esperandoClase}
             onPick={(text) => void sendMessage(text)}
             materiaId={materiaId}
             onNavigate={closeIfOverlay}
@@ -498,7 +655,7 @@ export function ChatPanel() {
                 message={message}
                 parts={parts}
                 materiaId={materiaId}
-                artefactos={artefactos}
+                artefactoDe={(id) => artefactoDeMensaje(message, id)}
                 citationHref={citationHref}
                 onNavigate={closeIfOverlay}
                 actions={
@@ -551,7 +708,7 @@ export function ChatPanel() {
       )}
 
       <div className="shrink-0 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1">
-        {focus && (
+        {focus && chip && (
           <div className="mb-1.5 flex items-center gap-2 px-1">
             <button
               type="button"
@@ -565,8 +722,8 @@ export function ChatPanel() {
                   : "bg-hover text-foreground-subtle line-through hover:text-foreground-muted"
               )}
             >
-              <Icon name={FOCUS_META[focus.kind].icon} size={12} className="text-foreground-muted" />
-              <span className="shrink-0 font-mono text-[11px] text-foreground-muted">{FOCUS_META[focus.kind].label}</span>
+              <Icon name={chip.icon} size={12} className="text-foreground-muted" />
+              <span className="shrink-0 font-mono text-[11px] text-foreground-muted">{chip.label}</span>
               <span className="min-w-0 truncate">{focus.titulo}</span>
             </button>
           </div>
@@ -600,7 +757,7 @@ function AssistantMessage({
   message,
   parts,
   materiaId,
-  artefactos,
+  artefactoDe,
   citationHref,
   onNavigate,
   actions,
@@ -608,7 +765,7 @@ function AssistantMessage({
   message: ChatMessage;
   parts: ChatPart[];
   materiaId: string;
-  artefactos: Map<string, ArtefactoCreado>;
+  artefactoDe: (id: string) => ArtefactoEnMensaje | undefined;
   citationHref: (citation: string) => string | undefined;
   onNavigate: () => void;
   actions: React.ReactNode;
@@ -628,7 +785,7 @@ function AssistantMessage({
           <ArtefactoCard
             key={index}
             materiaId={materiaId}
-            artefacto={artefactos.get(part.id)}
+            artefacto={artefactoDe(part.id)}
             id={part.id}
             onOpen={onNavigate}
           />
@@ -675,7 +832,7 @@ function ArtefactoCard({
   onOpen,
 }: {
   materiaId: string;
-  artefacto?: ArtefactoCreado;
+  artefacto?: ArtefactoEnMensaje;
   id: string;
   onOpen: () => void;
 }) {
@@ -687,9 +844,11 @@ function ArtefactoCard({
     );
   }
   const esExamen = artefacto.tipo === "examen";
+  const href = rutas.generado(materiaId, id);
   return (
     <TabLink
-      href={rutas.generado(materiaId, id)}
+      href={artefacto.version < artefacto.latest ? `${href}?v=${artefacto.version}` : href}
+      tabTitle={artefacto.tituloActual}
       onClick={onOpen}
       className="my-3 flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-2.5 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:border-border hover:bg-surface-elevated"
     >
@@ -709,11 +868,13 @@ function ArtefactoCard({
 
 function EmptyChat({
   hasReadable,
+  enClase,
   onPick,
   materiaId,
   onNavigate,
 }: {
   hasReadable: boolean;
+  enClase: boolean;
   onPick: (text: string) => void;
   materiaId: string;
   onNavigate: () => void;
@@ -725,7 +886,9 @@ function EmptyChat({
       <p className="mt-2 text-[13px] leading-5 text-foreground-muted">
         {hasReadable
           ? "Leo tus clases, tus apuntes y tus fechas. Pedime que te explique algo, un resumen o un simulacro, y si querés lo guardo en Apuntes."
-          : "Todavía no tengo nada para leer en esta materia. Anotá una clase o subí apuntes y estudiamos con eso."}
+          : enClase
+            ? "En cuanto se guarde lo que escribas en esta clase, lo leo y estudiamos con eso."
+            : "Todavía no tengo nada para leer en esta materia. Anotá una clase o subí apuntes y estudiamos con eso."}
       </p>
       {hasReadable ? (
         <div className="mt-5 flex flex-col gap-1.5">
@@ -742,10 +905,12 @@ function EmptyChat({
         </div>
       ) : (
         <div className="mt-5 flex flex-wrap gap-1.5">
-          <TabLink href={rutas.clases(materiaId)} onClick={onNavigate} className={link}>
-            <Icon name="clase" size={14} />
-            Ir a Clases
-          </TabLink>
+          {!enClase && (
+            <TabLink href={rutas.clases(materiaId)} onClick={onNavigate} className={link}>
+              <Icon name="clase" size={14} />
+              Ir a Clases
+            </TabLink>
+          )}
           <TabLink href={rutas.apuntes(materiaId)} onClick={onNavigate} className={link}>
             <Icon name="upload" size={14} />
             Subir apuntes

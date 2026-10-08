@@ -6,12 +6,23 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ id: string; artefactoId: string }>;
+  searchParams: Promise<{ v?: string | string[] }>;
 }
 
-export default async function GeneradoPage({ params }: PageProps) {
-  const { id, artefactoId } = await params;
+export default async function GeneradoPage({ params, searchParams }: PageProps) {
+  const [{ id, artefactoId }, query] = await Promise.all([params, searchParams]);
   const [artefacto, versiones] = await Promise.all([getArtefacto(artefactoId), listArtefactoVersiones(artefactoId)]);
   if (!artefacto || artefacto.materiaId !== id) notFound();
 
-  return <ArtefactoViewer key={`${artefacto.id}-${artefacto.version}`} artefacto={artefacto} versiones={versiones} />;
+  const pedida = Number(Array.isArray(query.v) ? query.v[0] : query.v);
+  const version = versiones.some((v) => v.version === pedida) ? pedida : artefacto.version;
+
+  return (
+    <ArtefactoViewer
+      key={`${artefacto.id}-${artefacto.version}-${version}`}
+      artefacto={artefacto}
+      versiones={versiones}
+      initialVersion={version}
+    />
+  );
 }

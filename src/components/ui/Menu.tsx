@@ -28,6 +28,7 @@ export function Menu({ trigger, items, placement = "bottom-end", width = 220, la
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const withIcons = items.some((item) => !("separator" in item) && Boolean(item.icon));
 
   useEffect(() => {
     if (!open) return;
@@ -84,8 +85,10 @@ export function Menu({ trigger, items, placement = "bottom-end", width = 220, la
                     : "text-foreground hover:bg-selected focus:bg-selected"
                 )}
               >
-                {item.icon && (
+                {item.icon ? (
                   <Icon name={item.icon} size={16} className={item.danger ? undefined : "text-foreground-muted"} />
+                ) : (
+                  withIcons && <span aria-hidden="true" className="w-4 shrink-0" />
                 )}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {item.shortcut && <span className="font-mono text-[11px] text-foreground-subtle">{item.shortcut}</span>}

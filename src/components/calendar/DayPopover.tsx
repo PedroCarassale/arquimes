@@ -32,7 +32,7 @@ export function DayPopover({
         <ul>
           {eventos.map((evento) => (
             <li key={evento.id}>
-              <AgendaRow evento={evento} global={global} onPreview={onPreview} onNavigate={onClose} />
+              <AgendaRow evento={evento} global={global} enDia onPreview={onPreview} onNavigate={onClose} />
             </li>
           ))}
         </ul>

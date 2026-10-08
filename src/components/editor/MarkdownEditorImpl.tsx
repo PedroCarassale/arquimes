@@ -2,15 +2,18 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Crepe } from "@milkdown/crepe";
-import { codeBlockConfig } from "@milkdown/kit/component/code-block";
-import { editorViewCtx, remarkStringifyOptionsCtx } from "@milkdown/kit/core";
-import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
+import { EditorStateReady, editorViewCtx, editorViewTimerCtx, nodeViewCtx, remarkStringifyOptionsCtx } from "@milkdown/kit/core";
+import { createTimer, type MilkdownPlugin } from "@milkdown/kit/ctx";
+import { remarkPreserveEmptyLinePlugin } from "@milkdown/kit/preset/commonmark";
+import type { Node as ProseNode } from "@milkdown/kit/prose/model";
+import { Plugin, PluginKey, type Selection } from "@milkdown/kit/prose/state";
+import type { NodeViewConstructor } from "@milkdown/kit/prose/view";
 import { $prose } from "@milkdown/kit/utils";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame-dark.css";
 import "./markdown-editor.css";
 import { normalizeEditorMarkdown } from "@/lib/editor-markdown";
-import { EDITOR_FEATURE_CONFIGS, defaultPlaceholder } from "./editor-config";
+import { EDITOR_FEATURE_CONFIGS, FLOATING_GUTTER, defaultPlaceholder, visibleArea } from "./editor-config";
 
 export type MarkdownEditorProps = {
   value: string;
@@ -94,6 +97,76 @@ const mathBlockOnEnter = $prose(
     })
 );
 
+type Snapshot = { doc: ProseNode; selection: Selection };
+
+function listItemSelectionGuard(): MilkdownPlugin[] {
+  let active: Snapshot | null = null;
+  const filter = $prose(
+    () =>
+      new Plugin({
+        key: new PluginKey("ARQ_LIST_ITEM_SELECTION_GUARD"),
+        filterTransaction: (tr, state) => {
+          if (!active || tr.docChanged || !tr.selectionSet) return true;
+          return state.doc === active.doc && state.selection.eq(active.selection);
+        },
+      })
+  );
+  const wrap =
+    (create: NodeViewConstructor): NodeViewConstructor =>
+    (node, view, getPos, decorations, innerDecorations) => {
+      let snapshot: Snapshot | null = null;
+      requestAnimationFrame(() => {
+        active = snapshot;
+      });
+      const nodeView = create(node, view, getPos, decorations, innerDecorations);
+      snapshot = { doc: view.state.doc, selection: view.state.selection };
+      requestAnimationFrame(() => {
+        if (active === snapshot) active = null;
+      });
+      return nodeView;
+    };
+  const timer = createTimer("ArqListItemSelectionGuard");
+  const views: MilkdownPlugin = (ctx) => {
+    ctx.record(timer);
+    ctx.update(editorViewTimerCtx, (timers) => timers.concat(timer));
+    return async () => {
+      await ctx.wait(EditorStateReady);
+      ctx.update(nodeViewCtx, (entries) => entries.map(([id, create]) => [id, id === "list_item" ? wrap(create) : create]));
+      ctx.done(timer);
+      return () => {
+        ctx.update(editorViewTimerCtx, (timers) => timers.filter((t) => t !== timer));
+        ctx.clearTimer(timer);
+      };
+    };
+  };
+  return [filter, views].flat();
+}
+
+function keepInsideGutter(element: HTMLElement) {
+  if (element.dataset.show === "false") return;
+  const rect = element.getBoundingClientRect();
+  if (!rect.width) return;
+  const area = visibleArea(element);
+  const min = area.left + FLOATING_GUTTER;
+  const max = area.right - FLOATING_GUTTER;
+  let shift = rect.right > max ? max - rect.right : 0;
+  if (rect.left + shift < min) shift = min - rect.left;
+  if (Math.abs(shift) < 0.5) return;
+  element.style.left = `${(Number.parseFloat(element.style.left) || 0) + shift}px`;
+}
+
+function editRenderedMath(event: MouseEvent) {
+  const target = event.target instanceof Element ? event.target : null;
+  const block = target?.closest<HTMLElement>(".milkdown-code-block");
+  if (!block || !target?.closest(".preview-panel") || block.matches(":focus-within")) return;
+  const source = block.querySelector<HTMLElement>(".cm-content");
+  if (!source) return;
+  event.preventDefault();
+  source.focus({ preventScroll: true });
+  const lastLine = source.lastElementChild;
+  if (lastLine) window.getSelection()?.collapse(lastLine, lastLine.childNodes.length);
+}
+
 export function MarkdownEditorImpl({
   value,
   onChange,
@@ -109,11 +182,13 @@ export function MarkdownEditorImpl({
   const onChangeRef = useRef(onChange);
   const onAskRef = useRef(onAskSelection);
   const init = useRef({ value, placeholder, autoFocus, readOnly, canAsk: Boolean(onAskSelection) });
+  const readOnlyRef = useRef(readOnly);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     onChangeRef.current = onChange;
     onAskRef.current = onAskSelection;
+    readOnlyRef.current = readOnly;
   });
 
   useEffect(() => {
@@ -152,10 +227,12 @@ export function MarkdownEditorImpl({
       },
       featureConfigs,
     });
+    void crepe.editor.remove(remarkPreserveEmptyLinePlugin);
     crepe.editor
       .config((ctx) => ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet: "-" as const, rule: "-" as const })))
       .use(katexPaste)
-      .use(mathBlockOnEnter);
+      .use(mathBlockOnEnter)
+      .use(listItemSelectionGuard());
     crepe.on((listener) =>
       listener.markdownUpdated((_ctx, markdown) => {
         if (disposed || markdown === emittedRef.current) return;
@@ -168,9 +245,6 @@ export function MarkdownEditorImpl({
         if (disposed) return;
         crepe.setReadonly(readOnly);
         emittedRef.current = crepe.getMarkdown();
-        crepe.editor.action((ctx) => {
-          ctx.get(codeBlockConfig.key).previewOnlyByDefault = false;
-        });
         crepeRef.current = crepe;
         if (autoFocus && !readOnly) crepe.editor.action((ctx) => ctx.get(editorViewCtx).focus());
       },
@@ -179,9 +253,23 @@ export function MarkdownEditorImpl({
         if (!disposed) setFailed(true);
       }
     );
+    const floating = new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.target instanceof HTMLElement && record.target.classList.contains("milkdown-toolbar")) {
+          keepInsideGutter(record.target);
+        }
+      }
+    });
+    floating.observe(host, { subtree: true, attributes: true, attributeFilter: ["style", "data-show"] });
+    const onMouseDown = (event: MouseEvent) => {
+      if (!readOnlyRef.current) editRenderedMath(event);
+    };
+    host.addEventListener("mousedown", onMouseDown);
     return () => {
       disposed = true;
       crepeRef.current = null;
+      floating.disconnect();
+      host.removeEventListener("mousedown", onMouseDown);
       void ready
         .catch(() => undefined)
         .then(() => {

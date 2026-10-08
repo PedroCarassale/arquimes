@@ -17,7 +17,7 @@ export default async function ClasesPage({ params }: { params: Promise<{ id: str
     const mes = mesTitulo(hoyYmd(new Date(nota.createdAt)).slice(0, 7));
     const clase = {
       id: nota.id,
-      titulo: nota.titulo,
+      titulo: nota.titulo || "Sin título",
       fecha: fechaCorta(nota.createdAt) ?? "",
       extracto: extractoPlano(nota.contenido),
     };

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { ButtonLink, Icon, Pill, Popover } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
-import { cuentaRegresiva, fechaLarga, formatHora } from "@/lib/fechas";
+import { fechaLarga, formatHora } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import type { EventoResumen, Tema } from "@/lib/types";
 import { MateriaDot } from "./EventChip";
-import { kindIcon, tipoPill } from "./eventos";
+import { cuentaJuntoAFecha, kindIcon, tipoPill } from "./eventos";
 
 function TemasDelEvento({ evento }: { evento: EventoResumen }) {
   const [temas, setTemas] = useState<string[] | null>(evento.temasCount > 0 ? null : []);
@@ -64,7 +64,7 @@ export function EventoPreviewPopover({
   onClose: () => void;
 }) {
   const meta = evento
-    ? [fechaLarga(evento.date) ?? "Sin fecha", formatHora(evento.hora), cuentaRegresiva(evento.date)].filter(Boolean)
+    ? [fechaLarga(evento.date) ?? "Sin fecha", formatHora(evento.hora), cuentaJuntoAFecha(evento.date)].filter(Boolean)
     : [];
 
   return (

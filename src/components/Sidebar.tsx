@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
-import { materiaTone } from "@/lib/materia-tone";
+import { assignMateriaTones, materiaTone, type MateriaTones } from "@/lib/materia-tone";
 import { HUB_KEY, useMateriaSnapshots } from "@/lib/materia-snapshot";
 import { rutas } from "@/lib/routes";
 import { tabKey, tabKindFromPath, type Tab, type TabKind } from "@/lib/tabs";
@@ -146,12 +146,12 @@ function RailLink({
   );
 }
 
-function ToneDot({ id, className }: { id: string; className?: string }) {
+function ToneDot({ id, tones, className }: { id: string; tones: MateriaTones; className?: string }) {
   return (
     <span
       aria-hidden="true"
       className={cx("h-1.5 w-1.5 shrink-0 rounded-full", className)}
-      style={{ backgroundColor: materiaTone(id).color }}
+      style={{ backgroundColor: materiaTone(id, tones).color }}
     />
   );
 }
@@ -236,6 +236,7 @@ export function Sidebar() {
   const [drawerPath, setDrawerPath] = useState(pathname);
   const materiaId = materiaIdFromPath(pathname);
   const materias = useMaterias(materiaId ?? pathname, materiaId);
+  const tones = useMemo(() => assignMateriaTones((materias ?? []).map((materia) => materia.id)), [materias]);
   const seccionHrefs = useSeccionHrefs(materiaId);
   const activeKind = materiaId ? tabKindFromPath(materiaId, pathname) : null;
 
@@ -282,12 +283,12 @@ export function Sidebar() {
 
   const expanded = (
     <>
-      <div className="flex h-14 shrink-0 items-center justify-between gap-2 pl-5 pr-3 lg:h-12 lg:pl-4 lg:pr-2.5">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-2 pl-5 pr-3 lg:h-10 lg:pl-4 lg:pr-1.5">
         <Link href={rutas.inicio} className="truncate font-serif text-xl leading-none tracking-tight">
           Arquímedes
         </Link>
         <IconButton
-          icon="panel"
+          icon="chevron-left"
           label="Contraer barra"
           size={28}
           onClick={toggle}
@@ -302,7 +303,7 @@ export function Sidebar() {
         />
       </div>
 
-      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col px-2.5">
+      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col px-2.5 lg:pt-2">
         <div className="space-y-0.5">
           <NavRow href={rutas.inicio} icon="home" label="Inicio" active={inicioActive} />
           <NavRow href={rutas.calendarioGlobal} icon="calendario" label="Calendario" active={calendarioActive} />
@@ -345,7 +346,7 @@ export function Sidebar() {
                       )}
                     >
                       <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                        <ToneDot id={materia.id} />
+                        <ToneDot id={materia.id} tones={tones} />
                       </span>
                       <span className="truncate">{materia.name}</span>
                     </Link>
@@ -395,8 +396,10 @@ export function Sidebar() {
 
   const rail = (
     <>
-      <div className="flex shrink-0 flex-col items-center gap-1 pt-2.5">
-        <IconButton icon="panel" label="Expandir barra" size={28} tooltipSide="right" onClick={toggle} />
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <div className="flex h-10 items-center">
+          <IconButton icon="chevron-right" label="Expandir barra" size={28} tooltipSide="right" onClick={toggle} />
+        </div>
         <RailLink href={rutas.inicio} label="Arquímedes">
           <span className="font-serif text-xl leading-none">A</span>
         </RailLink>
@@ -412,7 +415,10 @@ export function Sidebar() {
         {(materias ?? []).map((materia) => {
           const active = materia.id === materiaId;
           return (
-            <div key={materia.id} className="flex flex-col items-center gap-1">
+            <div
+              key={materia.id}
+              className={cx("flex flex-col items-center gap-1", active && "rounded-[10px] bg-hover p-1")}
+            >
               <Tooltip label={materia.name} side="right">
                 <Link
                   href={rutas.materia(materia.id)}
@@ -423,7 +429,7 @@ export function Sidebar() {
                   )}
                 >
                   {iniciales(materia.name)}
-                  <ToneDot id={materia.id} className="absolute right-0.5 top-0.5" />
+                  <ToneDot id={materia.id} tones={tones} className="absolute right-0.5 top-0.5" />
                 </Link>
               </Tooltip>
               {active &&

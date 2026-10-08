@@ -180,12 +180,14 @@ export function PrimerosPasos({ hechos }: { hechos: { clase: boolean; apunte: bo
                 {paso.accion === "clase" && creando ? "Creando clase…" : paso.label}
               </span>
               <span className="sr-only">{hecho ? "(hecho)" : "(pendiente)"}</span>
-              <Icon name="chevron-right" size={14} className="shrink-0 text-foreground-subtle" />
+              {!hecho && <Icon name="chevron-right" size={14} className="shrink-0 text-foreground-subtle" />}
             </>
           );
           return (
             <li key={paso.clave}>
-              {paso.accion === "fecha" ? (
+              {hecho ? (
+                <div className="flex h-11 w-full items-center gap-3 px-2 text-sm pointer-coarse:h-12">{content}</div>
+              ) : paso.accion === "fecha" ? (
                 <TabLink href={rutas.calendario(materiaId, { nuevo: true })} className={row}>
                   {content}
                 </TabLink>
@@ -209,7 +211,7 @@ export function PrimerosPasos({ hechos }: { hechos: { clase: boolean; apunte: bo
   );
 }
 
-const INLINE = "text-foreground underline-offset-4 transition-colors duration-(--dur-fast) hover:underline disabled:opacity-60";
+const INLINE = "whitespace-nowrap text-foreground underline-offset-4 transition-colors duration-(--dur-fast) hover:underline disabled:opacity-60";
 
 export function AccionInline({ accion, children }: { accion: "clase" | "subir" | "fecha"; children: ReactNode }) {
   const { materiaId, creando, run, input } = useAcciones();

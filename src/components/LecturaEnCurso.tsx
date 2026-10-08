@@ -77,7 +77,7 @@ export function LecturaEnCurso() {
     <div
       role="status"
       aria-live="polite"
-      className="t-pop-in fixed inset-x-4 bottom-4 z-40 rounded-lg border border-white/[0.08] bg-surface-overlay p-3 shadow-pop sm:left-auto sm:right-5 sm:bottom-5 sm:w-80"
+      className="t-pop-in rounded-lg border border-white/[0.08] bg-surface-overlay p-3 shadow-pop"
     >
       <div className="t-meta mb-2">Leyendo para el chat</div>
       <ul className="space-y-3">

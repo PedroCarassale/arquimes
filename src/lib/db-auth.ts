@@ -827,7 +827,7 @@ export async function getStudyContext(
   const notaSources = notas
     .filter((nota) => nota.contenido.trim())
     .map((nota) => ({
-      name: `Clase · ${nota.titulo}`,
+      name: `Clase · ${nota.titulo || "Sin título"}`,
       kind: "nota" as const,
       text: nota.contenido,
       notaId: nota.id,

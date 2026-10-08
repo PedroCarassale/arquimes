@@ -1,6 +1,6 @@
 import type { IconName } from "@/components/ui";
 import { evaluacionTipoLabel } from "@/lib/evaluaciones";
-import { mesActual, parseYmd } from "@/lib/fechas";
+import { cuentaRegresiva, diasHasta, mesActual, parseYmd } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import type { EvaluacionKind, EventoResumen, ExamType } from "@/lib/types";
 import type { CalendarScope, CalendarSearch, CalendarVista } from "./types";
@@ -24,6 +24,12 @@ const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export function kindIcon(kind?: EvaluacionKind): IconName {
   return kind ?? "examen";
+}
+
+export function cuentaJuntoAFecha(ymd?: string): string | null {
+  const dias = diasHasta(ymd);
+  if (dias === null || Math.abs(dias) > 14) return null;
+  return cuentaRegresiva(ymd);
 }
 
 export function kindPlaceholder(kind: EvaluacionKind): string {

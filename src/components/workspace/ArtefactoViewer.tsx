@@ -39,15 +39,17 @@ function startsWithTitle(markdown: string): boolean {
 export function ArtefactoViewer({
   artefacto,
   versiones,
+  initialVersion,
 }: {
   artefacto: Artefacto;
   versiones: ArtefactoVersion[];
+  initialVersion?: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const { materiaId, askChat, bumpRefresh } = useWorkspace();
   const { tabs, close } = useTabs();
-  const [version, setVersion] = useState(artefacto.version);
+  const [version, setVersion] = useState(initialVersion ?? artefacto.version);
   const [vista, setVista] = useState<Vista>("rendir");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -90,7 +92,7 @@ export function ArtefactoViewer({
       if (!response.ok) throw new Error("No se pudo borrar.");
       setConfirmOpen(false);
       bumpRefresh();
-      if (tabs.some((tab) => tabKey(tab.href) === tabKey(pathname))) close(pathname);
+      if (tabs.some((tab) => tabKey(tab.href) === tabKey(pathname))) close(pathname, { deleted: true });
       else router.replace(rutas.apuntes(materiaId, { tipo: "generados" }));
     } catch (error) {
       setConfirmOpen(false);
@@ -108,8 +110,14 @@ export function ArtefactoViewer({
   const versionItems: MenuItem[] = ordenadas.map((v) => ({
     label: `v${v.version}${fechaCorta(v.createdAt) ? ` · ${fechaCorta(v.createdAt)}` : ""}`,
     icon: v.version === version ? "check" : undefined,
-    onSelect: () => setVersion(v.version),
+    onSelect: () => elegirVersion(v.version),
   }));
+
+  function elegirVersion(next: number) {
+    setVersion(next);
+    const url = next === artefacto.version ? pathname : `${pathname}?v=${next}`;
+    window.history.replaceState(null, "", url);
+  }
 
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 pb-16 pt-6 md:px-8 md:pt-10">

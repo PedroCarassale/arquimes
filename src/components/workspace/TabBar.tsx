@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { defaultTitle, openPath, tabKey, tabKindFromPath, type Tab, type TabKind } from "@/lib/tabs";
+import { apiFetch } from "@/lib/api";
+import { defaultTitle, isDocumentKind, openPath, tabKey, tabKindFromPath, type Tab, type TabKind } from "@/lib/tabs";
 import { rutas } from "@/lib/routes";
+import type { EventoResumen, MateriaIndice } from "@/lib/types";
 import { cx } from "@/components/ui/cx";
-import { Icon, isIconName, type IconName } from "@/components/ui/Icon";
+import { Icon, apunteIconName, isIconName, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
 import { Popover } from "@/components/ui/Popover";
 import { Sheet } from "@/components/ui/Sheet";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { useIsClient } from "@/components/ui/useIsClient";
 import { useWorkspace } from "./WorkspaceContext";
 import { tabsStore } from "./tabs-store";
 
@@ -26,6 +29,11 @@ const KIND_ICON: Record<TabKind, IconName> = {
   calendario: "calendario",
   evento: "evento",
 };
+
+const TAB_MIN = 120;
+const TAB_GAP = 2;
+const OVERFLOW_HYSTERESIS = 4;
+const EDGE_FADE = 24;
 
 const KIND_LABEL: Record<TabKind, string> = {
   inicio: "Inicio",
@@ -65,6 +73,55 @@ function onMiddleMouseDown(event: React.MouseEvent) {
   if (event.button === 1) event.preventDefault();
 }
 
+export function eventoIconName(evento: Pick<EventoResumen, "kind">): IconName {
+  if (evento.kind === "entrega") return "entrega";
+  if (evento.kind === "evento") return "evento";
+  return "examen";
+}
+
+const titleAttempts = new Set<string>();
+
+function needsTitle(tab: Tab): boolean {
+  return isDocumentKind(tab.kind) && tab.title === defaultTitle(tab.kind);
+}
+
+function useResolveTitles(materiaId: string, tabs: Tab[]) {
+  const pending = tabs
+    .filter((tab) => needsTitle(tab) && !titleAttempts.has(`${materiaId}|${tabKey(tab.href)}`))
+    .map((tab) => tabKey(tab.href))
+    .join(" ");
+
+  useEffect(() => {
+    if (!pending) return;
+    const keys = pending.split(" ");
+    for (const key of keys) titleAttempts.add(`${materiaId}|${key}`);
+    apiFetch(`/api/materias/${materiaId}/indice`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: MateriaIndice | null) => {
+        if (!data || !Array.isArray(data.clases)) return;
+        const found = new Map<string, { title: string; icon?: IconName }>();
+        for (const clase of data.clases) {
+          found.set(tabKey(rutas.clase(materiaId, clase.id)), { title: clase.titulo.trim() || "Sin título" });
+        }
+        for (const apunte of data.apuntes ?? []) {
+          const href = apunte.origen === "archivo" ? rutas.archivo(materiaId, apunte.id) : rutas.generado(materiaId, apunte.id);
+          const title = apunte.origen === "archivo" ? apunte.name : apunte.titulo;
+          found.set(tabKey(href), { title, icon: apunteIconName(apunte) });
+        }
+        for (const evento of data.eventos ?? []) {
+          found.set(tabKey(rutas.evento(materiaId, evento.id)), { title: evento.name, icon: eventoIconName(evento) });
+        }
+        const current = tabsStore.getSnapshot(materiaId);
+        for (const key of keys) {
+          const hit = found.get(key);
+          const tab = current.find((item) => tabKey(item.href) === key);
+          if (hit?.title && tab && needsTitle(tab)) tabsStore.setTitle(materiaId, key, hit.title, hit.icon);
+        }
+      })
+      .catch(() => {});
+  }, [materiaId, pending]);
+}
+
 export function TabBar({ columnChat }: { columnChat: boolean }) {
   const { materiaId, materiaName, openChat } = useWorkspace();
   const pathname = usePathname();
@@ -81,12 +138,16 @@ export function TabBar({ columnChat }: { columnChat: boolean }) {
   const homeHref = rutas.materia(materiaId);
   const homeKey = tabKey(homeHref);
   const activeKind = tabKindFromPath(materiaId, pathname);
+  const hydrated = useIsClient();
 
   const tabs = useMemo(() => {
     if (!activeKind || activeKind === "inicio") return stored;
     if (stored.some((tab) => tabKey(tab.href) === activeKey)) return stored;
+    if (hydrated && tabsStore.isClosing(materiaId, activeKey)) return stored;
     return openPath(stored, currentHref, { materiaId, prevActiveKey: null, now: 0 });
-  }, [stored, activeKind, activeKey, currentHref, materiaId]);
+  }, [stored, hydrated, activeKind, activeKey, currentHref, materiaId]);
+
+  useResolveTitles(materiaId, stored);
 
   useEffect(() => {
     tabsStore.open(materiaId, currentHref, { materiaName });
@@ -157,7 +218,14 @@ function DesktopStrip({
   onNueva,
 }: StripProps & { columnChat: boolean; onOpenChat: () => void; onNueva: () => void }) {
   const scrollRef = useRef<HTMLElement>(null);
+  const countRef = useRef(tabs.length);
+  const overflowRef = useRef(false);
   const [edges, setEdges] = useState({ left: false, right: false });
+  const [overflow, setOverflow] = useState(false);
+
+  useEffect(() => {
+    countRef.current = tabs.length;
+  });
 
   const updateEdges = useCallback(() => {
     const el = scrollRef.current;
@@ -165,6 +233,15 @@ function DesktopStrip({
     const left = el.scrollLeft > 1;
     const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
     setEdges((current) => (current.left === left && current.right === right ? current : { left, right }));
+    const count = countRef.current;
+    const minContent = count * TAB_MIN + Math.max(0, count - 1) * TAB_GAP;
+    const next = overflowRef.current
+      ? minContent + OVERFLOW_HYSTERESIS > el.clientWidth
+      : el.scrollWidth > el.clientWidth + 1;
+    if (next !== overflowRef.current) {
+      overflowRef.current = next;
+      setOverflow(next);
+    }
   }, []);
 
   useEffect(() => {
@@ -178,12 +255,19 @@ function DesktopStrip({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const el = scrollRef.current;
+      updateEdges();
       const active = el?.querySelector<HTMLElement>(`[data-tab-key="${CSS.escape(activeKey)}"]`);
-      active?.scrollIntoView({ inline: "nearest", block: "nearest" });
+      if (!el || !active) return;
+      const box = el.getBoundingClientRect();
+      const pill = active.getBoundingClientRect();
+      if (pill.left < box.left + EDGE_FADE) el.scrollLeft -= box.left + EDGE_FADE - pill.left;
+      else if (pill.right > box.right - EDGE_FADE) el.scrollLeft += pill.right - (box.right - EDGE_FADE);
       updateEdges();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [tabs, activeKey, updateEdges]);
+  }, [tabs, activeKey, overflow, updateEdges]);
+
+  const plus = <IconButton icon="plus" label="Pestaña nueva" size={28} onClick={onNueva} className="shrink-0" />;
 
   return (
     <div
@@ -220,20 +304,21 @@ function DesktopStrip({
             const el = event.currentTarget;
             if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) el.scrollLeft += event.deltaY;
           }}
-          className="t-no-scrollbar flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overflow-y-hidden"
+          className="t-no-scrollbar -my-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overflow-y-hidden py-1"
         >
           {tabs.map((tab) => (
             <TabPill key={tabKey(tab.href)} tab={tab} active={tabKey(tab.href) === activeKey} onClose={() => onClose(tab)} />
           ))}
-          <IconButton icon="plus" label="Pestaña nueva" size={28} onClick={onNueva} />
+          {!overflow && plus}
         </nav>
         {edges.left && (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-background to-transparent" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-linear-to-r from-background to-transparent" />
         )}
         {edges.right && (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-background to-transparent" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-background to-transparent" />
         )}
       </div>
+      {overflow && plus}
       <OpenTabsMenu tabs={tabs} activeKey={activeKey} onClose={onClose} />
     </div>
   );
@@ -246,7 +331,7 @@ function TabPill({ tab, active, onClose }: { tab: Tab; active: boolean; onClose:
       data-tab-key={tabKey(tab.href)}
       data-active={active ? "" : undefined}
       className={cx(
-        "group relative flex h-7 min-w-[120px] flex-[0_1_200px] items-center rounded-sm transition-colors duration-(--dur-fast) ease-(--ease-out)",
+        "group relative flex h-7 min-w-[120px] flex-[0_1_200px] items-center rounded-sm transition-colors duration-(--dur-fast) ease-(--ease-out) has-[>a:focus-visible]:shadow-[inset_0_0_0_2px_var(--ring)]",
         active ? "bg-selected text-foreground" : "text-foreground-muted hover:bg-hover hover:text-foreground"
       )}
     >
@@ -260,7 +345,10 @@ function TabPill({ tab, active, onClose }: { tab: Tab; active: boolean; onClose:
           event.preventDefault();
           onClose();
         }}
-        className="flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-sm pl-2.5 pr-1 text-[13px] leading-[18px]"
+        className={cx(
+          "flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-sm pl-2.5 text-[13px] leading-[18px] focus-visible:shadow-none",
+          active ? "pr-7" : "pr-2.5 group-hover:pr-7 group-focus-within:pr-7"
+        )}
       >
         <Icon name={tabIcon(tab)} size={14} />
         <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -272,8 +360,8 @@ function TabPill({ tab, active, onClose }: { tab: Tab; active: boolean; onClose:
           aria-label={`Cerrar ${title}`}
           onClick={onClose}
           className={cx(
-            "mr-2 inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-xs text-foreground-subtle transition-opacity hover:bg-hover hover:text-foreground focus-visible:opacity-100",
-            active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            "absolute right-[5px] top-1/2 inline-flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-xs text-foreground-subtle transition-opacity hover:bg-hover hover:text-foreground focus-visible:opacity-100",
+            active ? "opacity-100" : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto"
           )}
         >
           <Icon name="x" size={12} />
@@ -371,6 +459,10 @@ function MobileBar({
   const [open, setOpen] = useState(false);
   const count = tabs.length + 1;
   const rowClass = "flex h-[52px] min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-sm";
+  const nuevaKey = tabKey(nuevaHref);
+  const nuevaTab = tabs.find((tab) => tabKey(tab.href) === nuevaKey);
+  const nuevaActive = activeKey === nuevaKey;
+  const listed = nuevaTab ? tabs.filter((tab) => tab !== nuevaTab) : tabs;
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border-subtle bg-background px-2 md:hidden">
@@ -379,7 +471,7 @@ function MobileBar({
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Pestaña actual: ${activeTitle}. ${count} abiertas`}
+        aria-label={`Pestaña actual: ${activeTitle}. ${count} ${count === 1 ? "abierta" : "abiertas"}`}
         className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-hover active:bg-pressed"
       >
         <Icon name={activeIcon} size={16} className="text-foreground-muted" />
@@ -392,11 +484,19 @@ function MobileBar({
       <IconButton icon="chat" label="Chat" size={40} onClick={onOpenChat} />
       <Sheet open={open} onClose={() => setOpen(false)} title="Pestañas">
         <ul className="flex flex-col gap-0.5">
-          <li className="flex">
-            <Link href={nuevaHref} onClick={() => setOpen(false)} className={cx(rowClass, "text-foreground-muted hover:bg-hover")}>
+          <li className={cx("flex items-center rounded-md", nuevaActive && "bg-selected")}>
+            <Link
+              href={nuevaHref}
+              onClick={() => setOpen(false)}
+              aria-current={nuevaActive ? "page" : undefined}
+              className={cx(rowClass, nuevaActive ? "text-foreground" : "text-foreground-muted hover:bg-hover")}
+            >
               <Icon name="plus" size={16} />
-              <span>Pestaña nueva</span>
+              <span className="min-w-0 flex-1 truncate">Pestaña nueva</span>
             </Link>
+            {nuevaTab && (
+              <IconButton icon="x" label="Cerrar Pestaña nueva" size={40} onClick={() => onClose(nuevaTab)} />
+            )}
           </li>
           <li className={cx("flex rounded-md", homeActive && "bg-selected")}>
             <Link href={homeHref} onClick={() => setOpen(false)} aria-current={homeActive ? "page" : undefined} className={rowClass}>
@@ -404,7 +504,7 @@ function MobileBar({
               <span className="min-w-0 flex-1 truncate font-serif text-[17px]">{materiaName}</span>
             </Link>
           </li>
-          {tabs.map((tab) => {
+          {listed.map((tab) => {
             const key = tabKey(tab.href);
             const active = key === activeKey;
             return (

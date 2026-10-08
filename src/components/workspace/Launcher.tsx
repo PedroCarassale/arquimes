@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch } from "@/lib/api";
 import { fechaCorta, fechaLarga } from "@/lib/fechas";
 import { crearNota } from "@/lib/notas-client";
 import { rutas } from "@/lib/routes";
+import { tabKey } from "@/lib/tabs";
 import type { ApunteItem, EventoResumen, MateriaIndice } from "@/lib/types";
 import { enqueueUploads } from "@/lib/upload-queue";
 import { cx } from "@/components/ui/cx";
@@ -14,9 +15,9 @@ import { Icon, apunteIconName, type IconName } from "@/components/ui/Icon";
 import { Kbd } from "@/components/ui/Kbd";
 import { toast } from "@/components/ui/Toast";
 import { useIsClient } from "@/components/ui/useIsClient";
-import { iconoPorKind, normalizeSearch, tabKindLabel } from "./TabBar";
+import { eventoIconName, iconoPorKind, normalizeSearch, tabKindLabel } from "./TabBar";
 import { useWorkspace } from "./WorkspaceContext";
-import { useRecientes } from "./tabs-store";
+import { tabsStore, useRecientes } from "./tabs-store";
 
 type Mode = "tab" | "overlay";
 
@@ -43,12 +44,6 @@ function apunteHint(item: ApunteItem): string {
   if (icon === "texto") return "Texto";
   if (icon === "video") return "Video";
   return "Archivo";
-}
-
-function eventoIcon(evento: EventoResumen): IconName {
-  if (evento.kind === "entrega") return "entrega";
-  if (evento.kind === "evento") return "evento";
-  return "examen";
 }
 
 function eventoHaystack(evento: EventoResumen): string {
@@ -110,12 +105,12 @@ function buildItems(
 
   const matches = (label: string) => normalizeSearch(label).includes(needle);
   const clases: Item[] = (indice?.clases ?? [])
-    .filter((clase) => matches(clase.titulo))
+    .filter((clase) => matches(clase.titulo || "Sin título"))
     .slice(0, MAX_MATCHES)
     .map((clase) => ({
       id: `clase-${clase.id}`,
       section: "Clases",
-      label: clase.titulo || "Clase",
+      label: clase.titulo || "Sin título",
       icon: "clase",
       hint: "Clase",
       action: { type: "navigate", href: rutas.clase(materiaId, clase.id) },
@@ -141,7 +136,7 @@ function buildItems(
       id: `evento-${evento.id}`,
       section: "Fechas",
       label: evento.name,
-      icon: eventoIcon(evento),
+      icon: eventoIconName(evento),
       hint: fechaCorta(evento.date) ?? "Sin fecha",
       action: { type: "navigate", href: rutas.evento(materiaId, evento.id) },
     }));
@@ -170,11 +165,13 @@ export function Launcher({ mode, onClose }: { mode: Mode; onClose?: () => void }
   const [indice, setIndice] = useState<MateriaIndice | null>(null);
   const [creating, setCreating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const fetchedAt = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
   useEffect(() => {
     let cancelled = false;
+    fetchedAt.current = Date.now();
     apiFetch(`/api/materias/${materiaId}/indice`)
       .then((response) => (response.ok ? response.json() : null))
       .then((data: MateriaIndice | null) => {
@@ -185,6 +182,21 @@ export function Launcher({ mode, onClose }: { mode: Mode; onClose?: () => void }
       cancelled = true;
     };
   }, [materiaId]);
+
+  useEffect(() => {
+    if (!indice) return;
+    const vivos = new Set<string>([
+      ...indice.clases.map((clase) => tabKey(rutas.clase(materiaId, clase.id))),
+      ...indice.apuntes.map((apunte) =>
+        tabKey(apunte.origen === "archivo" ? rutas.archivo(materiaId, apunte.id) : rutas.generado(materiaId, apunte.id))
+      ),
+      ...indice.eventos.map((evento) => tabKey(rutas.evento(materiaId, evento.id))),
+    ]);
+    const muertos = recientes
+      .filter((item) => item.at < fetchedAt.current && !vivos.has(tabKey(item.href)))
+      .map((item) => tabKey(item.href));
+    if (muertos.length > 0) tabsStore.forgetRecents(materiaId, muertos);
+  }, [indice, recientes, materiaId]);
 
   const items = buildItems(materiaId, query, indice, recientes);
   const active = Math.min(selected, items.length - 1);
@@ -326,7 +338,15 @@ export function Launcher({ mode, onClose }: { mode: Mode; onClose?: () => void }
   );
 }
 
-export function LauncherOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function LauncherOverlay({
+  open,
+  onClose,
+  returnFocus,
+}: {
+  open: boolean;
+  onClose: () => void;
+  returnFocus?: RefObject<HTMLElement | null>;
+}) {
   const isClient = useIsClient();
   const onCloseRef = useRef(onClose);
 
@@ -336,7 +356,8 @@ export function LauncherOverlay({ open, onClose }: { open: boolean; onClose: () 
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previous = returnFocus?.current ?? (focused?.closest("[data-arq-launcher]") ? null : focused);
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key !== "Escape") return;
       event.preventDefault();
@@ -348,7 +369,7 @@ export function LauncherOverlay({ open, onClose }: { open: boolean; onClose: () 
       document.removeEventListener("keydown", onKeyDown, true);
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
-  }, [open]);
+  }, [open, returnFocus]);
 
   if (!open || !isClient) return null;
 

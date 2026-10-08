@@ -8,6 +8,28 @@ type Side = "top" | "right" | "bottom";
 const GAP = 6;
 const EDGE = 8;
 
+let lastInput: "keyboard" | "pointer" | null = null;
+let tracking = false;
+
+function trackInput() {
+  if (tracking || typeof document === "undefined") return;
+  tracking = true;
+  document.addEventListener(
+    "keydown",
+    () => {
+      lastInput = "keyboard";
+    },
+    true
+  );
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      lastInput = "pointer";
+    },
+    true
+  );
+}
+
 function placement(rect: DOMRect, side: Side): CSSProperties {
   if (side === "right") {
     return { left: rect.right + GAP + 2, top: rect.top + rect.height / 2, transform: "translateY(-50%)" };
@@ -56,7 +78,10 @@ export function Tooltip({
     setRect(null);
   }
 
-  useEffect(() => clear, []);
+  useEffect(() => {
+    trackInput();
+    return clear;
+  }, []);
 
   useEffect(() => {
     if (!rect) return;
@@ -82,6 +107,7 @@ export function Tooltip({
         hide();
       }}
       onFocus={(event) => {
+        if (lastInput !== "keyboard" || window.matchMedia("(hover: none)").matches) return;
         if ((event.target as Element).matches?.(":focus-visible")) show();
       }}
       onBlur={hide}

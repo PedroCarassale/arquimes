@@ -24,7 +24,13 @@ function hrefToString(href: LinkProps["href"]): string {
   return pathname;
 }
 
-export function TabLink({ onClick, onAuxClick, onMouseDown, ...props }: LinkProps) {
+export function TabLink({
+  onClick,
+  onAuxClick,
+  onMouseDown,
+  tabTitle,
+  ...props
+}: LinkProps & { tabTitle?: string }) {
   const workspace = useOptionalWorkspace();
 
   if (!workspace) return <Link onClick={onClick} onAuxClick={onAuxClick} onMouseDown={onMouseDown} {...props} />;
@@ -33,10 +39,12 @@ export function TabLink({ onClick, onAuxClick, onMouseDown, ...props }: LinkProp
   const href = hrefToString(props.href);
   const kind = tabKindFromPath(materiaId, href);
   const openable = kind !== null && kind !== "inicio";
+  const ariaLabel = props["aria-label"];
+  const title = (tabTitle ?? (typeof props.title === "string" ? props.title : undefined) ?? ariaLabel)?.trim();
 
   function openInBackground(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
-    tabsStore.open(materiaId, href, { background: true });
+    tabsStore.open(materiaId, href, { background: true, title: title || undefined });
   }
 
   return (

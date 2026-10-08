@@ -71,7 +71,7 @@ export function ExamenInteractivo({ examen }: { examen: ExamenParseado }) {
         ) : (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <div className="min-w-0 flex-1" role="status">
-              <p className="font-serif text-[22px] leading-7 text-foreground">
+              <p className="font-serif text-[22px] leading-7 text-foreground lining-nums tabular-nums">
                 Sacaste <span className="text-accent">{resultado.correctas}</span> de {total}
               </p>
               <p className="mt-0.5 text-[13px] leading-5 text-foreground-muted">
@@ -131,7 +131,7 @@ function PreguntaItem({
             const elegida = respuesta?.opcion === i;
             const estado = corregido
               ? opcion.correcta
-                ? "bg-accent-muted text-foreground"
+                ? "bg-selected text-foreground"
                 : elegida
                   ? "bg-danger-muted text-foreground"
                   : "opacity-60"

@@ -112,10 +112,12 @@ export function Popover({
       window.removeEventListener("scroll", reposition, true);
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown);
-      const active = document.activeElement;
-      if (anchor instanceof HTMLElement && anchor.isConnected && (!active || active === document.body || panel.contains(active))) {
-        anchor.focus({ preventScroll: true });
-      }
+      if (!(anchor instanceof HTMLElement)) return;
+      queueMicrotask(() => {
+        if (panel.isConnected || !anchor.isConnected) return;
+        const active = document.activeElement;
+        if (!active || active === document.body) anchor.focus({ preventScroll: true });
+      });
     };
   }, [open, sheet, anchor, placement, isClient]);
 

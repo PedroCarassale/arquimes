@@ -26,7 +26,7 @@ export function ClasesList({ materiaId, grupos }: { materiaId: string; grupos: G
     }
     setBorradas((actual) => new Set(actual).add(clase.id));
     setConfirmando(false);
-    close(rutas.clase(materiaId, clase.id));
+    close(rutas.clase(materiaId, clase.id), { deleted: true });
     router.refresh();
   }
 
@@ -48,6 +48,7 @@ export function ClasesList({ materiaId, grupos }: { materiaId: string; grupos: G
                 >
                   <TabLink
                     href={rutas.clase(materiaId, clase.id)}
+                    tabTitle={clase.titulo}
                     className="flex h-[52px] min-w-0 flex-1 items-center gap-4 rounded-md pl-3 pr-12 outline-none"
                   >
                     <span className="w-12 shrink-0 font-mono text-[11px] leading-4 text-foreground-subtle">

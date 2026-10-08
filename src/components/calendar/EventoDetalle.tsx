@@ -1,7 +1,16 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { MarkdownEditor } from "@/components/editor";
 import {
   Button,
@@ -22,10 +31,10 @@ import { useTabs } from "@/components/workspace/tabs-store";
 import { apiFetch } from "@/lib/api";
 import { EVALUACION_ERRORES } from "@/lib/evaluacion-input";
 import { evaluacionNombre } from "@/lib/evaluaciones";
-import { cuentaRegresiva, fechaLarga, formatHora, hoyYmd } from "@/lib/fechas";
+import { fechaLarga, formatHora, hoyYmd } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import type { EvaluacionKind, Evento, ExamType, Tema } from "@/lib/types";
-import { isYmd, kindIcon, normalizeHora, tipoPill } from "./eventos";
+import { cuentaJuntoAFecha, isYmd, kindIcon, normalizeHora, tipoPill } from "./eventos";
 import { TemasChips } from "./TemasChips";
 import { TipoChips } from "./TipoChips";
 
@@ -37,6 +46,17 @@ type CamposBody = { kind?: EvaluacionKind; type?: ExamType | ""; date?: string; 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const KEEPALIVE_MAX_BYTES = 60_000;
 const SECTION = "t-meta mb-2";
+
+function MetaItem({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex items-center whitespace-nowrap">
+      <span aria-hidden="true" className="w-4 shrink-0 text-center">
+        ·
+      </span>
+      {children}
+    </span>
+  );
+}
 
 function MetaButton({
   onClick,
@@ -183,12 +203,33 @@ export function EventoDetalle({ evento, temas: temasIniciales }: { evento: Event
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLTextAreaElement>(null);
   const latest = useRef({ name: nombreInicial, description: descripcionInicial });
   const lastSaved = useRef({ name: nombreInicial, description: descripcionInicial });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const deleted = useRef(false);
+
+  useLayoutEffect(() => {
+    const el = nameRef.current;
+    if (!el) return;
+    function ajustar() {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+    ajustar();
+    let ancho = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === ancho) return;
+      ancho = el.clientWidth;
+      ajustar();
+    });
+    observer.observe(el);
+    void document.fonts?.ready.then(ajustar);
+    return () => observer.disconnect();
+  }, [name]);
 
   const clearTimer = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -390,13 +431,13 @@ export function EventoDetalle({ evento, temas: temasIniciales }: { evento: Event
       return;
     }
     setConfirmOpen(false);
-    close(pathname);
+    close(pathname, { deleted: true });
   }
 
   const titulo = name.trim() || nombreInicial || "Evento";
   const fecha = fechaLarga(date || undefined);
   const horaTexto = formatHora(hora || undefined);
-  const cuenta = cuentaRegresiva(date || undefined);
+  const cuenta = cuentaJuntoAFecha(date || undefined);
   const nombreChat = name.trim() || nombreInicial;
   const temasTexto = temas.map((tema) => tema.name).join(", ");
   const conTemas = temasTexto ? ` con estos temas: ${temasTexto}` : "";
@@ -459,11 +500,14 @@ export function EventoDetalle({ evento, temas: temasIniciales }: { evento: Event
         </div>
       </div>
 
-      <input
+      <textarea
+        ref={nameRef}
+        rows={1}
         value={name}
         onChange={(event) => {
-          setName(event.target.value);
-          latest.current.name = event.target.value;
+          const v = event.target.value.replace(/\s*[\r\n]+\s*/g, " ");
+          setName(v);
+          latest.current.name = v;
           schedule();
         }}
         onBlur={() => {
@@ -482,26 +526,30 @@ export function EventoDetalle({ evento, temas: temasIniciales }: { evento: Event
         aria-label="Nombre del evento"
         placeholder="Sin nombre"
         maxLength={200}
-        className="t-doc-title w-full bg-transparent text-foreground outline-none placeholder:text-foreground-subtle focus-visible:shadow-none"
+        className="t-doc-title block w-full resize-none overflow-hidden bg-transparent p-0 text-foreground outline-none [overflow-wrap:break-word] placeholder:text-foreground-subtle focus-visible:shadow-none"
       />
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-0.5 text-sm leading-6 text-foreground-muted">
-        <MetaButton onClick={(event) => abrir("fecha", event)} muted={!fecha}>
-          {fecha ?? "Agregar fecha"}
-        </MetaButton>
-        <span aria-hidden="true">·</span>
-        <MetaButton onClick={(event) => abrir("hora", event)} muted={!horaTexto}>
-          {horaTexto ?? "Agregar hora"}
-        </MetaButton>
-        {cuenta && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span className="px-1">{cuenta}</span>
-          </>
-        )}
+      <div className="-mx-1 mt-1 overflow-hidden px-1 py-1 text-sm leading-6 text-foreground-muted">
+        <div className="-ml-4 flex flex-wrap items-center">
+          <MetaItem>
+            <MetaButton onClick={(event) => abrir("fecha", event)} muted={!fecha}>
+              {fecha ?? "Agregar fecha"}
+            </MetaButton>
+          </MetaItem>
+          <MetaItem>
+            <MetaButton onClick={(event) => abrir("hora", event)} muted={!horaTexto}>
+              {horaTexto ?? "Agregar hora"}
+            </MetaButton>
+          </MetaItem>
+          {cuenta && (
+            <MetaItem>
+              <span className="px-1">{cuenta}</span>
+            </MetaItem>
+          )}
+        </div>
       </div>
 
-      <section className="mt-8" aria-label="Temas">
+      <section className="mt-7" aria-label="Temas">
         <h2 className={SECTION}>Temas</h2>
         <TemasChips temas={temas} onAdd={agregarTemas} onRemove={(tema) => void quitarTema(tema)} />
       </section>
@@ -527,6 +575,7 @@ export function EventoDetalle({ evento, temas: temasIniciales }: { evento: Event
           <h2 className={SECTION}>Archivo del examen</h2>
           <TabLink
             href={rutas.archivo(materiaId, evento.materialId)}
+            tabTitle={evento.fileName || "Archivo"}
             className="flex h-11 max-w-full items-center gap-3 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
           >
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-hover text-foreground-muted">
@@ -539,7 +588,7 @@ export function EventoDetalle({ evento, temas: temasIniciales }: { evento: Event
 
       <section className="mt-10 border-t border-border-subtle pt-6" aria-label="Descripción">
         <h2 className={SECTION}>Descripción</h2>
-        <div ref={wrapRef}>
+        <div ref={wrapRef} className="md:-ml-11">
           <MarkdownEditor
             key={evento.id}
             value={descripcionInicial}

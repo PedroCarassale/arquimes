@@ -217,17 +217,17 @@ export function AuthScreen({
 
   return (
     <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
-      <section className="w-full max-w-md border border-border bg-surface p-6 sm:p-8">
+      <section className="w-full max-w-md rounded-lg border border-border bg-surface p-6 sm:p-8">
         <Link href="/" className="font-serif text-2xl tracking-tight">
-          Arquimedes
+          Arquímedes
         </Link>
         <h1 className="mt-4 font-serif text-3xl">
           {isRegister ? "Crear cuenta" : "Iniciar sesión"}
         </h1>
         <p className="mt-2 text-sm text-foreground-muted">
           {isRegister
-            ? "Tu espacio de materias queda privado para tu usuario."
-            : "Entrá para ver solo tus materias y tu progreso."}
+            ? "Tu espacio de materias queda privado, solo lo ves vos."
+            : "Entrá para ver tus materias."}
         </p>
 
         <form className="mt-8 space-y-5" onSubmit={handleEmailAuth}>
@@ -339,7 +339,7 @@ export function AuthScreen({
           <button
             type="submit"
             disabled={busy}
-            className="h-11 w-full bg-accent text-background text-sm font-mono uppercase tracking-wider transition-colors hover:bg-accent/90 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-11 w-full rounded-md bg-accent text-background text-sm font-medium transition-colors hover:bg-accent/90 enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy
               ? isRegister
@@ -355,7 +355,7 @@ export function AuthScreen({
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleBusy || !googleEnabled}
-          className="mt-3 flex h-11 w-full items-center justify-center gap-2 border border-border bg-[#0c0d10] px-3 text-sm font-mono transition-colors hover:bg-hover enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-[#0c0d10] px-3 text-sm transition-colors hover:bg-hover enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {googleEnabled && <GoogleGIcon />}
           <span>

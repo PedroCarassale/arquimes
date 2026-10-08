@@ -54,13 +54,14 @@ function avisarError(notaId: string, snapshot: Snapshot) {
 
 export function NotaEditor({ nota }: { nota: Nota }) {
   const pathname = usePathname();
-  const { askChat } = useWorkspace();
+  const { askChat, bumpRefresh } = useWorkspace();
   const { close } = useTabs();
   const [titulo, setTitulo] = useState(nota.titulo);
   const [contenido, setContenido] = useState(nota.contenido);
   const [estado, setEstado] = useState<Estado>("idle");
   const [confirmando, setConfirmando] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const tituloRef = useRef<HTMLTextAreaElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chain = useRef<Promise<unknown>>(Promise.resolve());
@@ -82,7 +83,9 @@ export function NotaEditor({ nota }: { nota: Nota }) {
       setEstado("guardando");
       const ok = await enviar(nota.id, snapshot);
       if (!ok) return "error";
+      const antesVacio = !lastSaved.current.contenido.trim();
       lastSaved.current = snapshot;
+      if (antesVacio !== !snapshot.contenido.trim()) bumpRefresh();
       return "ok";
     });
     chain.current = run.catch(() => undefined);
@@ -104,7 +107,7 @@ export function NotaEditor({ nota }: { nota: Nota }) {
       }
       return true;
     });
-  }, [nota.id]);
+  }, [nota.id, bumpRefresh]);
 
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -151,7 +154,27 @@ export function NotaEditor({ nota }: { nota: Nota }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [save]);
 
-  function onTituloKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  useLayoutEffect(() => {
+    const el = tituloRef.current;
+    if (!el) return;
+    function ajustar() {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+    ajustar();
+    let ancho = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === ancho) return;
+      ancho = el.clientWidth;
+      ajustar();
+    });
+    observer.observe(el);
+    void document.fonts?.ready.then(ajustar);
+    return () => observer.disconnect();
+  }, [titulo]);
+
+  function onTituloKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
     event.preventDefault();
     wrapRef.current?.querySelector<HTMLElement>(".ProseMirror")?.focus();
@@ -177,7 +200,7 @@ export function NotaEditor({ nota }: { nota: Nota }) {
     }
     deleted.current = true;
     setConfirmando(false);
-    close(pathname);
+    close(pathname, { deleted: true });
   }
 
   const nombre = titulo.trim() || "Sin título";
@@ -206,10 +229,12 @@ export function NotaEditor({ nota }: { nota: Nota }) {
         </div>
       </div>
 
-      <input
+      <textarea
+        ref={tituloRef}
+        rows={1}
         value={titulo}
         onChange={(event) => {
-          setTitulo(event.target.value);
+          setTitulo(event.target.value.replace(/\s*[\r\n]+\s*/g, " "));
           schedule();
         }}
         onBlur={() => void save()}
@@ -217,7 +242,7 @@ export function NotaEditor({ nota }: { nota: Nota }) {
         aria-label="Título de la clase"
         placeholder="Sin título"
         spellCheck={false}
-        className="t-doc-title mt-2 block w-full bg-transparent text-foreground outline-none placeholder:text-foreground-subtle focus-visible:shadow-none md:pl-11"
+        className="t-doc-title mt-2 block w-full resize-none overflow-hidden bg-transparent p-0 text-foreground outline-none [overflow-wrap:break-word] placeholder:text-foreground-subtle focus-visible:shadow-none md:pl-11"
       />
 
       <div ref={wrapRef} className="mt-5">

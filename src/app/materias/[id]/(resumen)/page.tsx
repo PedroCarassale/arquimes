@@ -6,6 +6,7 @@ import { Icon, apunteIconName, fileIconName } from "@/components/ui/Icon";
 import { TabLink } from "@/components/workspace/TabLink";
 import { TabMeta } from "@/components/workspace/WorkspaceContext";
 import { getExamenes, getMateria, listEventos } from "@/lib/db";
+import { extractoPlano } from "@/lib/editor-markdown";
 import { fechaCorta, hoyYmd, sumarDias } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import type { ApunteItem, EventoResumen, Nota } from "@/lib/types";
@@ -15,21 +16,6 @@ import { AccionInline, AccionesMateria, MateriaMenu, PrimerosPasos, RefrescarAlS
 export const dynamic = "force-dynamic";
 
 const MAX_FILAS = 4;
-
-function extracto(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/\$\$[\s\S]*?\$\$/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\\[a-zA-Z]+/g, " ")
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]\s+\[[ xX]\]|[-*+]|\d+[.)])\s*/gm, "")
-    .replace(/[*_`~|$]+/g, "")
-    .replace(/^\s*-{3,}\s*$/gm, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
-}
 
 function apunteTitulo(item: ApunteItem): string {
   return item.origen === "archivo" ? item.name : item.titulo;
@@ -64,7 +50,9 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
 
   const info = [materia.catedra, materia.faculty].filter(Boolean).join(" · ");
   const hayArchivos = apuntes.some((item) => item.origen === "archivo");
-  const vacia = notas.length === 0 && !hayArchivos && examenes.length === 0;
+  const hechos = { clase: notas.length > 0, apunte: hayArchivos, fecha: examenes.length > 0 };
+  const vacia = !hechos.clase && !hechos.apunte && !hechos.fecha;
+  const pasosPendientes = !hechos.clase || !hechos.apunte || !hechos.fecha;
 
   return (
     <div className="@container mx-auto w-full max-w-[960px] px-4 pb-16 pt-6 md:px-8 md:pt-10">
@@ -84,9 +72,9 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
 
       <AccionesMateria />
 
-      {vacia ? (
-        <PrimerosPasos hechos={{ clase: notas.length > 0, apunte: hayArchivos, fecha: examenes.length > 0 }} />
-      ) : (
+      {pasosPendientes && <PrimerosPasos hechos={hechos} />}
+
+      {!vacia && (
         <div className="mt-10 grid grid-cols-1 gap-8 lg:@min-[720px]:grid-cols-12">
           <Seccion
             id="clases-recientes"
@@ -142,11 +130,16 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
                   <li key={`${item.origen}-${item.id}`}>
                     <TabLink
                       href={apunteHref(id, item)}
-                      className="flex h-11 items-center gap-2.5 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
+                      title={apunteTitulo(item)}
+                      className="flex h-12 items-center gap-2.5 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
                     >
                       <Icon name={apunteIconName(item)} size={16} className="shrink-0 text-foreground-muted" />
-                      <span className="min-w-0 flex-1 truncate text-sm">{apunteTitulo(item)}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-foreground-subtle">{apunteTipo(item)}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm leading-5 text-foreground">{apunteTitulo(item)}</span>
+                        <span className="block truncate font-mono text-[11px] leading-4 text-foreground-subtle">
+                          {apunteTipo(item)}
+                        </span>
+                      </span>
                     </TabLink>
                   </li>
                 ))}
@@ -192,11 +185,12 @@ function Vacio({ children }: { children: ReactNode }) {
 }
 
 function ClaseFila({ materiaId, nota }: { materiaId: string; nota: Nota }) {
-  const resumen = extracto(nota.contenido);
+  const resumen = extractoPlano(nota.contenido);
   return (
     <li>
       <TabLink
         href={rutas.clase(materiaId, nota.id)}
+        tabTitle={nota.titulo || "Sin título"}
         className="flex h-11 items-center gap-3 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
       >
         <span className="min-w-0 flex-1">
@@ -215,6 +209,7 @@ function EventoFila({ materiaId, evento }: { materiaId: string; evento: EventoRe
     <li>
       <TabLink
         href={rutas.evento(materiaId, evento.id)}
+        tabTitle={evento.name}
         className="flex h-12 items-center gap-3 rounded-md px-2 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover"
       >
         <span

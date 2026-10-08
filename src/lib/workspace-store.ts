@@ -162,8 +162,7 @@ export async function updateNota(
   const userId = await requireUserId();
   const current = await getNota(id);
   if (!current) return undefined;
-  const titulo =
-    input.titulo !== undefined ? input.titulo.trim() || "Sin título" : current.titulo;
+  const titulo = input.titulo !== undefined ? input.titulo.trim() : current.titulo;
   const contenido = input.contenido ?? current.contenido;
   const updatedAt = new Date().toISOString();
   await getLibsqlClient().execute({

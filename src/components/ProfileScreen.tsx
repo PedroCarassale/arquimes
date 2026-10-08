@@ -231,7 +231,7 @@ export function ProfileScreen({
 
         <form className="mt-5 space-y-4" onSubmit={saveName}>
           <div className="space-y-2">
-            <label htmlFor="profile-name" className="text-xs uppercase tracking-wider text-foreground-muted">
+            <label htmlFor="profile-name" className="block text-sm font-medium text-foreground-muted">
               Nombre
             </label>
             <input
@@ -239,16 +239,16 @@ export function ProfileScreen({
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={nameBusy}
-              className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+              className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
               placeholder="Tu nombre"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wider text-foreground-muted">Email</label>
+            <label className="block text-sm font-medium text-foreground-muted">Email</label>
             <div
               title={email}
-              className="h-11 w-full truncate border border-border-subtle bg-background px-3 leading-[42px] text-sm text-foreground-muted"
+              className="h-11 w-full truncate rounded-md border border-border-subtle bg-background px-3 leading-[42px] text-sm text-foreground-muted"
             >
               {email}
             </div>
@@ -267,7 +267,7 @@ export function ProfileScreen({
           <button
             type="submit"
             disabled={nameBusy}
-            className="h-11 bg-accent px-4 text-sm font-mono uppercase tracking-wider text-background transition-colors hover:bg-accent/90 disabled:opacity-60"
+            className="h-11 rounded-md bg-accent px-4 text-sm font-medium text-background transition-colors hover:bg-accent/90 disabled:opacity-60"
           >
             {nameBusy ? "Guardando..." : "Guardar nombre"}
           </button>
@@ -304,7 +304,7 @@ export function ProfileScreen({
               type="button"
               disabled={avatarBusy}
               onClick={() => fileInputRef.current?.click()}
-              className="h-10 border border-border px-3 text-sm text-foreground-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
+              className="h-10 rounded-md border border-border px-3 text-sm text-foreground-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
             >
               {avatarBusy ? "Subiendo..." : "Subir avatar"}
             </button>
@@ -312,7 +312,7 @@ export function ProfileScreen({
               type="button"
               disabled={avatarBusy || !effectiveImage}
               onClick={() => void updateAvatar(null)}
-              className="h-10 border border-border px-3 text-sm text-foreground-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
+              className="h-10 rounded-md border border-border px-3 text-sm text-foreground-muted transition-colors hover:bg-hover hover:text-foreground disabled:opacity-60"
             >
               Quitar avatar
             </button>
@@ -333,14 +333,14 @@ export function ProfileScreen({
       <section className="rounded-xl border border-border-subtle bg-surface p-4 md:p-5">
         <h2 className="font-serif text-2xl">Contraseña</h2>
         {!canChangePassword ? (
-          <div className="mt-4 border border-border-subtle bg-background p-4 text-sm text-foreground-muted">
+          <div className="mt-4 rounded-md border border-border-subtle bg-background p-4 text-sm text-foreground-muted">
             Esta cuenta inició con proveedor social y no tiene contraseña local para cambiar desde
             aquí.
           </div>
         ) : (
           <form className="mt-5 space-y-4" onSubmit={savePassword}>
             <div className="space-y-2">
-              <label htmlFor="current-password" className="text-xs uppercase tracking-wider text-foreground-muted">
+              <label htmlFor="current-password" className="block text-sm font-medium text-foreground-muted">
                 Contraseña actual
               </label>
               <input
@@ -350,12 +350,12 @@ export function ProfileScreen({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 disabled={passwordBusy}
-                className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+                className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="new-password" className="text-xs uppercase tracking-wider text-foreground-muted">
+              <label htmlFor="new-password" className="block text-sm font-medium text-foreground-muted">
                 Nueva contraseña
               </label>
               <input
@@ -366,12 +366,12 @@ export function ProfileScreen({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={passwordBusy}
-                className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+                className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="confirm-password" className="text-xs uppercase tracking-wider text-foreground-muted">
+              <label htmlFor="confirm-password" className="block text-sm font-medium text-foreground-muted">
                 Confirmar nueva contraseña
               </label>
               <input
@@ -382,7 +382,7 @@ export function ProfileScreen({
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={passwordBusy}
-                className="h-11 w-full border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
+                className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-accent"
               />
             </div>
 
@@ -399,7 +399,7 @@ export function ProfileScreen({
             <button
               type="submit"
               disabled={passwordBusy}
-              className="h-11 bg-accent px-4 text-sm font-mono uppercase tracking-wider text-background transition-colors hover:bg-accent/90 disabled:opacity-60"
+              className="h-11 rounded-md bg-accent px-4 text-sm font-medium text-background transition-colors hover:bg-accent/90 disabled:opacity-60"
             >
               {passwordBusy ? "Actualizando..." : "Cambiar contraseña"}
             </button>

@@ -14,6 +14,7 @@
     "test:artefactos": "node --experimental-strip-types --test src/lib/artefactos.test.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.3",
     "@libsql/client": "^0.18.0",
     "@libsql/kysely-libsql": "^0.4.1",
     "@milkdown/crepe": "7.22.2",

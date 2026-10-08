@@ -39,6 +39,7 @@ const closedStack = new Map<string, string[]>();
 const knownTitles = new Map<string, { title: string; icon?: string }>();
 const materiaNames = new Map<string, string>();
 const discarded = new Map<string, number>();
+const closingActive = new Map<string, string>();
 const DISCARD_MS = 10_000;
 
 function storageKey(materiaId: string) {
@@ -193,6 +194,12 @@ function renameRecent(materiaId: string, key: string, title: string) {
   writeRecent(items.map((item, i) => (i === index ? { ...item, title } : item)));
 }
 
+function dropRecent(materiaId: string, keys: Set<string>) {
+  const items = getRecentSnapshot();
+  const kept = items.filter((item) => !(item.materiaId === materiaId && keys.has(tabKey(item.href))));
+  if (kept.length !== items.length) writeRecent(kept.length ? kept : EMPTY_RECENT);
+}
+
 function subscribe(callback: () => void) {
   window.addEventListener(EVENT, callback);
   window.addEventListener("storage", callback);
@@ -220,6 +227,7 @@ export const tabsStore = {
       if (discardedUntil > now) return;
       discarded.delete(titleKey(materiaId, key));
     }
+    if (!background) closingActive.delete(materiaId);
     const known = knownTitles.get(titleKey(materiaId, key));
     let next = openPath(getSnapshot(materiaId), href, {
       materiaId,
@@ -236,17 +244,29 @@ export const tabsStore = {
       touchRecent(materiaId, href, kind, tab?.title ?? "", now);
     }
   },
-  close(materiaId: string, key: string, activeKey: string | null): string | null {
+  close(materiaId: string, key: string, activeKey: string | null, opts?: { deleted?: boolean }): string | null {
     const tabs = getSnapshot(materiaId);
     const closing = tabs.find((tab) => tabKey(tab.href) === key);
     const result = closeTab(tabs, key, activeKey, materiaId);
-    if (closing) {
-      const stack = (closedStack.get(materiaId) ?? []).filter((href) => tabKey(href) !== key);
-      closedStack.set(materiaId, [...stack, closing.href].slice(-MAX_CLOSED));
+    const stack = (closedStack.get(materiaId) ?? []).filter((href) => tabKey(href) !== key);
+    if (closing && !opts?.deleted) closedStack.set(materiaId, [...stack, closing.href].slice(-MAX_CLOSED));
+    else closedStack.set(materiaId, stack);
+    if (result.next) {
+      lastActive.set(materiaId, tabKey(result.next));
+      if (key === activeKey) closingActive.set(materiaId, key);
     }
-    if (result.next) lastActive.set(materiaId, tabKey(result.next));
+    if (opts?.deleted) {
+      knownTitles.delete(titleKey(materiaId, key));
+      dropRecent(materiaId, new Set([key]));
+    }
     writeTabs(materiaId, result.tabs);
     return result.next;
+  },
+  isClosing(materiaId: string, key: string): boolean {
+    return closingActive.get(materiaId) === key;
+  },
+  forgetRecents(materiaId: string, keys: Iterable<string>) {
+    dropRecent(materiaId, new Set(keys));
   },
   setTitle(materiaId: string, key: string, title: string, icon?: string) {
     knownTitles.set(titleKey(materiaId, key), { title, icon });
@@ -264,11 +284,12 @@ export const tabsStore = {
     discarded.set(titleKey(materiaId, key), Date.now() + DISCARD_MS);
     const tabs = getSnapshot(materiaId);
     const result = closeTab(tabs, key, key, materiaId);
-    if (result.next) lastActive.set(materiaId, tabKey(result.next));
+    if (result.next) {
+      lastActive.set(materiaId, tabKey(result.next));
+      closingActive.set(materiaId, key);
+    }
     writeTabs(materiaId, result.tabs);
-    const items = getRecentSnapshot();
-    const kept = items.filter((item) => !(item.materiaId === materiaId && tabKey(item.href) === key));
-    if (kept.length !== items.length) writeRecent(kept.length ? kept : EMPTY_RECENT);
+    dropRecent(materiaId, new Set([key]));
     return result.next;
   },
   popClosed(materiaId: string): string | null {
@@ -283,6 +304,7 @@ export function forgetTabs(materiaId: string): void {
   tabsCache.delete(materiaId);
   lastActive.delete(materiaId);
   closedStack.delete(materiaId);
+  closingActive.delete(materiaId);
   materiaNames.delete(materiaId);
   for (const key of Array.from(knownTitles.keys())) {
     if (key.startsWith(`${materiaId}|`)) knownTitles.delete(key);
@@ -302,7 +324,7 @@ function materiaIdFrom(pathname: string): string {
 export function useTabs(): {
   tabs: Tab[];
   activeKey: string;
-  close(href: string): void;
+  close(href: string, opts?: { deleted?: boolean }): void;
   openNueva(): void;
   openInBackground(href: string, title?: string): void;
 } {
@@ -317,8 +339,8 @@ export function useTabs(): {
   const activeKey = tabKey(pathname);
 
   const close = useCallback(
-    (href: string) => {
-      const next = tabsStore.close(materiaId, tabKey(href), activeKey);
+    (href: string, opts?: { deleted?: boolean }) => {
+      const next = tabsStore.close(materiaId, tabKey(href), activeKey, opts);
       if (next) router.replace(next);
     },
     [materiaId, activeKey, router]
