@@ -3,6 +3,9 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Icon, cx, fileIconName } from "@/components/ui";
 import { formatFileSize } from "@/lib/format";
+import { SUPPORTED_STUDY_EXTENSIONS } from "@/lib/limits";
+
+const STUDY_FILE_ACCEPT = Array.from(SUPPORTED_STUDY_EXTENSIONS, (ext) => `.${ext}`).join(",");
 
 export type ComposerUploadChip = {
   name: string;
@@ -48,6 +51,7 @@ export function CompactChatComposer({
   textareaRef,
 }: CompactChatComposerProps) {
   const localRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const ref = textareaRef ?? localRef;
   const [draggingFiles, setDraggingFiles] = useState(false);
   const canSend = value.trim().length > 0 && !sending;
@@ -125,6 +129,31 @@ export function CompactChatComposer({
           if (canSend) onSend();
         }}
       >
+        {onAttachFiles && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              accept={STUDY_FILE_ACCEPT}
+              onChange={(event) => {
+                const files = Array.from(event.target.files || []);
+                event.target.value = "";
+                if (files.length > 0) onAttachFiles(files);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex size-7 shrink-0 items-center justify-center rounded-full text-foreground-muted transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover hover:text-foreground active:bg-pressed pointer-coarse:size-10"
+              aria-label="Adjuntar archivo"
+              title="Adjuntar archivo"
+            >
+              <Icon name="plus" size={16} />
+            </button>
+          </>
+        )}
         <textarea
           ref={ref}
           id={id}
