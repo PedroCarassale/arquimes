@@ -31,7 +31,7 @@ Full detail, layout numbers, contracts and work packages: `docs/arquimedes-v2-sp
 
 Dark, editorial, technological — and softer than v1.
 
-- Near-black background, warm white/light gray type
+- Dark gray background `#151515` (not pure black), surfaces step up to `#1b1b1b` / `#222222` / `#292929`; warm white/light gray type
 - Serif (Cormorant) for big titles, sans (Inter) for UI, mono (IBM Plex Mono) for metrics/labels
 - Accent yellow `rgb(243, 164, 75)` used sparingly: primary action, progress, alerts, focus ring, "today"
 - Palettes stay mostly mono; per-materia tones are low-saturation dots only

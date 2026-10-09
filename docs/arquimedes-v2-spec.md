@@ -635,15 +635,16 @@ Archivos sugeridos: `CalendarView.tsx`, `MonthGrid.tsx`, `Agenda.tsx`, `WeekStri
 
 ## 8. Sistema visual (más suave, menos cuadrado)
 
-Se mantiene la identidad: fondo casi negro, texto blanco cálido, serif (Cormorant) para títulos grandes, sans (Inter) para la UI, mono (IBM Plex Mono) para etiquetas y metadatos, acento `rgb(243,164,75)` solo para acción primaria, progreso, alertas, foco y «hoy». Cambian la geometría y la interacción.
+Se mantiene la identidad: fondo gris oscuro `#151515` (no negro puro), texto blanco cálido, serif (Cormorant) para títulos grandes, sans (Inter) para la UI, mono (IBM Plex Mono) para etiquetas y metadatos, acento `rgb(243,164,75)` solo para acción primaria, progreso, alertas, foco y «hoy». Cambian la geometría y la interacción.
 
 ### 8.1 Tokens (A2, `src/app/globals.css`)
 
 En `:root` (se agregan; los existentes quedan):
 ```css
---surface: #111111;            /* existe */
---surface-elevated: #1a1a1a;   /* existe */
---surface-overlay: #1f1f1f;    /* popovers, menús, modales */
+--background: #151515;
+--surface: #1b1b1b;
+--surface-elevated: #222222;
+--surface-overlay: #292929;    /* popovers, menús, modales */
 --hover: rgba(255,255,255,.045);
 --selected: rgba(255,255,255,.08);
 --pressed: rgba(255,255,255,.11);

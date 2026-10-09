@@ -2,7 +2,7 @@
 @import "katex/dist/katex.min.css";
 
 :root {
-  --background: #0a0a0a;
+  --background: #151515;
   --foreground: #f5f5f4;
   --foreground-muted: #a1a1a1;
   --foreground-subtle: #6b6b6b;
@@ -10,9 +10,9 @@
   --accent-muted: rgba(243, 164, 75, 0.15);
   --border: rgba(255, 255, 255, 0.12);
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --surface: #111111;
-  --surface-elevated: #1a1a1a;
-  --surface-overlay: #1f1f1f;
+  --surface: #1b1b1b;
+  --surface-elevated: #222222;
+  --surface-overlay: #292929;
   --hover: rgba(255, 255, 255, 0.045);
   --selected: rgba(255, 255, 255, 0.08);
   --pressed: rgba(255, 255, 255, 0.11);
