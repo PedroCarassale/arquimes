@@ -17,11 +17,11 @@ export async function GET(_request: Request, { params }: Params) {
     const { id } = await params;
     const artefacto = await getArtefacto(id);
     if (!artefacto) {
-      return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
+      return NextResponse.json({ error: "Pergamino no encontrado" }, { status: 404 });
     }
     return NextResponse.json({ ...artefacto, versiones: await listArtefactoVersiones(id) });
   } catch (error) {
-    return apiErrorResponse(error, "No pude leer el documento.");
+    return apiErrorResponse(error, "No pude leer el pergamino.");
   }
 }
 
@@ -31,6 +31,6 @@ export async function DELETE(_request: Request, { params }: Params) {
     await deleteArtefacto((await params).id);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return apiErrorResponse(error, "No pude borrar el documento.");
+    return apiErrorResponse(error, "No pude borrar el pergamino.");
   }
 }

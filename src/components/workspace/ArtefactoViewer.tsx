@@ -131,7 +131,7 @@ export function ArtefactoViewer({
       <header className="flex flex-wrap items-center gap-x-2 gap-y-2">
         <p className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] leading-4 text-foreground-subtle">
           <Icon name={esExamen ? "examen" : "generado"} size={12} />
-          <span>{esExamen ? "Examen del chat" : "Documento del chat"}</span>
+          <span>{esExamen ? "Pergamino · Simulacro" : "Pergamino"}</span>
           <span aria-hidden="true">·</span>
           {versiones.length > 1 ? (
             <Menu
@@ -165,12 +165,12 @@ export function ArtefactoViewer({
           {interactivo && (
             <SegmentedControl size="sm" value={vista} options={VISTAS} onChange={setVista} ariaLabel="Vista del examen" />
           )}
-          <Button variant="ghost" size="sm" icon="sparkle" onClick={() => askChat("Cambiá este documento: ")}>
+          <Button variant="ghost" size="sm" icon="sparkle" onClick={() => askChat("Cambiá este pergamino: ")}>
             Pedir cambios
           </Button>
           <IconButton icon="copy" label="Copiar como Markdown" size={28} onClick={() => void copiar()} />
           <Menu
-            label="Acciones del documento"
+            label="Acciones del pergamino"
             items={menuItems}
             trigger={(props) => <IconButton {...props} icon="more" label="Más acciones" size={28} />}
           />

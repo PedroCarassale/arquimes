@@ -36,7 +36,7 @@ const MAX_RECENTS = 8;
 const MAX_MATCHES = 6;
 
 function apunteHint(item: ApunteItem): string {
-  if (item.origen === "generado") return "Del chat";
+  if (item.origen === "generado") return "Pergamino";
   if (item.esExamen) return "Examen";
   const icon = apunteIconName(item);
   if (icon === "pdf") return "PDF";

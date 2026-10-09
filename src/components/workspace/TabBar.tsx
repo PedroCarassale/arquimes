@@ -42,7 +42,7 @@ const KIND_LABEL: Record<TabKind, string> = {
   clase: "Clase",
   apuntes: "Apuntes",
   archivo: "Archivo",
-  generado: "Del chat",
+  generado: "Pergamino",
   calendario: "Calendario",
   evento: "Evento",
 };

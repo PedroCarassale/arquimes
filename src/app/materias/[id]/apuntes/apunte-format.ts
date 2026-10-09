@@ -39,7 +39,7 @@ export function metaArchivo(file: { type: string; name: string; size: number; ad
 }
 
 export function metaGenerado(item: { tipo: ArtefactoTipo; version: number; updatedAt?: string }): string {
-  return [item.tipo === "examen" ? "Examen del chat" : "Del chat", `v${item.version}`, fechaCorta(item.updatedAt)]
+  return [item.tipo === "examen" ? "Simulacro" : "Pergamino", `v${item.version}`, fechaCorta(item.updatedAt)]
     .filter(Boolean)
     .join(" · ");
 }

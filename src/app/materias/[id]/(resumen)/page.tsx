@@ -22,7 +22,7 @@ function apunteTitulo(item: ApunteItem): string {
 }
 
 function apunteTipo(item: ApunteItem): string {
-  if (item.origen === "generado") return item.tipo === "examen" ? "Examen del chat" : "Del chat";
+  if (item.origen === "generado") return item.tipo === "examen" ? "Simulacro" : "Pergamino";
   if (item.esExamen) return "Examen";
   const icon = fileIconName(item.type, item.name);
   if (icon === "pdf") return "PDF";

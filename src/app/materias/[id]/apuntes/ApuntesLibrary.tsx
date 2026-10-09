@@ -42,7 +42,7 @@ const POLL_MS = 4000;
 const TIPO_OPTIONS: { value: ApuntesTipo; label: string }[] = [
   { value: "todos", label: "Todos" },
   { value: "archivos", label: "Archivos" },
-  { value: "generados", label: "Del chat" },
+  { value: "generados", label: "Pergaminos" },
 ];
 
 const ORDEN_OPTIONS: { value: ApuntesOrden; label: string }[] = [
@@ -247,7 +247,7 @@ export function ApuntesLibrary({
 
       <div className="mx-auto w-full max-w-[880px] px-4 pb-16 pt-6 md:px-8 md:pt-10">
         <h1 className="t-doc-title text-foreground">Apuntes</h1>
-        <p className="mt-1 text-sm text-foreground-muted">Tus archivos y lo que guardaste del chat.</p>
+        <p className="mt-1 text-sm text-foreground-muted">Tus archivos y los pergaminos que armó el chat.</p>
 
         {items.length > 0 && (
           <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -442,8 +442,8 @@ function FiltroVacio({ query, tipo, onUpload }: { query: string; tipo: ApuntesTi
       <EmptyState
         size="sm"
         icon="generado"
-        title="Todavía no guardaste nada del chat."
-        description="Usá «Guardar en apuntes» en una respuesta del chat, o pedile un resumen o un simulacro."
+        title="Todavía no hay pergaminos."
+        description="Pedile al chat que te explique un tema, un resumen o un simulacro, o usá «Guardar en apuntes» en una respuesta."
       />
     );
   }

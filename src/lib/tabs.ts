@@ -29,7 +29,7 @@ const DEFAULT_TITLES: Record<TabKind, string> = {
   clase: "Clase",
   apuntes: "Apuntes",
   archivo: "Archivo",
-  generado: "Documento",
+  generado: "Pergamino",
   calendario: "Calendario",
   evento: "Evento",
 };

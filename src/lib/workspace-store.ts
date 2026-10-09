@@ -287,7 +287,7 @@ export async function saveArtefacto(input: {
     materiaId: input.materiaId,
     sessionId: input.sessionId,
     tipo: input.tipo,
-    titulo: input.titulo.trim() || "Documento sin título",
+    titulo: input.titulo.trim() || "Pergamino sin título",
     contenido: input.contenido,
     version: 1,
     createdAt: now,

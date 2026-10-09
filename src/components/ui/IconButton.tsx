@@ -6,7 +6,7 @@ import { Tooltip } from "./Tooltip";
 export type IconButtonProps = {
   icon: IconName;
   label: string;
-  size?: 28 | 32 | 40;
+  size?: 24 | 28 | 32 | 40;
   variant?: "ghost" | "secondary";
   shortcut?: string;
   tooltipSide?: "top" | "right" | "bottom";
@@ -14,7 +14,8 @@ export type IconButtonProps = {
 } & ButtonHTMLAttributes<HTMLButtonElement>;
 
 const SIZES = {
-  28: "h-7 w-7 rounded-sm pointer-coarse:h-10 pointer-coarse:w-10",
+  24: "h-6 w-6 rounded-sm pointer-coarse:h-10 pointer-coarse:w-10",
+  28: "h-7 w-7 rounded-md pointer-coarse:h-10 pointer-coarse:w-10",
   32: "h-8 w-8 rounded-md pointer-coarse:h-10 pointer-coarse:w-10",
   40: "h-10 w-10 rounded-md",
 } as const;
@@ -48,7 +49,7 @@ export function IconButton({
         )}
         {...rest}
       >
-        <Icon name={icon} size={16} />
+        <Icon name={icon} size={size === 24 ? 14 : 16} />
       </button>
     </Tooltip>
   );

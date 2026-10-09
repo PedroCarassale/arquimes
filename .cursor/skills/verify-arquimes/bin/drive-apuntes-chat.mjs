@@ -4,9 +4,9 @@
  *   node bin/drive-apuntes-chat.mjs --base-url http://127.0.0.1:PORT \
  *     --user-data-dir /tmp/arquimes-verify-…/profile --evidence artifacts/verify-arquimes
  * Covers: empty Apuntes drop box, PDF upload through the queue until «Listo para el chat»,
- * filters (Todos · Archivos · Del chat) in the URL, grounded chat answer with a citation chip that
+ * filters (Todos · Archivos · Pergaminos) in the URL, grounded chat answer with a citation chip that
  * links to the file, «Copiar» writes raw Markdown, «Guardar en apuntes» opens a background tab and
- * the saved document shows under Apuntes › Del chat, opens read-only, and can be deleted.
+ * the saved document shows under Apuntes › Pergaminos, opens read-only, and can be deleted.
  */
 import { chromium } from "playwright";
 import { randomBytes } from "node:crypto";
@@ -147,7 +147,7 @@ const metaText = (await row(fileName).first().textContent()) || "";
 if (!/PDF · .+ · \d{1,2} [a-z]{3}/.test(metaText)) fail(`unexpected file meta: ${metaText}`);
 await snap("pdf-listo");
 
-await page.getByRole("radio", { name: "Del chat" }).click();
+await page.getByRole("radio", { name: "Pergaminos" }).click();
 await page.waitForFunction(() => new URL(location.href).searchParams.get("tipo") === "generados");
 await page.getByText("Todavía no guardaste nada del chat.").waitFor();
 await page.getByRole("radio", { name: "Todos" }).click();
@@ -197,8 +197,8 @@ await snap("guardado");
 
 await page.goto(baseUrl + `${m}/apuntes?tipo=generados`, { waitUntil: "networkidle" });
 await row(savedTitle).first().waitFor({ timeout: 10000 });
-if (!/Del chat · v1/.test((await row(savedTitle).first().textContent()) || "")) fail("generated row should read «Del chat · v1 · …»");
-if (await row(fileName).count()) fail("Del chat filter should hide files");
+if (!/Pergamino · v1/.test((await row(savedTitle).first().textContent()) || "")) fail("generated row should read «Pergamino · v1 · …»");
+if (await row(fileName).count()) fail("Pergaminos filter should hide files");
 await snap("del-chat");
 
 await page.getByRole("radio", { name: "Archivos" }).click();
@@ -208,7 +208,7 @@ await page.getByRole("radio", { name: "Todos" }).click();
 
 await row(savedTitle).first().locator("a").first().click();
 await page.waitForURL(new RegExp(`${generadoHref}$`), { timeout: 20000 });
-await page.locator("main").getByText("Documento del chat").waitFor();
+await page.locator("main").getByText("Pergamino").waitFor();
 await page.locator("main .doc-markdown").getByRole("heading", { name: savedTitle }).waitFor();
 if (await page.locator("main").getByText("Guardar en mi preparación").count()) fail("preparation copy is back");
 await snap("generado");

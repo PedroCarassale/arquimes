@@ -69,7 +69,7 @@ export function CompactChatComposer({
     <div>
       {uploadChip && (
         <div className="mb-1.5 flex min-w-0 items-center gap-1.5 px-1 text-xs">
-          <span className="inline-flex h-6 min-w-0 items-center gap-1.5 rounded-full bg-hover px-2 text-foreground">
+          <span className="inline-flex h-6 min-w-0 items-center gap-1.5 rounded-sm bg-surface px-2 text-foreground shadow-[0_0_0_1px_var(--border-subtle)]">
             <Icon name={fileIconName(uploadChip.type, uploadChip.name)} size={12} className="text-foreground-muted" />
             <span className="min-w-0 truncate">{uploadChip.name}</span>
           </span>
@@ -103,8 +103,10 @@ export function CompactChatComposer({
       )}
       <form
         className={cx(
-          "flex items-end gap-1.5 rounded-xl border bg-surface p-1.5 transition-colors duration-(--dur-fast) ease-(--ease-out)",
-          draggingFiles ? "border-border-strong bg-surface-elevated" : "border-border-subtle hover:border-border focus-within:border-border-strong"
+          "flex items-end gap-1 rounded-[14px] p-1.5 shadow-[0_0_0_1px_var(--ring-color),0_1px_2px_rgb(0_0_0/0.2),0_2px_6px_rgb(0_0_0/0.2)] transition-[background-color,box-shadow] duration-(--dur-fast) ease-(--ease-out)",
+          draggingFiles
+            ? "bg-surface-elevated [--ring-color:var(--border-strong)]"
+            : "bg-surface [--ring-color:var(--border)] focus-within:[--ring-color:var(--border-strong)]"
         )}
         aria-busy={sending}
         onDragOver={(event) => {
@@ -146,7 +148,7 @@ export function CompactChatComposer({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex size-7 shrink-0 items-center justify-center rounded-full text-foreground-muted transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover hover:text-foreground active:bg-pressed pointer-coarse:size-10"
+              className="flex size-7 shrink-0 items-center justify-center rounded-md text-foreground-muted transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover hover:text-foreground active:bg-pressed pointer-coarse:size-10"
               aria-label="Adjuntar archivo"
               title="Adjuntar archivo"
             >
@@ -159,7 +161,7 @@ export function CompactChatComposer({
           id={id}
           aria-label="Escribí un mensaje"
           rows={1}
-          className="min-h-7 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-[5px] text-sm leading-[18px] text-foreground outline-none [overflow-wrap:anywhere] placeholder:text-foreground-subtle focus-visible:shadow-none"
+          className="min-h-7 min-w-0 flex-1 resize-none bg-transparent px-1 py-[5px] text-[13px] leading-[18px] text-foreground outline-none [overflow-wrap:anywhere] placeholder:text-foreground-subtle focus-visible:shadow-none"
           placeholder={placeholder}
           value={value}
           onPaste={(event) => {
@@ -179,7 +181,7 @@ export function CompactChatComposer({
         />
         <button
           type="submit"
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-[#0a0a0a] transition-[background-color,transform,opacity] duration-(--dur-fast) hover:bg-accent-hover enabled:active:scale-95 disabled:opacity-35 pointer-coarse:size-10"
+          className="flex size-7 shrink-0 items-center justify-center rounded-md bg-foreground text-background transition-[background-color,color,box-shadow,transform] duration-(--dur-fast) hover:bg-white enabled:active:scale-95 disabled:bg-surface-elevated disabled:text-foreground-subtle disabled:shadow-[0_0_0_1px_var(--border-subtle)] pointer-coarse:size-10"
           disabled={!canSend}
           aria-label="Enviar mensaje"
           title="Enviar"

@@ -33,7 +33,7 @@ export function extractArtefactos(text: string): {
     blocks.push({
       id: attrs.id || undefined,
       tipo: attrs.tipo === "examen" ? "examen" : "documento",
-      titulo: attrs.titulo || firstHeading(contenido) || "Documento",
+      titulo: attrs.titulo || firstHeading(contenido) || "Pergamino",
       contenido,
     });
   }

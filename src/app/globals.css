@@ -441,6 +441,68 @@ select {
   overflow-wrap: anywhere;
 }
 
+.chat-thread .chat-markdown h1,
+.chat-thread .chat-markdown h2,
+.chat-thread .chat-markdown h3 {
+  margin: 0.9rem 0 0.3rem;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.chat-loader-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 4px);
+  gap: 1.5px;
+}
+
+.chat-loader-grid > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--foreground);
+  opacity: 0.18;
+  animation: chat-loader-pixel 1080ms linear infinite;
+}
+
+@keyframes chat-loader-pixel {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  36% {
+    opacity: 0.18;
+  }
+}
+
+.chat-loader-text {
+  background: linear-gradient(
+      90deg,
+      var(--foreground-muted) 0%,
+      var(--foreground-muted) 35%,
+      var(--foreground) 50%,
+      var(--foreground-muted) 65%,
+      var(--foreground-muted) 100%
+    )
+    0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chat-loader-shimmer 2s linear infinite;
+}
+
+@keyframes chat-loader-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
 .chat-markdown > :first-child {
   margin-top: 0;
 }

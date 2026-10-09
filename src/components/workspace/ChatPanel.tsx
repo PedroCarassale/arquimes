@@ -73,7 +73,7 @@ const SUGERENCIAS = [
 
 const FOCUS_META: Record<WorkspaceFocus["kind"], { label: string; icon: IconName }> = {
   nota: { label: "Clase", icon: "clase" },
-  artefacto: { label: "Del chat", icon: "generado" },
+  artefacto: { label: "Pergamino", icon: "generado" },
   material: { label: "Archivo", icon: "apunte" },
   examen: { label: "Examen", icon: "examen" },
 };
@@ -528,7 +528,7 @@ export function ChatPanel() {
 
   return (
     <div data-arq-chat="" className="flex h-full min-h-0 w-full flex-col bg-background">
-      <div className="flex h-10 shrink-0 items-center gap-0.5 border-b border-border-subtle px-1.5">
+      <div className="flex h-10 shrink-0 items-center gap-0.5 border-b border-border-subtle px-2">
         <button
           ref={setSessionsAnchor}
           type="button"
@@ -536,20 +536,20 @@ export function ChatPanel() {
           aria-expanded={sessionsOpen}
           aria-haspopup="dialog"
           aria-label={`Chat: ${activeSession?.title || "Chat nuevo"}. Cambiar de chat`}
-          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-sm px-2 text-left transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover pointer-coarse:h-10"
+          className="mr-auto flex h-[26px] min-w-0 max-w-full items-center gap-1.5 rounded-sm bg-hover px-2 text-left transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-selected pointer-coarse:h-10"
         >
-          <Icon name="chat" size={14} className="text-foreground-muted" />
           <span className="min-w-0 truncate text-[13px] leading-[18px] text-foreground">
             {activeSession?.title || "Chat nuevo"}
           </span>
-          <Icon name="chevron-down" size={14} className="text-foreground-subtle" />
-          {state.sessions.length > 1 && (
-            <span className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-hover px-1.5 font-mono text-[11px] text-foreground-muted">
-              {state.sessions.length}
-            </span>
-          )}
+          <Icon name="chevron-down" size={12} className="shrink-0 text-foreground-subtle" />
         </button>
         <IconButton icon="plus" label="Nuevo chat" size={28} onClick={newSession} />
+        <IconButton
+          icon="clock"
+          label="Chats anteriores"
+          size={28}
+          onClick={() => setSessionsOpen((open) => !open)}
+        />
         <IconButton
           icon={isDesktop ? "panel" : "x"}
           label="Cerrar chat"
@@ -621,9 +621,9 @@ export function ChatPanel() {
         </div>
       </Popover>
 
-      <div ref={threadRef} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-3 py-4 sm:px-4" aria-live="polite">
+      <div ref={threadRef} className="chat-thread min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-live="polite">
         {loading ? (
-          <p className="font-mono text-[11px] text-foreground-subtle">Cargando chat…</p>
+          <ChatLoader label="Cargando" />
         ) : state.messages.length === 0 ? (
           <EmptyChat
             hasReadable={hasReadable}
@@ -638,7 +638,7 @@ export function ChatPanel() {
             if (message.role === "user") {
               return (
                 <div key={message.id} data-chat-role="user" className="flex justify-end">
-                  <p className="max-w-[88%] whitespace-pre-wrap rounded-lg bg-surface-elevated px-3.5 py-2.5 text-sm leading-6 text-foreground [overflow-wrap:anywhere]">
+                  <p className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-surface-elevated px-3 py-1.5 text-[13px] leading-[19px] text-foreground [overflow-wrap:anywhere]">
                     {message.content}
                   </p>
                 </div>
@@ -664,14 +664,14 @@ export function ChatPanel() {
                       <IconButton
                         icon="copy"
                         label="Copiar"
-                        size={28}
+                        size={24}
                         tooltipSide="top"
                         onClick={() => void copiar(textOnly)}
                       />
                       <IconButton
                         icon={saved.has(message.id) ? "check" : "bookmark"}
                         label={saved.has(message.id) ? "Abrir en Apuntes" : "Guardar en apuntes"}
-                        size={28}
+                        size={24}
                         tooltipSide="top"
                         disabled={savingId === message.id}
                         aria-busy={savingId === message.id || undefined}
@@ -684,16 +684,7 @@ export function ChatPanel() {
             );
           })
         )}
-        {sending && (
-          <div role="status" className="flex items-center gap-2 text-[13px] text-foreground-muted" data-chat-thinking="true">
-            <span className="flex gap-1" aria-hidden="true">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.3s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent" />
-            </span>
-            Pensando… si estoy armando un documento puede tardar un poco.
-          </div>
-        )}
+        {sending && <ChatLoader label="Pensando" elapsed />}
       </div>
 
       {error && (
@@ -716,14 +707,14 @@ export function ChatPanel() {
               aria-pressed={focusEnabled}
               title={focusEnabled ? "El chat ve este documento. Tocá para quitarlo." : "Tocá para que el chat vea este documento."}
               className={cx(
-                "inline-flex h-6 min-w-0 max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors duration-(--dur-fast) ease-(--ease-out) pointer-coarse:h-9",
+                "inline-flex h-6 min-w-0 max-w-full items-center gap-1.5 rounded-sm px-2 text-xs shadow-[0_0_0_1px_var(--border-subtle)] transition-colors duration-(--dur-fast) ease-(--ease-out) pointer-coarse:h-9",
                 focusEnabled
-                  ? "bg-selected text-foreground hover:bg-pressed"
-                  : "bg-hover text-foreground-subtle line-through hover:text-foreground-muted"
+                  ? "bg-surface text-foreground hover:bg-surface-elevated"
+                  : "text-foreground-subtle line-through hover:text-foreground-muted"
               )}
             >
               <Icon name={chip.icon} size={12} className="text-foreground-muted" />
-              <span className="shrink-0 font-mono text-[11px] text-foreground-muted">{chip.label}</span>
+              <span className="shrink-0 text-[11px] text-foreground-muted">{chip.label}</span>
               <span className="min-w-0 truncate">{focus.titulo}</span>
             </button>
           </div>
@@ -774,7 +765,7 @@ function AssistantMessage({
     <article
       data-chat-role="assistant"
       className={cx(
-        "group text-sm leading-6",
+        "group text-[13px] leading-[21px] text-foreground",
         message.isError && "rounded-md bg-hover px-3 py-2 text-foreground-muted"
       )}
     >
@@ -792,18 +783,17 @@ function AssistantMessage({
         )
       )}
       {message.citations && message.citations.length > 0 && (
-        <footer className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="t-meta mr-0.5">Fuentes</span>
+        <footer className="mt-2.5 flex flex-wrap items-center gap-1">
           {message.citations.map((citation) => {
             const href = citationHref(citation);
             const chip =
-              "inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-hover px-2 text-xs text-foreground-muted pointer-coarse:h-9";
+              "inline-flex h-5 max-w-full items-center gap-1 rounded-[5px] bg-surface px-1.5 text-[11px] leading-4 text-foreground-muted shadow-[0_0_0_1px_var(--border-subtle)] pointer-coarse:h-9";
             return href ? (
               <TabLink
                 key={citation}
                 href={href}
                 onClick={onNavigate}
-                className={cx(chip, "transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-selected hover:text-foreground")}
+                className={cx(chip, "transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-surface-elevated hover:text-foreground")}
               >
                 <Icon name={citation.startsWith("Clase · ") || citation.startsWith("Nota · ") ? "clase" : "apunte"} size={12} />
                 <span className="truncate">{citation}</span>
@@ -817,7 +807,7 @@ function AssistantMessage({
         </footer>
       )}
       {actions && (
-        <div className="mt-1.5 flex items-center gap-0.5 opacity-0 transition-opacity duration-(--dur-fast) focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
+        <div className="-ml-1 mt-1.5 flex items-center gap-0.5 opacity-0 transition-opacity duration-(--dur-fast) focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
           {actions}
         </div>
       )}
@@ -838,8 +828,8 @@ function ArtefactoCard({
 }) {
   if (!artefacto) {
     return (
-      <div className="my-3 rounded-lg border border-dashed border-border-subtle px-3 py-2.5 text-xs text-foreground-muted">
-        Este documento ya no está en Apuntes.
+      <div className="my-2.5 rounded-lg px-3 py-2.5 text-xs text-foreground-muted shadow-[0_0_0_1px_var(--border-subtle)]">
+        Este pergamino ya no está en Apuntes.
       </div>
     );
   }
@@ -850,18 +840,22 @@ function ArtefactoCard({
       href={artefacto.version < artefacto.latest ? `${href}?v=${artefacto.version}` : href}
       tabTitle={artefacto.tituloActual}
       onClick={onOpen}
-      className="my-3 flex items-center gap-3 rounded-lg border border-border-subtle bg-surface p-2.5 transition-colors duration-(--dur-fast) ease-(--ease-out) hover:border-border hover:bg-surface-elevated"
+      className="group/card my-2.5 flex items-center gap-2.5 rounded-lg bg-surface p-2 shadow-[0_0_0_1px_var(--border-subtle),0_1px_2px_rgb(0_0_0/0.2)] transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-surface-elevated"
     >
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-hover text-foreground-muted">
+      <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-elevated text-foreground-muted shadow-[0_0_0_1px_var(--border-subtle)]">
         <Icon name={esExamen ? "examen" : "generado"} size={16} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm leading-5 text-foreground">{artefacto.titulo}</span>
-        <span className="block font-mono text-[11px] leading-4 text-foreground-subtle">
-          {esExamen ? "Examen" : "Documento"} · v{artefacto.version}
+        <span className="block truncate text-[13px] font-medium leading-[18px] text-foreground">{artefacto.titulo}</span>
+        <span className="block text-[11px] leading-4 text-foreground-subtle">
+          {esExamen ? "Pergamino · Simulacro" : "Pergamino"} · v{artefacto.version}
         </span>
       </span>
-      <span className={buttonClasses({ variant: "secondary", size: "sm" })}>Abrir</span>
+      <Icon
+        name="chevron-right"
+        size={14}
+        className="mr-1 shrink-0 text-foreground-subtle transition-colors group-hover/card:text-foreground"
+      />
     </TabLink>
   );
 }
@@ -881,25 +875,30 @@ function EmptyChat({
 }) {
   const link = buttonClasses({ variant: "secondary", size: "sm" });
   return (
-    <div className="pt-4">
-      <p className="font-serif text-[26px] leading-8 text-foreground">¿En qué te ayudo?</p>
-      <p className="mt-2 text-[13px] leading-5 text-foreground-muted">
+    <div className="pt-2">
+      <p className="text-[15px] font-semibold leading-[22px] text-foreground">¿En qué te ayudo?</p>
+      <p className="mt-1 text-[13px] leading-5 text-foreground-muted">
         {hasReadable
-          ? "Leo tus clases, tus apuntes y tus fechas. Pedime que te explique algo, un resumen o un simulacro, y si querés lo guardo en Apuntes."
+          ? "Leo tus clases, tus apuntes y tus fechas. Preguntame algo puntual, o pedime que te explique un tema, un resumen o un simulacro y te armo un pergamino."
           : enClase
             ? "En cuanto se guarde lo que escribas en esta clase, lo leo y estudiamos con eso."
             : "Todavía no tengo nada para leer en esta materia. Anotá una clase o subí apuntes y estudiamos con eso."}
       </p>
       {hasReadable ? (
-        <div className="mt-5 flex flex-col gap-1.5">
+        <div className="mt-4 flex flex-col gap-1">
           {SUGERENCIAS.map((text) => (
             <button
               key={text}
               type="button"
               onClick={() => onPick(text)}
-              className="rounded-md bg-hover px-3 py-2 text-left text-[13px] leading-5 text-foreground-muted transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-selected hover:text-foreground"
+              className="group/sug flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] leading-5 text-foreground-muted shadow-[0_0_0_1px_var(--border-subtle)] transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover hover:text-foreground"
             >
-              {text}
+              <span className="min-w-0 flex-1">{text}</span>
+              <Icon
+                name="chevron-right"
+                size={12}
+                className="shrink-0 text-foreground-subtle opacity-0 transition-opacity group-hover/sug:opacity-100"
+              />
             </button>
           ))}
         </div>
@@ -924,3 +923,30 @@ function EmptyChat({
     </div>
   );
 }
+
+function ChatLoader({ label, elapsed = false }: { label: string; elapsed?: boolean }) {
+  const [start] = useState(() => Date.now());
+  const [now, setNow] = useState(start);
+  useEffect(() => {
+    if (!elapsed) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [elapsed]);
+  return (
+    <div role="status" className="flex items-center gap-2 text-[13px] leading-5" data-chat-thinking={elapsed || undefined}>
+      <span aria-hidden="true" className="chat-loader-grid">
+        {Array.from({ length: 9 }, (_, i) => (
+          <span key={i} style={{ animationDelay: `${LOADER_DELAYS[i]}ms` }} />
+        ))}
+      </span>
+      <span className="chat-loader-text">{label}</span>
+      {elapsed && (
+        <span className="font-mono text-[11px] tabular-nums text-foreground-subtle">
+          {((now - start) / 1000).toFixed(1)}s
+        </span>
+      )}
+    </div>
+  );
+}
+
+const LOADER_DELAYS = [0, 120, 240, 840, 960, 360, 720, 600, 480];

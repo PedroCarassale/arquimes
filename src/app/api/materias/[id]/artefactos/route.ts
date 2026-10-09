@@ -26,7 +26,7 @@ export async function GET(_request: Request, { params }: Params) {
       }))
     );
   } catch (error) {
-    return apiErrorResponse(error, "No pude leer los generados.");
+    return apiErrorResponse(error, "No pude leer los pergaminos.");
   }
 }
 

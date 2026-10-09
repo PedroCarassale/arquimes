@@ -72,7 +72,7 @@ test("tabKindFromPath rechaza rutas ajenas", () => {
 test("defaultTitle e isDocumentKind", () => {
   assert.equal(defaultTitle("inicio"), "");
   assert.equal(defaultTitle("nueva"), "Pestaña nueva");
-  assert.equal(defaultTitle("generado"), "Documento");
+  assert.equal(defaultTitle("generado"), "Pergamino");
   assert.deepEqual(
     (["clase", "archivo", "generado", "evento", "clases", "apuntes", "calendario", "nueva", "inicio"] as const).map(isDocumentKind),
     [true, true, true, true, false, false, false, false, false]
