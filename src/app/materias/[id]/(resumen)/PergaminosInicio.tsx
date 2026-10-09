@@ -78,7 +78,7 @@ export function PergaminosInicio({ pergaminos }: { pergaminos: PergaminoResumen[
         </div>
       ) : (
         <>
-          <label className="relative mb-2 block">
+          <label className="relative mb-4 block">
             <span className="sr-only">Buscar en tus pergaminos</span>
             <Icon
               name="search"
