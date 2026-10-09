@@ -10,12 +10,14 @@ import { extractoPlano } from "@/lib/editor-markdown";
 import { fechaCorta, hoyYmd, sumarDias } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import type { ApunteItem, EventoResumen, Nota } from "@/lib/types";
-import { listApuntes, listNotas } from "@/lib/workspace-store";
+import { listApuntes, listArtefactos, listNotas } from "@/lib/workspace-store";
 import { AccionInline, AccionesMateria, MateriaMenu, PrimerosPasos, RefrescarAlSubir } from "./MateriaAcciones";
+import { PergaminosInicio, type PergaminoResumen } from "./PergaminosInicio";
 
 export const dynamic = "force-dynamic";
 
 const MAX_FILAS = 4;
+const MAX_TEXTO_BUSCABLE = 4000;
 
 function apunteTitulo(item: ApunteItem): string {
   return item.origen === "archivo" ? item.name : item.titulo;
@@ -39,17 +41,32 @@ function apunteHref(materiaId: string, item: ApunteItem): string {
 export default async function MateriaInicioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const hoy = hoyYmd();
-  const [materia, notas, apuntes, eventos, examenes] = await Promise.all([
+  const [materia, notas, apuntes, eventos, examenes, artefactos] = await Promise.all([
     getMateria(id),
     listNotas(id),
     listApuntes(id),
     listEventos({ materiaId: id, desde: hoy, hasta: sumarDias(hoy, 365) }),
     getExamenes(id),
+    listArtefactos(id),
   ]);
   if (!materia) notFound();
 
   const info = [materia.catedra, materia.faculty].filter(Boolean).join(" · ");
-  const hayArchivos = apuntes.some((item) => item.origen === "archivo");
+  const archivos = apuntes.filter((item) => item.origen === "archivo");
+  const hayArchivos = archivos.length > 0;
+  const recientes = [...artefactos].sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0));
+  const pergaminos: PergaminoResumen[] = recientes.map((a) => {
+    const texto = extractoPlano(a.contenido, MAX_TEXTO_BUSCABLE);
+    return {
+      id: a.id,
+      titulo: a.titulo,
+      tipo: a.tipo,
+      version: a.version,
+      updatedAt: a.updatedAt,
+      resumen: (texto.startsWith(a.titulo) ? texto.slice(a.titulo.length) : texto).trim().slice(0, 160),
+      texto,
+    };
+  });
   const hechos = { clase: notas.length > 0, apunte: hayArchivos, fecha: examenes.length > 0 };
   const vacia = !hechos.clase && !hechos.apunte && !hechos.fecha;
   const pasosPendientes = !hechos.clase || !hechos.apunte || !hechos.fecha;
@@ -73,6 +90,8 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
       <AccionesMateria />
 
       {pasosPendientes && <PrimerosPasos hechos={hechos} />}
+
+      <PergaminosInicio pergaminos={pergaminos} />
 
       {!vacia && (
         <div className="mt-10 grid grid-cols-1 gap-8 lg:@min-[720px]:grid-cols-12">
@@ -116,17 +135,17 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
 
           <Seccion
             id="apuntes-recientes"
-            titulo="Apuntes recientes"
-            link={{ href: rutas.apuntes(id), label: "Ver todos" }}
+            titulo="Archivos recientes"
+            link={{ href: rutas.apuntes(id, { tipo: "archivos" }), label: "Ver todos" }}
             className="lg:@min-[720px]:col-span-12"
           >
-            {apuntes.length === 0 ? (
+            {archivos.length === 0 ? (
               <Vacio>
                 Todavía no subiste apuntes. <AccionInline accion="subir">Subí uno →</AccionInline>
               </Vacio>
             ) : (
               <ul className="grid grid-cols-1 gap-1 @min-[480px]:grid-cols-2 @min-[800px]:grid-cols-4">
-                {apuntes.slice(0, MAX_FILAS).map((item) => (
+                {archivos.slice(0, MAX_FILAS).map((item) => (
                   <li key={`${item.origen}-${item.id}`}>
                     <TabLink
                       href={apunteHref(id, item)}
