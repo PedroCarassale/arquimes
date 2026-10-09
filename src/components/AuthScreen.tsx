@@ -1,11 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 type AuthMode = "login" | "register";
+
+const RETRATO_MASK =
+  "linear-gradient(to bottom, #000 0%, #000 45%, transparent 90%), linear-gradient(to right, transparent 0%, #000 10%, #000 90%, transparent 100%)";
 type AuthField = "name" | "email" | "password";
 
 function GoogleGIcon() {
@@ -216,8 +220,35 @@ export function AuthScreen({
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
-      <section className="w-full max-w-md rounded-lg border border-border bg-surface p-6 sm:p-8">
+    <main className="grid min-h-screen bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <aside className="relative h-56 overflow-hidden border-b border-border-subtle sm:h-72 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
+        <Image
+          src="/brand/arquimedes-retrato.png"
+          alt="Grabado de Arquímedes con un compás"
+          fill
+          priority
+          unoptimized
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="object-cover object-[50%_18%] opacity-80"
+          style={{
+            maskImage: RETRATO_MASK,
+            WebkitMaskImage: RETRATO_MASK,
+            maskComposite: "intersect",
+            WebkitMaskComposite: "source-in",
+          }}
+        />
+        <div className="absolute inset-x-0 bottom-0 hidden p-10 lg:block">
+          <p className="max-w-sm font-serif text-[28px] leading-[34px] text-foreground">
+            «Dadme un punto de apoyo y moveré el mundo.»
+          </p>
+          <p className="mt-3 font-mono text-[11px] uppercase leading-4 tracking-[0.08em] text-foreground-subtle">
+            Arquímedes de Siracusa · c. 287–212 a. C.
+          </p>
+        </div>
+      </aside>
+
+      <div className="flex items-center justify-center px-4 py-10 sm:px-8 lg:py-16">
+      <section className="w-full max-w-sm">
         <Link href="/" className="font-serif text-2xl tracking-tight">
           Arquímedes
         </Link>
@@ -377,6 +408,7 @@ export function AuthScreen({
           </Link>
         </p>
       </section>
+      </div>
     </main>
   );
 }
