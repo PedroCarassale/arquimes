@@ -91,53 +91,58 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
 
       {pasosPendientes && <PrimerosPasos hechos={hechos} />}
 
+      <Divisor />
       <PergaminosInicio pergaminos={pergaminos} />
 
       {!vacia && (
-        <div className="mt-10 grid grid-cols-1 gap-8 lg:@min-[720px]:grid-cols-12">
-          <Seccion
-            id="clases-recientes"
-            titulo="Clases recientes"
-            link={{ href: rutas.clases(id), label: "Ver todas" }}
-            className="lg:@min-[720px]:col-span-7"
-          >
-            {notas.length === 0 ? (
-              <Vacio>
-                Todavía no tenés clases anotadas. <AccionInline accion="clase">Empezá una →</AccionInline>
-              </Vacio>
-            ) : (
-              <ul>
-                {notas.slice(0, MAX_FILAS).map((nota) => (
-                  <ClaseFila key={nota.id} materiaId={id} nota={nota} />
-                ))}
-              </ul>
-            )}
-          </Seccion>
+        <>
+          <Divisor />
+          <div className="mt-10 grid grid-cols-1 gap-8 lg:@min-[720px]:grid-cols-12">
+            <Seccion
+              id="clases-recientes"
+              titulo="Clases recientes"
+              link={{ href: rutas.clases(id), label: "Ver todas" }}
+              className="lg:@min-[720px]:col-span-7"
+            >
+              {notas.length === 0 ? (
+                <Vacio>
+                  Todavía no tenés clases anotadas. <AccionInline accion="clase">Empezá una →</AccionInline>
+                </Vacio>
+              ) : (
+                <ul>
+                  {notas.slice(0, MAX_FILAS).map((nota) => (
+                    <ClaseFila key={nota.id} materiaId={id} nota={nota} />
+                  ))}
+                </ul>
+              )}
+            </Seccion>
 
-          <Seccion
-            id="se-viene"
-            titulo="Se viene"
-            link={{ href: rutas.calendario(id), label: "Ver calendario" }}
-            className="lg:@min-[720px]:col-span-5"
-          >
-            {eventos.length === 0 ? (
-              <Vacio>
-                Nada en las próximas semanas. <AccionInline accion="fecha">Cargá una fecha →</AccionInline>
-              </Vacio>
-            ) : (
-              <ul>
-                {eventos.slice(0, MAX_FILAS).map((evento) => (
-                  <EventoFila key={evento.id} materiaId={id} evento={evento} />
-                ))}
-              </ul>
-            )}
-          </Seccion>
+            <Seccion
+              id="se-viene"
+              titulo="Se viene"
+              link={{ href: rutas.calendario(id), label: "Ver calendario" }}
+              className="lg:@min-[720px]:col-span-5"
+            >
+              {eventos.length === 0 ? (
+                <Vacio>
+                  Nada en las próximas semanas. <AccionInline accion="fecha">Cargá una fecha →</AccionInline>
+                </Vacio>
+              ) : (
+                <ul>
+                  {eventos.slice(0, MAX_FILAS).map((evento) => (
+                    <EventoFila key={evento.id} materiaId={id} evento={evento} />
+                  ))}
+                </ul>
+              )}
+            </Seccion>
+          </div>
 
+          <Divisor />
           <Seccion
             id="apuntes-recientes"
             titulo="Archivos recientes"
             link={{ href: rutas.apuntes(id, { tipo: "archivos" }), label: "Ver todos" }}
-            className="lg:@min-[720px]:col-span-12"
+            className="mt-10"
           >
             {archivos.length === 0 ? (
               <Vacio>
@@ -165,10 +170,14 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
               </ul>
             )}
           </Seccion>
-        </div>
+        </>
       )}
     </div>
   );
+}
+
+function Divisor() {
+  return <hr className="mt-10 h-px border-0 bg-border-subtle" />;
 }
 
 function Seccion({
