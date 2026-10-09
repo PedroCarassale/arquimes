@@ -162,7 +162,7 @@ export function ChatPanel() {
       const seq = ++loadSeq.current;
       groundingSeq.current += 1;
       const params = new URLSearchParams({ materiaId });
-      if (sessionId) params.set("sessionId", sessionId);
+      params.set(sessionId ? "sessionId" : "nuevo", sessionId ?? "1");
       const response = await apiFetch(`/api/chat?${params}`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "No se pudo cargar el chat.");
@@ -181,7 +181,7 @@ export function ChatPanel() {
   const refreshGrounding = useCallback(async () => {
     const seq = ++groundingSeq.current;
     try {
-      const response = await apiFetch(`/api/chat?${new URLSearchParams({ materiaId })}`);
+      const response = await apiFetch(`/api/chat?${new URLSearchParams({ materiaId, nuevo: "1" })}`);
       if (!response.ok) return;
       const payload = await response.json().catch(() => null);
       if (!payload || seq !== groundingSeq.current) return;

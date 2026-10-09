@@ -41,6 +41,7 @@ export async function GET(request: Request) {
     const examenId = url.searchParams.get("examenId")?.trim() || undefined;
     const requestedSessionId =
       url.searchParams.get("sessionId")?.trim() || undefined;
+    const nuevo = url.searchParams.get("nuevo") === "1";
     const ctx = await getStudyContext(materiaId);
     if (!ctx) {
       return NextResponse.json(
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     const selectedSession =
       (requestedSessionId &&
         sessions.find((session) => session.id === requestedSessionId)) ||
-      sessions[0] ||
+      (nuevo ? null : sessions[0]) ||
       null;
     const messages = selectedSession ? await listMessages(selectedSession.id) : [];
     const grounding = await getStudyGrounding(materiaId);

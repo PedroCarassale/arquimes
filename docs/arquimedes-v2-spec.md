@@ -296,6 +296,7 @@ No usar Ctrl+T, Ctrl+W ni Ctrl+Tab. Los tooltips muestran el atajo («Cerrar pes
 
 - Sigue a la izquierda, colapsable y redimensionable. Conoce el documento de la pestaña activa (`FocusRegister`).
 - Header de **40px** (hoy es `h-12`): título del hilo, selector de hilos y cerrar.
+- Al entrar a una materia el chat arranca siempre en un hilo nuevo y vacío; los anteriores quedan en el selector de hilos.
 - Cuando el chat **crea un artefacto**:
   - La tarjeta del mensaje queda siempre: `rounded-lg`, tile de ícono de 32px, título, «Documento · v1» o «Examen · v1» en mono, botón «Abrir».
   - Desktop: si `const el = document.activeElement; el && !el.closest("[data-arq-chat]") && (el.matches("input, textarea") || el.closest('[contenteditable="true"]'))`, se abre **en segundo plano** (`openInBackground(rutas.generado(m, id), titulo)`) y se muestra el toast «Se guardó «<título>» en Apuntes · Abrir». Si no, `router.push(rutas.generado(m, id))` y la reconciliación de pestañas la abre activa. La raíz de `ChatPanel` lleva `data-arq-chat`. («Guardado pendiente» se descarta: no hay una señal compartida y el foco ya cubre el caso.)
