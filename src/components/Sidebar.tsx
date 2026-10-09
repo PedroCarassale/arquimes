@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -17,6 +18,19 @@ import { useMediaQuery } from "@/components/ui/useIsClient";
 import { tabsStore } from "@/components/workspace/tabs-store";
 
 type MateriaLite = { id: string; name: string };
+
+function MarcaRetrato({ size }: { size: 28 | 32 }) {
+  return (
+    <Image
+      src="/brand/arquimedes-avatar.png"
+      alt=""
+      width={size}
+      height={size}
+      unoptimized
+      className="shrink-0 rounded-md bg-black shadow-[0_0_0_1px_var(--border)]"
+    />
+  );
+}
 type Pref = "1" | "0" | null;
 
 const COLLAPSED_KEY = "arq.sidebar.collapsed";
@@ -283,9 +297,10 @@ export function Sidebar() {
 
   const expanded = (
     <>
-      <div className="flex h-14 shrink-0 items-center justify-between gap-2 pl-5 pr-3 lg:h-10 lg:pl-4 lg:pr-1.5">
-        <Link href={rutas.inicio} className="truncate font-serif text-xl leading-none tracking-tight">
-          Arquímedes
+      <div className="flex h-14 shrink-0 items-center justify-between gap-2 pl-5 pr-3 lg:h-14 lg:pl-4 lg:pr-1.5">
+        <Link href={rutas.inicio} className="flex min-w-0 items-center gap-2.5 font-serif text-[22px] leading-none tracking-tight">
+          <MarcaRetrato size={32} />
+          <span className="truncate">Arquímedes</span>
         </Link>
         <IconButton
           icon="chevron-left"
@@ -401,7 +416,7 @@ export function Sidebar() {
           <IconButton icon="chevron-right" label="Expandir barra" size={28} tooltipSide="right" onClick={toggle} />
         </div>
         <RailLink href={rutas.inicio} label="Arquímedes">
-          <span className="font-serif text-xl leading-none">A</span>
+          <MarcaRetrato size={28} />
         </RailLink>
         <RailLink href={rutas.inicio} label="Inicio" active={inicioActive}>
           <Icon name="home" size={16} />
@@ -477,7 +492,8 @@ export function Sidebar() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-subtle bg-background/95 px-4 backdrop-blur lg:hidden">
-        <Link href={rutas.inicio} className="font-serif text-xl tracking-tight">
+        <Link href={rutas.inicio} className="flex items-center gap-3 font-serif text-[22px] tracking-tight">
+          <MarcaRetrato size={32} />
           Arquímedes
         </Link>
         <IconButton
