@@ -4,6 +4,7 @@ import {
   normalizeAssistantContent,
   normalizeChatMessage,
 } from "./chat-message";
+import { registrarEdicion, type RegistroEdicion } from "./edicion-clase";
 import type { ChatMessage, ChatSession } from "./types";
 
 export class StorageConfigError extends Error {}
@@ -286,6 +287,31 @@ export async function addTurn(input: {
       isError: Boolean(input.assistantIsError),
     },
   ];
+}
+
+export async function registrarEdicionEnMensaje(
+  messageId: string,
+  index: number,
+  registro: RegistroEdicion
+): Promise<boolean> {
+  await ensureSchema();
+  const db = getLibsqlClient();
+  const userId = await requireUserId();
+  const result = await db.execute({
+    sql: `SELECT m.content FROM chat_messages_auth m
+          JOIN chat_sessions_auth s ON s.id = m.session_id
+          WHERE m.id = ? AND m.role = 'assistant' AND s.user_id = ?`,
+    args: [messageId, userId],
+  });
+  const row = result.rows[0];
+  if (!row) return false;
+  const content = registrarEdicion(String(row.content), index, registro);
+  if (content === null) return false;
+  await db.execute({
+    sql: `UPDATE chat_messages_auth SET content = ? WHERE id = ?`,
+    args: [content, messageId],
+  });
+  return true;
 }
 
 function parseStoredCitations(value: unknown): string[] | undefined {

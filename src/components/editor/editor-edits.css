@@ -1,0 +1,24 @@
+.arq-editor .milkdown > .arq-chat-edit-flash {
+  position: absolute;
+  z-index: 1;
+  border-radius: 8px;
+  background-color: var(--accent-muted);
+  pointer-events: none;
+  animation: arq-chat-edit-flash 1800ms var(--ease-out) forwards;
+}
+
+@keyframes arq-chat-edit-flash {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arq-editor .milkdown > .arq-chat-edit-flash {
+    animation: none;
+  }
+}

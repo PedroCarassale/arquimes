@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { MarkdownEditor } from "@/components/editor";
 import { ConfirmDialog, IconButton, Menu, cx, toast } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
@@ -9,20 +9,58 @@ import { fechaLarga } from "@/lib/fechas";
 import { descargarMarkdown } from "@/lib/notas-client";
 import type { Nota } from "@/lib/types";
 import { FocusRegister, useWorkspace } from "./WorkspaceContext";
+import { registerClaseEditor } from "./clase-editors";
 import { useTabs } from "./tabs-store";
 
 type Estado = "idle" | "guardando" | "guardado" | "oculto" | "error";
 type Snapshot = { titulo: string; contenido: string };
+type Local = { snapshot: Snapshot; updatedAt: string; pendiente?: number };
 
 const DEBOUNCE_MS = 800;
 const FADE_MS = 2000;
 const KEEPALIVE_LIMIT = 60_000;
+const SESION = "arq.clase.";
+const locales = new Map<string, Local>();
+const restauradas = new Set<string>();
+let cadena: Promise<unknown> = Promise.resolve();
+let secuencia = 0;
+const sinSuscripcion = () => () => {};
 
 function iguales(a: Snapshot, b: Snapshot): boolean {
   return a.titulo === b.titulo && a.contenido === b.contenido;
 }
 
-async function enviar(notaId: string, snapshot: Snapshot, keepalive = false): Promise<boolean> {
+function sesion(notaId: string, local?: Local | null): Local | null {
+  try {
+    if (local === undefined) return JSON.parse(sessionStorage.getItem(SESION + notaId) ?? "null") as Local | null;
+    if (local) sessionStorage.setItem(SESION + notaId, JSON.stringify(local));
+    else sessionStorage.removeItem(SESION + notaId);
+  } catch {}
+  return null;
+}
+
+function conocida(notaId: string, updatedAt: string): string {
+  const local = locales.get(notaId)?.updatedAt ?? "";
+  return local > updatedAt ? local : updatedAt;
+}
+
+function recordarPendiente(notaId: string, snapshot: Snapshot, updatedAt: string) {
+  const local = { snapshot, updatedAt: conocida(notaId, updatedAt), pendiente: secuencia };
+  locales.set(notaId, local);
+  sesion(notaId, local);
+}
+
+function restaurable(nota: Nota): boolean {
+  if (restauradas.has(nota.id)) return true;
+  if (locales.has(nota.id)) return false;
+  const local = sesion(nota.id);
+  if (!local || nota.updatedAt > local.updatedAt || iguales(local.snapshot, nota)) return false;
+  restauradas.add(nota.id);
+  return true;
+}
+
+async function enviar(notaId: string, snapshot: Snapshot, keepalive = false): Promise<string | null> {
+  const orden = ++secuencia;
   try {
     const response = await apiFetch(`/api/notas/${notaId}`, {
       method: "PATCH",
@@ -30,9 +68,17 @@ async function enviar(notaId: string, snapshot: Snapshot, keepalive = false): Pr
       body: JSON.stringify(snapshot),
       keepalive,
     });
-    return response.ok;
+    if (!response.ok) return null;
+    const { updatedAt } = ((await response.json().catch(() => null)) ?? {}) as Partial<Nota>;
+    if (typeof updatedAt !== "string") return "";
+    const actual = locales.get(notaId);
+    const anterior = actual?.pendiente !== undefined && orden <= actual.pendiente;
+    const local = anterior ? { ...actual, updatedAt } : { snapshot, updatedAt };
+    locales.set(notaId, local);
+    if (sesion(notaId)) sesion(notaId, local);
+    return updatedAt;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -44,7 +90,7 @@ function avisarError(notaId: string, snapshot: Snapshot) {
       label: "Reintentar",
       onClick: () => {
         void enviar(notaId, snapshot).then((ok) => {
-          if (ok) toast({ message: "Guardado" });
+          if (ok !== null) toast({ message: "Guardado" });
           else avisarError(notaId, snapshot);
         });
       },
@@ -53,19 +99,31 @@ function avisarError(notaId: string, snapshot: Snapshot) {
 }
 
 export function NotaEditor({ nota }: { nota: Nota }) {
+  const restaurar = useSyncExternalStore(sinSuscripcion, () => restaurable(nota), () => false);
+  return <Editor key={restaurar ? "local" : "servidor"} nota={nota} restaurar={restaurar} />;
+}
+
+function Editor({ nota, restaurar }: { nota: Nota; restaurar: boolean }) {
   const pathname = usePathname();
-  const { askChat, bumpRefresh } = useWorkspace();
-  const { close } = useTabs();
-  const [titulo, setTitulo] = useState(nota.titulo);
-  const [contenido, setContenido] = useState(nota.contenido);
+  const { askChat, bumpRefresh, materiaId } = useWorkspace();
+  const { close, openInBackground } = useTabs();
+  const router = useRouter();
+  const [inicial] = useState(() => {
+    const local = locales.get(nota.id) ?? (restaurar ? sesion(nota.id) : null);
+    return local && nota.updatedAt <= local.updatedAt
+      ? { ...local.snapshot, updatedAt: local.updatedAt }
+      : { titulo: nota.titulo, contenido: nota.contenido, updatedAt: nota.updatedAt };
+  });
+  const [titulo, setTitulo] = useState(inicial.titulo);
+  const [contenido, setContenido] = useState(inicial.contenido);
   const [estado, setEstado] = useState<Estado>("idle");
   const [confirmando, setConfirmando] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tituloRef = useRef<HTMLTextAreaElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const chain = useRef<Promise<unknown>>(Promise.resolve());
-  const latest = useRef<Snapshot>({ titulo: nota.titulo, contenido: nota.contenido });
+  const latest = useRef<Snapshot>({ titulo: inicial.titulo, contenido: inicial.contenido });
+  const base = useRef(inicial.updatedAt);
   const lastSaved = useRef<Snapshot>({ titulo: nota.titulo, contenido: nota.contenido });
   const deleted = useRef(false);
 
@@ -76,19 +134,20 @@ export function NotaEditor({ nota }: { nota: Nota }) {
   const save = useCallback((): Promise<boolean> => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    const run = chain.current.then(async (): Promise<"noop" | "ok" | "error"> => {
+    const run = cadena.then(async (): Promise<"noop" | "ok" | "error"> => {
       const snapshot = latest.current;
       if (deleted.current || iguales(snapshot, lastSaved.current)) return "noop";
       if (fadeTimer.current) clearTimeout(fadeTimer.current);
       setEstado("guardando");
-      const ok = await enviar(nota.id, snapshot);
-      if (!ok) return "error";
+      const updatedAt = await enviar(nota.id, snapshot);
+      if (updatedAt === null) return "error";
+      if (updatedAt) base.current = updatedAt;
       const antesVacio = !lastSaved.current.contenido.trim();
       lastSaved.current = snapshot;
       if (antesVacio !== !snapshot.contenido.trim()) bumpRefresh();
       return "ok";
     });
-    chain.current = run.catch(() => undefined);
+    cadena = run.catch(() => undefined);
     return run.then((result) => {
       if (result === "error") {
         setEstado("error");
@@ -115,12 +174,18 @@ export function NotaEditor({ nota }: { nota: Nota }) {
   }, [save]);
 
   useEffect(() => {
+    if (!iguales(latest.current, lastSaved.current)) schedule();
+  }, [schedule]);
+
+  useEffect(() => {
     const notaId = nota.id;
     const pending = timer;
     const fade = fadeTimer;
+    const conocido = base;
     function flushOnExit() {
       const snapshot = latest.current;
       if (deleted.current || iguales(snapshot, lastSaved.current)) return;
+      recordarPendiente(notaId, snapshot, conocido.current);
       const body = JSON.stringify(snapshot);
       void enviar(notaId, snapshot, new Blob([body]).size < KEEPALIVE_LIMIT);
       lastSaved.current = snapshot;
@@ -134,12 +199,14 @@ export function NotaEditor({ nota }: { nota: Nota }) {
       if (fade.current) clearTimeout(fade.current);
       const snapshot = latest.current;
       if (deleted.current || iguales(snapshot, lastSaved.current)) return;
-      void chain.current
-        .then(() => (iguales(snapshot, lastSaved.current) ? true : enviar(notaId, snapshot)))
+      recordarPendiente(notaId, snapshot, conocido.current);
+      const envio = cadena
+        .then(() => (iguales(snapshot, lastSaved.current) ? "" : enviar(notaId, snapshot)))
         .then((ok) => {
-          if (ok) lastSaved.current = snapshot;
+          if (ok !== null) lastSaved.current = snapshot;
           else avisarError(notaId, snapshot);
         });
+      cadena = envio.catch(() => undefined);
     };
   }, [nota.id]);
 
@@ -199,6 +266,8 @@ export function NotaEditor({ nota }: { nota: Nota }) {
       return;
     }
     deleted.current = true;
+    locales.delete(nota.id);
+    sesion(nota.id, null);
     setConfirmando(false);
     close(pathname, { deleted: true });
   }
@@ -248,10 +317,15 @@ export function NotaEditor({ nota }: { nota: Nota }) {
       <div ref={wrapRef} className="mt-5">
         <MarkdownEditor
           key={nota.id}
-          value={nota.contenido}
+          value={inicial.contenido}
           onChange={onContenido}
-          autoFocus={nota.contenido === ""}
+          autoFocus={inicial.contenido === ""}
           onAskSelection={(texto) => askChat(`Explicame esto de mi clase «${nombre}»:\n\n${texto}`, { send: true })}
+          onReady={(editor) => registerClaseEditor(nota.id, editor)}
+          apuntes={{
+            materiaId,
+            onOpen: (href, { background, title }) => (background ? openInBackground(href, title) : router.push(href)),
+          }}
         />
       </div>
 

@@ -2,6 +2,8 @@ import { v4 as uuid } from "uuid";
 import { getLibsqlClient } from "./libsql";
 import { requireUserId } from "./auth-session";
 import { getMaterias, listEventos, listMaterialesConLectura } from "./db-auth";
+import { editorImageIds, editorImageUrl, withoutEditorImage } from "./editor-images";
+import { deleteStudyFileByStorageKey, storageKeyForFile } from "./file-store-auth";
 import { hoyYmd } from "./fechas";
 import type {
   ApunteItem,
@@ -176,10 +178,66 @@ export async function updateNota(
 export async function deleteNota(id: string): Promise<void> {
   await ensureSchema();
   const userId = await requireUserId();
+  const current = await getNota(id);
   await getLibsqlClient().execute({
     sql: `DELETE FROM notas WHERE user_id = ? AND id = ?`,
     args: [userId, id],
   });
+  if (current) await deleteUnusedEditorImages(editorImageIds(current.contenido));
+}
+
+const IMAGE_REFERENCES = [
+  { table: "notas", column: "contenido" },
+  { table: "examenes", column: "description" },
+] as const;
+
+export async function deleteUnusedEditorImages(fileIds: string[]): Promise<void> {
+  if (fileIds.length === 0) return;
+  await ensureSchema();
+  const userId = await requireUserId();
+  const db = getLibsqlClient();
+  for (const fileId of fileIds) {
+    const used = await Promise.all(
+      IMAGE_REFERENCES.map(({ table, column }) =>
+        db
+          .execute({
+            sql: `SELECT 1 FROM ${table} WHERE user_id = ? AND instr(lower(${column}), ?) > 0 LIMIT 1`,
+            args: [userId, editorImageUrl(fileId).toLowerCase()],
+          })
+          .then((result) => result.rows.length > 0, () => true)
+      )
+    );
+    if (!used.some(Boolean)) await deleteStudyFileByStorageKey(storageKeyForFile(fileId));
+  }
+}
+
+export async function removeEditorImageReferences(fileId: string): Promise<void> {
+  await ensureSchema();
+  const userId = await requireUserId();
+  const db = getLibsqlClient();
+  for (const { table, column } of IMAGE_REFERENCES) {
+    const rows = await db
+      .execute({
+        sql: `SELECT id, ${column} AS markdown FROM ${table} WHERE user_id = ? AND instr(lower(${column}), ?) > 0`,
+        args: [userId, editorImageUrl(fileId).toLowerCase()],
+      })
+      .then((result) => result.rows, () => []);
+    for (const row of rows) {
+      const markdown = String(row.markdown ?? "");
+      const next = withoutEditorImage(markdown, fileId);
+      if (next === markdown) continue;
+      await db.execute({
+        sql:
+          table === "notas"
+            ? `UPDATE notas SET contenido = ?, updated_at = ? WHERE user_id = ? AND id = ? AND contenido = ?`
+            : `UPDATE examenes SET description = ? WHERE user_id = ? AND id = ? AND description = ?`,
+        args:
+          table === "notas"
+            ? [next, new Date().toISOString(), userId, String(row.id), markdown]
+            : [next, userId, String(row.id), markdown],
+      });
+    }
+  }
 }
 
 export async function deleteWorkspaceForMateria(materiaId: string): Promise<void> {

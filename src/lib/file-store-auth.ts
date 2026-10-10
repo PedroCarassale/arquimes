@@ -30,6 +30,7 @@ export type StudyFileRecord = {
   uploadStatus: "uploading" | "ready";
   chunkCount: number;
   pageCount: number;
+  createdAt?: string;
 };
 
 const PROCESSING_STALE_MS = 5.5 * 60 * 1000;
@@ -156,13 +157,14 @@ export async function createPendingStudyFile(input: {
   type: string;
   size: number;
   chunkCount: number;
+  id?: string;
 }): Promise<string> {
   await ensureSchema();
   const db = getLibsqlClient();
   const userId = await requireUserId();
-  const id = crypto.randomUUID();
-  await db.execute({
-    sql: `INSERT INTO study_files_auth (
+  const id = input.id ?? crypto.randomUUID();
+  const inserted = await db.execute({
+    sql: `INSERT OR IGNORE INTO study_files_auth (
       id, user_id, name, mime_type, size_bytes, content, extracted_text, extraction_status,
       extraction_detail, created_at, upload_status, chunk_count, page_count
     ) VALUES (?, ?, ?, ?, ?, ?, NULL, 'uploading', NULL, ?, 'uploading', ?, 0)`,
@@ -177,6 +179,7 @@ export async function createPendingStudyFile(input: {
       input.chunkCount,
     ],
   });
+  if (inserted.rowsAffected === 0) throw new Error("Ese archivo ya existe.");
   return id;
 }
 
@@ -187,7 +190,7 @@ export async function getStudyFileRecord(
   const db = getLibsqlClient();
   const userId = await requireUserId();
   const result = await db.execute({
-    sql: `SELECT id, name, mime_type, size_bytes, upload_status, chunk_count, page_count
+    sql: `SELECT id, name, mime_type, size_bytes, upload_status, chunk_count, page_count, created_at
           FROM study_files_auth WHERE user_id = ? AND id = ?`,
     args: [userId, fileId],
   });
@@ -201,6 +204,7 @@ export async function getStudyFileRecord(
     uploadStatus: String(row.upload_status) === "uploading" ? "uploading" : "ready",
     chunkCount: Number(row.chunk_count || 0),
     pageCount: Number(row.page_count || 0),
+    createdAt: String(row.created_at ?? ""),
   };
 }
 

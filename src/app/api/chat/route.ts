@@ -27,6 +27,8 @@ import { apiErrorResponse } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
+const MAX_CLIENT_NOTA_CHARS = 200_000;
+
 export async function GET(request: Request) {
   try {
     await requireServerSession();
@@ -207,13 +209,17 @@ async function resolveFocus(
   ctx: StudyContext
 ): Promise<ChatFocus | null> {
   if (!raw || typeof raw !== "object") return null;
-  const { kind, id } = raw as { kind?: unknown; id?: unknown };
+  const { kind, id, contenido } = raw as { kind?: unknown; id?: unknown; contenido?: unknown };
   if (typeof id !== "string" || !id) return null;
   if (kind === "nota") {
     const nota = await getNota(id);
-    return nota && nota.materiaId === ctx.materiaId
-      ? { kind, id, titulo: nota.titulo || "Sin título", contenido: nota.contenido }
-      : null;
+    if (!nota || nota.materiaId !== ctx.materiaId) return null;
+    return {
+      kind,
+      id,
+      titulo: nota.titulo || "Sin título",
+      contenido: typeof contenido === "string" ? contenido.slice(0, MAX_CLIENT_NOTA_CHARS) : nota.contenido,
+    };
   }
   if (kind === "artefacto") {
     const artefacto = await getArtefacto(id);

@@ -3,6 +3,7 @@ import { parseAssistantContent } from "./chat-message.ts";
 import type { ChatMessage } from "./types";
 import type { StudyContext, StudySource } from "./study-chat";
 import { extractArtefactos, type ArtefactoBlock } from "./artefactos.ts";
+import { procesarEdiciones, sinRegistros } from "./edicion-clase.ts";
 
 export type ChatFocus = {
   kind: "nota" | "artefacto" | "material" | "examen";
@@ -96,6 +97,8 @@ export function buildPrompt(input: {
     "",
     ARTEFACTOS_CONTRACT,
     "",
+    buildEdicionClaseContract(input.focus),
+    "",
     buildArtefactosBlock(input.context, input.focus),
     buildFocusBlock(input.focus),
     "CONTEXTO DE MATERIA",
@@ -104,7 +107,7 @@ export function buildPrompt(input: {
 
   const history = input.history.slice(-10).map((msg) => ({
     role: msg.role,
-    content: msg.content,
+    content: msg.role === "assistant" ? sinRegistros(msg.content) : msg.content,
   })) as ProviderMessage[];
 
   return [
@@ -129,7 +132,9 @@ export async function runGroundedChat(input: {
   const response = await generateWithProvider(prompt);
   const parsed = parseAssistantContent(response.text);
   const knownSources = new Set(input.context.sources.map((source) => source.name));
-  const answer = parsed ? parsed.answer : response.text.trim();
+  const clase =
+    input.focus?.kind === "nota" ? { id: input.focus.id, titulo: input.focus.titulo } : null;
+  const answer = procesarEdiciones(parsed ? parsed.answer : response.text.trim(), clase).text;
   const extracted = extractArtefactos(answer);
   const knownArtefactos = new Set((input.context.artefactos || []).map((a) => a.id));
   return {
@@ -161,6 +166,30 @@ const ARTEFACTOS_CONTRACT = [
   "- Dentro del artefacto podés usar Markdown, tablas y LaTeX con las mismas reglas de FORMATO.",
 ].join("\n");
 
+function buildEdicionClaseContract(focus?: ChatFocus | null): string {
+  if (focus?.kind !== "nota") {
+    return [
+      "ESCRIBIR EN LAS NOTAS DE UNA CLASE",
+      "- Ahora no hay ninguna clase abierta, así que no podés escribir en sus notas: nunca generes bloques <edicion-clase>.",
+      "- Si te pide agregar algo a las notas de una clase, respondé brevemente lo que pide y decile que abra esa clase y te lo vuelva a pedir.",
+    ].join("\n");
+  }
+  return [
+    `EDITAR LA CLASE ABIERTA («${focus.titulo}»)`,
+    "- Si el estudiante te pide agregar, anotar, sumar, completar o corregir algo EN SUS NOTAS de esta clase (por ejemplo «agregame en las notas la definición de continuidad»), escribí el fragmento dentro de un bloque de edición. La app lo inserta en el editor de la clase; vos no guardás nada.",
+    '- Formato: <edicion-clase modo="agregar" donde="final">…markdown…</edicion-clase>',
+    '- donde="final" lo agrega al final de la clase (usalo por defecto). donde="cursor" lo inserta donde el estudiante tiene el cursor (solo si dice «acá», «donde estoy» o similar). donde="despues:Encabezado" lo agrega al final de la sección con ese encabezado.',
+    '- En despues: y seccion: copiá el texto EXACTO de un encabezado que exista en la clase, sin los # (por ejemplo, para «## Límites laterales» escribí donde="despues:Límites laterales"). No lo resumas, no lo traduzcas ni inventes uno parecido: si no coincide exacto, la app lo agrega al final.',
+    '- Usá siempre modo="agregar", salvo que el estudiante pida explícitamente reescribir, reemplazar o corregir una sección que ya existe. Solo ahí usá modo="reemplazar" donde="seccion:Encabezado": el fragmento reemplaza todo lo que hay debajo de ese encabezado hasta el siguiente del mismo nivel o superior. El encabezado se conserva: no lo repitas.',
+    '- Nunca uses modo="reemplazar" sobre el título general de la clase ni para reescribir la clase entera: la app no reemplaza una sección que ocupe casi toda la clase y en ese caso agrega el fragmento al final.',
+    "- El fragmento es Markdown listo para sus apuntes: breve y concreto (una definición, una fórmula, una lista corta, un ejemplo), sin saludos ni frases como «Aquí está». Podés abrirlo con un subtítulo «### …» si ayuda. No repitas lo que ya está en la clase.",
+    "- Dentro del bloque la matemática sigue las reglas de FORMATO (KaTeX).",
+    "- Mismo contrato de fundamentación: basalo en el material de la materia y en la propia clase. Si el material no lo cubre, decilo y no agregues nada inventado.",
+    "- Fuera del bloque escribí una sola frase corta, por ejemplo «Listo, lo agregué al final de la clase.». No repitas el fragmento en el chat.",
+    "- Usá el bloque solo cuando te pide cambiar sus notas, nunca dentro de un pergamino. Para el resto de las preguntas respondé como siempre.",
+  ].join("\n");
+}
+
 function buildArtefactosBlock(ctx: StudyContext, focus?: ChatFocus | null): string {
   const artefactos = ctx.artefactos || [];
   if (artefactos.length === 0) return "ARTEFACTOS EXISTENTES: ninguno todavía.\n";
@@ -180,7 +209,7 @@ function buildFocusBlock(focus?: ChatFocus | null): string {
   if (!focus) return "";
   const label =
     focus.kind === "nota"
-      ? "una nota del estudiante"
+      ? "la clase del estudiante (sus notas en Markdown, tal como están ahora en el editor)"
       : focus.kind === "artefacto"
         ? `el artefacto id="${focus.id}"`
         : focus.kind === "examen"

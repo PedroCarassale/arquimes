@@ -1,5 +1,6 @@
 import type { ArtefactoTipo } from "./types";
 import { fechaCorta, hoyYmd } from "./fechas.ts";
+import { sinEdiciones } from "./edicion-clase.ts";
 
 export type ArtefactoBlock = {
   id?: string;
@@ -73,7 +74,7 @@ export function apunteDesdeChat(
   titulo?: string,
   now: Date = new Date()
 ): { titulo: string; contenido: string } {
-  const limpio = splitArtefactoMarkers(contenido.replace(CITATIONS_COMMENT, ""))
+  const limpio = splitArtefactoMarkers(sinEdiciones(contenido.replace(CITATIONS_COMMENT, "")))
     .flatMap((part) => (part.kind === "text" ? [part.text] : []))
     .join("\n\n")
     .replace(/\n{3,}/g, "\n\n")

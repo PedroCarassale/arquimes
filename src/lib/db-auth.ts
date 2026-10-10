@@ -27,10 +27,12 @@ import { getLibsqlClient } from "./libsql";
 import { requireUserId } from "./auth-session";
 import { deleteChatSessionsForMateria } from "./chat-store-auth";
 import {
+  deleteUnusedEditorImages,
   deleteWorkspaceForMateria,
   listArtefactos,
   listNotas,
 } from "./workspace-store";
+import { editorImageIds } from "./editor-images";
 
 let schemaReady: Promise<void> | null = null;
 
@@ -294,10 +296,16 @@ export async function deleteMateria(id: string): Promise<void> {
     .filter(Boolean);
 
   const examenRows = await db.execute({
-    sql: `SELECT id FROM examenes WHERE user_id = ? AND materia_id = ?`,
+    sql: `SELECT id, description FROM examenes WHERE user_id = ? AND materia_id = ?`,
     args: [userId, id],
   });
   const examenIds = examenRows.rows.map((row) => String(row.id));
+  const imageIds = editorImageIds(
+    [
+      ...(await listNotas(id)).map((nota) => nota.contenido),
+      ...examenRows.rows.map((row) => String(row.description ?? "")),
+    ].join("\n")
+  );
 
   if (examenIds.length > 0) {
     const placeholders = examenIds.map(() => "?").join(", ");
@@ -328,6 +336,7 @@ export async function deleteMateria(id: string): Promise<void> {
 
   await deleteWorkspaceForMateria(id);
   await deleteChatSessionsForMateria(id);
+  await deleteUnusedEditorImages(imageIds);
 
   await Promise.all(
     [...new Set(storageKeys)].map((storageKey) =>

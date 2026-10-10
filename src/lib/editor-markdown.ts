@@ -102,7 +102,7 @@ export function extractoPlano(markdown: string, max = 120): string {
   const plano = sinCodigoNiFormulas(markdown)
     .replace(/(^|[^\\$])\$(?!\s)([^$\n]+?)(?<![\s\\])\$(?!\d)/g, (_, antes: string, tex: string) => `${antes}${texPlano(tex)}`)
     .replace(/<\/?[a-zA-Z][^>\n]*>/g, " ")
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, (_, alt: string) => (/^\s*\d+(?:\.\d+)?\s*$/.test(alt) ? " " : alt))
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^\s{0,3}(?:#{1,6}\s+|>\s?|[-*+]\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+)/gm, "")
     .replace(/^\s*\|?(?:\s*:?-+:?\s*\|)+\s*(?::?-+:?\s*)?$/gm, " ")

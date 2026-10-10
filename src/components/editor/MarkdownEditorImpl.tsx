@@ -14,6 +14,11 @@ import "@milkdown/crepe/theme/frame-dark.css";
 import "./markdown-editor.css";
 import { normalizeEditorMarkdown } from "@/lib/editor-markdown";
 import { EDITOR_FEATURE_CONFIGS, FLOATING_GUTTER, defaultPlaceholder, visibleArea } from "./editor-config";
+import { chatEditsPlugin, createEditorHandle, type EditorHandle } from "./editor-edits";
+import { IMAGES_CHANGED, configureImageUploads, imageBlockConfig, imageUploads } from "./image-uploads";
+import { withoutPendingImages } from "@/lib/editor-images";
+import { greekSymbols } from "./greek-symbols";
+import { apunteReferences, type ApunteReferencesOptions } from "./apunte-references";
 
 export type MarkdownEditorProps = {
   value: string;
@@ -23,6 +28,8 @@ export type MarkdownEditorProps = {
   readOnly?: boolean;
   className?: string;
   onAskSelection?: (text: string) => void;
+  onReady?: (handle: EditorHandle) => (() => void) | void;
+  apuntes?: ApunteReferencesOptions;
 };
 
 const ASK_ICON =
@@ -175,12 +182,17 @@ export function MarkdownEditorImpl({
   readOnly = false,
   className,
   onAskSelection,
+  onReady,
+  apuntes,
 }: MarkdownEditorProps) {
+  const apuntesRef = useRef(apuntes);
+  const conApuntes = useRef(Boolean(apuntes));
   const rootRef = useRef<HTMLDivElement>(null);
   const crepeRef = useRef<Crepe | null>(null);
   const emittedRef = useRef<string | null>(null);
   const onChangeRef = useRef(onChange);
   const onAskRef = useRef(onAskSelection);
+  const onReadyRef = useRef(onReady);
   const init = useRef({ value, placeholder, autoFocus, readOnly, canAsk: Boolean(onAskSelection) });
   const readOnlyRef = useRef(readOnly);
   const [failed, setFailed] = useState(false);
@@ -188,7 +200,9 @@ export function MarkdownEditorImpl({
   useEffect(() => {
     onChangeRef.current = onChange;
     onAskRef.current = onAskSelection;
+    onReadyRef.current = onReady;
     readOnlyRef.current = readOnly;
+    apuntesRef.current = apuntes;
   });
 
   useEffect(() => {
@@ -197,8 +211,14 @@ export function MarkdownEditorImpl({
     const host = document.createElement("div");
     root.appendChild(host);
     let disposed = false;
+    let releaseHandle: (() => void) | null = null;
     const { value, placeholder, autoFocus, readOnly, canAsk } = init.current;
     const featureConfigs = EDITOR_FEATURE_CONFIGS(placeholder ?? defaultPlaceholder());
+    featureConfigs[Crepe.Feature.ImageBlock] = imageBlockConfig();
+    const referencias = conApuntes.current ? apunteReferences(() => apuntesRef.current) : null;
+    if (referencias) {
+      featureConfigs[Crepe.Feature.BlockEdit] = { ...featureConfigs[Crepe.Feature.BlockEdit], buildMenu: referencias.buildMenu };
+    }
     if (canAsk) {
       featureConfigs[Crepe.Feature.Toolbar] = {
         ...featureConfigs[Crepe.Feature.Toolbar],
@@ -221,7 +241,6 @@ export function MarkdownEditorImpl({
       root: host,
       defaultValue: normalizeEditorMarkdown(value),
       features: {
-        [Crepe.Feature.ImageBlock]: false,
         [Crepe.Feature.TopBar]: false,
         [Crepe.Feature.AI]: false,
       },
@@ -230,11 +249,17 @@ export function MarkdownEditorImpl({
     void crepe.editor.remove(remarkPreserveEmptyLinePlugin);
     crepe.editor
       .config((ctx) => ctx.update(remarkStringifyOptionsCtx, (prev) => ({ ...prev, bullet: "-" as const, rule: "-" as const })))
+      .config(configureImageUploads)
+      .use(imageUploads)
       .use(katexPaste)
       .use(mathBlockOnEnter)
-      .use(listItemSelectionGuard());
+      .use(listItemSelectionGuard())
+      .use(greekSymbols)
+      .use(referencias?.plugins ?? [])
+      .use(chatEditsPlugin);
     crepe.on((listener) =>
-      listener.markdownUpdated((_ctx, markdown) => {
+      listener.markdownUpdated((_ctx, updated) => {
+        const markdown = withoutPendingImages(updated);
         if (disposed || markdown === emittedRef.current) return;
         emittedRef.current = markdown;
         onChangeRef.current(markdown);
@@ -244,9 +269,12 @@ export function MarkdownEditorImpl({
       () => {
         if (disposed) return;
         crepe.setReadonly(readOnly);
-        emittedRef.current = crepe.getMarkdown();
+        emittedRef.current = withoutPendingImages(crepe.getMarkdown());
         crepeRef.current = crepe;
-        if (autoFocus && !readOnly) crepe.editor.action((ctx) => ctx.get(editorViewCtx).focus());
+        releaseHandle = onReadyRef.current?.(createEditorHandle(crepe)) || null;
+        const active = document.activeElement;
+        const typing = active instanceof HTMLElement && (active.isContentEditable || active.matches("input, textarea, select"));
+        if (autoFocus && !readOnly && !typing) crepe.editor.action((ctx) => ctx.get(editorViewCtx).focus());
       },
       (error: unknown) => {
         console.error(error);
@@ -267,6 +295,7 @@ export function MarkdownEditorImpl({
     host.addEventListener("mousedown", onMouseDown);
     return () => {
       disposed = true;
+      releaseHandle?.();
       crepeRef.current = null;
       floating.disconnect();
       host.removeEventListener("mousedown", onMouseDown);
@@ -283,7 +312,7 @@ export function MarkdownEditorImpl({
     function flushPending() {
       const crepe = crepeRef.current;
       if (!crepe) return;
-      const markdown = crepe.getMarkdown();
+      const markdown = withoutPendingImages(crepe.getMarkdown());
       if (markdown === emittedRef.current) return;
       emittedRef.current = markdown;
       onChangeRef.current(markdown);
@@ -291,10 +320,13 @@ export function MarkdownEditorImpl({
     function onKeyDown(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") flushPending();
     }
+    const root = rootRef.current;
+    root?.addEventListener(IMAGES_CHANGED, flushPending);
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("pagehide", flushPending, true);
     window.addEventListener("beforeunload", flushPending, true);
     return () => {
+      root?.removeEventListener(IMAGES_CHANGED, flushPending);
       window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("pagehide", flushPending, true);
       window.removeEventListener("beforeunload", flushPending, true);

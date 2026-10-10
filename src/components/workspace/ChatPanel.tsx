@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatMarkdown } from "@/components/ChatMarkdown";
 import { CompactChatComposer, type ComposerUploadChip } from "@/components/CompactChatComposer";
 import {
@@ -20,6 +20,12 @@ import {
 import { apiFetch } from "@/lib/api";
 import { splitArtefactoMarkers } from "@/lib/artefactos";
 import { normalizeChatMessage } from "@/lib/chat-message";
+import {
+  splitEdiciones,
+  type EdicionClase,
+  type RegistroEdicion,
+  type ResultadoEdicion,
+} from "@/lib/edicion-clase";
 import { fechaCorta } from "@/lib/fechas";
 import { rutas } from "@/lib/routes";
 import { validateStudyFile } from "@/lib/study-upload";
@@ -33,8 +39,10 @@ import type {
   WorkspaceFocus,
 } from "@/lib/types";
 import { enqueueUploads, onUploadComplete } from "@/lib/upload-queue";
+import type { EditorHandle } from "@/components/editor/editor-edits";
 import { TabLink } from "./TabLink";
 import { useWorkspace } from "./WorkspaceContext";
+import { claseEditor, whenClaseEditor } from "./clase-editors";
 import { useTabs } from "./tabs-store";
 
 type ChatState = {
@@ -45,7 +53,56 @@ type ChatState = {
   provider: { configured: boolean; message: string };
 };
 
-type ChatPart = ReturnType<typeof splitArtefactoMarkers>[number];
+type ChatPart =
+  | { kind: "text"; text: string }
+  | { kind: "artefacto"; id: string }
+  | { kind: "edicion"; edicion: EdicionClase & { notaId: string }; index: number };
+
+type EstadoEdicion = {
+  estado: "aplicada" | "pendiente" | "deshecha" | "fallida";
+  resultado?: ResultadoEdicion;
+};
+
+type ParteEdicionChat = Extract<ChatPart, { kind: "edicion" }>;
+
+function estadoGuardado(edicion: EdicionClase): EstadoEdicion | undefined {
+  const { registro } = edicion;
+  if (!registro) return undefined;
+  const { estado, ...resultado } = registro;
+  return { estado, resultado };
+}
+
+const registrosEnCurso = new Map<string, Promise<unknown>>();
+
+function registrarEnMensaje(messageId: string, index: number, registro: RegistroEdicion) {
+  if (messageId.startsWith("optimistic-")) return;
+  const enviar = () =>
+    apiFetch(`/api/chat/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ index, registro }),
+    }).catch(() => {});
+  const siguiente = (registrosEnCurso.get(messageId) ?? Promise.resolve()).then(enviar);
+  registrosEnCurso.set(messageId, siguiente);
+  void siguiente.then(() => {
+    if (registrosEnCurso.get(messageId) === siguiente) registrosEnCurso.delete(messageId);
+  });
+}
+
+function partesDeMensaje(content: string): ChatPart[] {
+  let index = 0;
+  return splitArtefactoMarkers(content).flatMap((part): ChatPart[] =>
+    part.kind === "artefacto"
+      ? [part]
+      : splitEdiciones(part.text).map((sub): ChatPart => {
+          if (sub.kind === "text") return sub;
+          const { notaId } = sub.edicion;
+          return notaId
+            ? { kind: "edicion", edicion: { ...sub.edicion, notaId }, index: index++ }
+            : { kind: "text", text: sub.edicion.markdown };
+        })
+  );
+}
 
 type VersionResumen = { version: number; titulo: string; at: number };
 
@@ -149,6 +206,7 @@ export function ChatPanel() {
   const [deleting, setDeleting] = useState<ChatSession | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saved, setSaved] = useState<Map<string, string>>(new Map());
+  const [ediciones, setEdiciones] = useState<Map<string, EstadoEdicion>>(new Map());
   const [uploadChip, setUploadChip] = useState<ComposerUploadChip | null>(null);
   const [uploadFeedback, setUploadFeedback] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -352,6 +410,92 @@ export function ChatPanel() {
     [bumpRefresh, materiaId, openInBackground, pathname, router]
   );
 
+  const setEdicion = useCallback(
+    (key: string, estado: EstadoEdicion) => setEdiciones((current) => new Map(current).set(key, estado)),
+    []
+  );
+
+  const conEditorDeClase = useCallback(
+    (notaId: string, run: (editor: EditorHandle) => void) => {
+      const editor = claseEditor(notaId);
+      if (editor) {
+        run(editor);
+        return;
+      }
+      whenClaseEditor(notaId, run);
+      router.push(rutas.clase(materiaId, notaId));
+    },
+    [materiaId, router]
+  );
+
+  const aplicarEdiciones = useCallback(
+    (message: ChatMessage) => {
+      const abiertas = new Set<string>();
+      for (const part of partesDeMensaje(message.content)) {
+        if (part.kind !== "edicion") continue;
+        const key = `${message.id}:${part.index}`;
+        const { edicion } = part;
+        const run = (editor: EditorHandle) => {
+          const resultado = editor.aplicar(key, edicion);
+          setEdicion(key, resultado ? { estado: "aplicada", resultado } : { estado: "fallida" });
+          if (resultado) registrarEnMensaje(message.id, part.index, { estado: "aplicada", ...resultado });
+        };
+        const editor = claseEditor(edicion.notaId);
+        if (editor) {
+          run(editor);
+          continue;
+        }
+        setEdicion(key, { estado: "pendiente" });
+        whenClaseEditor(edicion.notaId, run);
+        if (abiertas.has(edicion.notaId)) continue;
+        abiertas.add(edicion.notaId);
+        const href = rutas.clase(materiaId, edicion.notaId);
+        const titulo = edicion.titulo || "la clase";
+        if (typingOutsideChat() || window.matchMedia(MOBILE_QUERY).matches) {
+          openInBackground(href, edicion.titulo);
+          toast({ message: `Lo agrego a «${titulo}» cuando la abras`, action: { label: "Abrir", href } });
+        } else {
+          router.push(href);
+        }
+      }
+    },
+    [materiaId, openInBackground, router, setEdicion]
+  );
+
+  const verEdicion = useCallback(
+    (key: string, edicion: EdicionClase & { notaId: string }) => {
+      closeIfOverlay();
+      conEditorDeClase(edicion.notaId, (editor) => {
+        if (editor.ver(key, edicion.markdown)) return;
+        toast({ message: `No encuentro ese fragmento en «${edicion.titulo || "la clase"}». Quizás lo editaste o lo borraste.` });
+      });
+    },
+    [closeIfOverlay, conEditorDeClase]
+  );
+
+  const deshacerEdicion = useCallback(
+    (messageId: string, part: ParteEdicionChat) => {
+      const key = `${messageId}:${part.index}`;
+      const { edicion } = part;
+      const actual = ediciones.get(key) ?? estadoGuardado(edicion);
+      conEditorDeClase(edicion.notaId, (editor) => {
+        const result = editor.deshacer(key, edicion.markdown, actual?.resultado?.reemplazado ?? null);
+        if (result === "editado") {
+          toast({ message: "Cambiaste ese fragmento después de agregarlo. Deshacelo a mano con Ctrl+Z.", tone: "error" });
+          return;
+        }
+        if (result === "repetido") {
+          toast({ message: "Ese fragmento aparece más de una vez en la clase. Borrá a mano el que sobra.", tone: "error" });
+          return;
+        }
+        setEdicion(key, { ...actual, estado: "deshecha" });
+        if (actual?.resultado) registrarEnMensaje(messageId, part.index, { ...actual.resultado, estado: "deshecha" });
+        if (result === "no-encontrado") toast({ message: "Ese fragmento ya no estaba en la clase." });
+      });
+    },
+    [conEditorDeClase, ediciones, setEdicion]
+  );
+
   const sendMessage = useCallback(
     async (text: string) => {
       const content = text.trim();
@@ -375,7 +519,13 @@ export function ChatPanel() {
             materiaId,
             sessionId: state.activeSessionId || undefined,
             content,
-            focus: activeFocus ? { kind: activeFocus.kind, id: activeFocus.id } : undefined,
+            focus: activeFocus
+              ? {
+                  kind: activeFocus.kind,
+                  id: activeFocus.id,
+                  contenido: activeFocus.kind === "nota" ? claseEditor(activeFocus.id)?.getMarkdown() : undefined,
+                }
+              : undefined,
           }),
         });
         const payload = await response.json().catch(() => ({}));
@@ -383,13 +533,13 @@ export function ChatPanel() {
           throw new Error(payload.error || "No se pudo enviar el mensaje.");
         }
         const created = (payload.artefactos ?? []) as ArtefactoCreado[];
+        const respuesta = (payload.turn as ChatMessage[]).find((m) => m.role === "assistant");
         if (created.length) {
           setArtefactos((current) => {
             const next = new Map(current);
             for (const a of created) next.set(a.id, a);
             return next;
           });
-          const respuesta = (payload.turn as ChatMessage[]).find((m) => m.role === "assistant");
           if (respuesta) setCreadosPorMensaje((current) => new Map(current).set(respuesta.id, created));
         }
         setState((current) => ({
@@ -399,6 +549,7 @@ export function ChatPanel() {
           messages: [...current.messages.filter((m) => m.id !== optimisticId), ...payload.turn],
         }));
         showCreated(created);
+        if (respuesta && !respuesta.isError) aplicarEdiciones(respuesta);
       } catch (err) {
         setState((current) => ({
           ...current,
@@ -410,7 +561,7 @@ export function ChatPanel() {
         setSending(false);
       }
     },
-    [activeFocus, materiaId, sending, showCreated, state.activeSessionId]
+    [activeFocus, aplicarEdiciones, materiaId, sending, showCreated, state.activeSessionId]
   );
 
   useEffect(() => {
@@ -644,7 +795,7 @@ export function ChatPanel() {
                 </div>
               );
             }
-            const parts = splitArtefactoMarkers(message.content);
+            const parts = partesDeMensaje(message.content);
             const textOnly = parts
               .flatMap((part) => (part.kind === "text" ? [part.text] : []))
               .join("\n\n");
@@ -656,6 +807,17 @@ export function ChatPanel() {
                 parts={parts}
                 materiaId={materiaId}
                 artefactoDe={(id) => artefactoDeMensaje(message, id)}
+                renderEdicion={(part) => {
+                  const key = `${message.id}:${part.index}`;
+                  return (
+                    <EdicionCard
+                      edicion={part.edicion}
+                      estado={ediciones.get(key) ?? estadoGuardado(part.edicion)}
+                      onVer={() => verEdicion(key, part.edicion)}
+                      onDeshacer={() => deshacerEdicion(message.id, part)}
+                    />
+                  );
+                }}
                 citationHref={citationHref}
                 onNavigate={closeIfOverlay}
                 actions={
@@ -749,6 +911,7 @@ function AssistantMessage({
   parts,
   materiaId,
   artefactoDe,
+  renderEdicion,
   citationHref,
   onNavigate,
   actions,
@@ -757,6 +920,7 @@ function AssistantMessage({
   parts: ChatPart[];
   materiaId: string;
   artefactoDe: (id: string) => ArtefactoEnMensaje | undefined;
+  renderEdicion: (part: ParteEdicionChat) => React.ReactNode;
   citationHref: (citation: string) => string | undefined;
   onNavigate: () => void;
   actions: React.ReactNode;
@@ -772,6 +936,8 @@ function AssistantMessage({
       {parts.map((part, index) =>
         part.kind === "text" ? (
           <ChatMarkdown key={index}>{part.text}</ChatMarkdown>
+        ) : part.kind === "edicion" ? (
+          <Fragment key={index}>{renderEdicion(part)}</Fragment>
         ) : (
           <ArtefactoCard
             key={index}
@@ -857,6 +1023,87 @@ function ArtefactoCard({
         className="mr-1 shrink-0 text-foreground-subtle transition-colors group-hover/card:text-foreground"
       />
     </TabLink>
+  );
+}
+
+function lugarDeEdicion(edicion: EdicionClase, estado?: EstadoEdicion): string {
+  if (estado?.estado === "pendiente") return "Se agrega cuando abras la clase";
+  if (estado?.estado === "fallida") return "No pude escribir en el editor";
+  if (estado?.estado === "deshecha") return "Deshecho";
+  const { donde } = edicion;
+  const encabezado = "encabezado" in donde ? donde.encabezado : "";
+  const resultado = estado?.resultado;
+  const reemplazo = edicion.modo === "reemplazar";
+  if (resultado?.aviso === "demasiado") {
+    return `«${encabezado}» es casi toda la clase · lo agregué al final sin reemplazar`;
+  }
+  if (resultado?.aviso === "sin-encabezado" && encabezado) {
+    return reemplazo
+      ? `No encontré «${encabezado}» · lo agregué al final sin reemplazar`
+      : `No encontré «${encabezado}» · al final`;
+  }
+  const lugar = resultado?.lugar ?? donde.tipo;
+  if (lugar === "cursor") return "Donde tenías el cursor";
+  if (lugar === "despues") return `Al final de «${encabezado}»`;
+  if (lugar === "seccion") return `Sección «${encabezado}»`;
+  return "Al final de la clase";
+}
+
+function EdicionCard({
+  edicion,
+  estado,
+  onVer,
+  onDeshacer,
+}: {
+  edicion: EdicionClase;
+  estado?: EstadoEdicion;
+  onVer: () => void;
+  onDeshacer: () => void;
+}) {
+  const titulo = edicion.titulo || "la clase";
+  const inactiva = estado?.estado === "deshecha" || estado?.estado === "fallida";
+  const reemplazo = edicion.modo === "reemplazar" && (estado?.resultado?.lugar ?? "seccion") === "seccion";
+  const lugar = lugarDeEdicion(edicion, estado);
+  const accion =
+    "inline-flex h-6 items-center rounded-sm px-2 text-xs text-foreground-muted transition-colors duration-(--dur-fast) ease-(--ease-out) hover:bg-hover hover:text-foreground active:bg-pressed pointer-coarse:h-9";
+  return (
+    <div
+      data-edicion-clase={estado?.estado ?? "guardada"}
+      className="my-2.5 flex items-center gap-2.5 rounded-lg bg-surface p-2 shadow-[0_0_0_1px_var(--border-subtle),0_1px_2px_rgb(0_0_0/0.2)]"
+    >
+      <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-surface-elevated text-foreground-muted shadow-[0_0_0_1px_var(--border-subtle)]">
+        <Icon name={estado?.estado === "aplicada" ? "check" : "clase"} size={16} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={cx(
+            "block truncate text-[13px] font-medium leading-[18px]",
+            inactiva ? "text-foreground-muted" : "text-foreground"
+          )}
+        >
+          {estado?.estado === "fallida"
+            ? `No pude agregarlo a «${titulo}»`
+            : reemplazo
+              ? `Actualizado en «${titulo}»`
+              : `Agregado a «${titulo}»`}
+        </span>
+        <span className="block truncate text-[11px] leading-4 text-foreground-subtle" title={lugar}>
+          {lugar}
+        </span>
+      </span>
+      {!inactiva && (
+        <span className="flex shrink-0 items-center gap-0.5">
+          <button type="button" onClick={onVer} className={accion}>
+            {estado?.estado === "pendiente" ? "Abrir" : "Ver"}
+          </button>
+          {estado?.estado === "aplicada" && (
+            <button type="button" onClick={onDeshacer} className={accion}>
+              Deshacer
+            </button>
+          )}
+        </span>
+      )}
+    </div>
   );
 }
 

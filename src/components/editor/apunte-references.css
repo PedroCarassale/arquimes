@@ -1,0 +1,41 @@
+.arq-editor .milkdown .ProseMirror a[href^="/materias/"]:is([href*="/apuntes/archivo/"], [href*="/apuntes/generado/"]) {
+  --arq-ref-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 3.5V8h4.5'/%3E%3C/svg%3E");
+  position: relative;
+  padding: 1px 6px 1px 23px;
+  border-radius: var(--radius-xs);
+  background: var(--hover);
+  color: var(--foreground);
+  text-decoration: none;
+  cursor: pointer;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.arq-editor .milkdown .ProseMirror a[href^="/materias/"][href*="/apuntes/generado/"] {
+  --arq-ref-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 3.5V8h4.5'/%3E%3Cpath d='M12 10.5l.9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9z'/%3E%3C/svg%3E");
+}
+
+.arq-editor .milkdown .ProseMirror a[href^="/materias/"]:is([href*="/apuntes/archivo/"], [href*="/apuntes/generado/"])::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  background-color: var(--foreground-muted);
+  -webkit-mask: var(--arq-ref-icon) center / contain no-repeat;
+  mask: var(--arq-ref-icon) center / contain no-repeat;
+  pointer-events: none;
+}
+
+.arq-editor .milkdown .ProseMirror a[href^="/materias/"]:is([href*="/apuntes/archivo/"], [href*="/apuntes/generado/"]):hover {
+  background: var(--selected);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arq-editor .milkdown .ProseMirror a[href^="/materias/"] {
+    transition: none;
+  }
+}

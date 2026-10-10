@@ -82,7 +82,7 @@ export function EDITOR_FEATURE_CONFIGS(placeholder: string): EditorFeatureConfig
       },
       advancedGroup: {
         label: "Bloques",
-        image: null,
+        image: { label: "Imagen" },
         codeBlock: { label: "Código" },
         table: { label: "Tabla" },
         math: { label: "Fórmula en bloque" },
