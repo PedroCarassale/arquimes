@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeRedirectPath } from "@/lib/redirect-path";
 
 const PUBLIC_PAGES = new Set(["/login", "/register"]);
 
@@ -65,7 +66,8 @@ export async function middleware(request: NextRequest) {
   const ok = await hasValidSession(request);
   if (!ok) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", `${pathname}${search}`);
+    const nextPath = safeRedirectPath(`${pathname}${search}`);
+    if (nextPath !== "/") loginUrl.searchParams.set("next", nextPath);
     return NextResponse.redirect(loginUrl);
   }
 

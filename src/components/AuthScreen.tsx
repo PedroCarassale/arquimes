@@ -2,11 +2,101 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { safeRedirectPath } from "@/lib/redirect-path";
 
 type AuthMode = "login" | "register";
+
+type AuthClientError = {
+  code?: string;
+  message?: string;
+  status?: number;
+};
+
+const ORIGIN_ERROR =
+  "No pude validar desde dónde se envió el pedido. Recargá la página y probá de nuevo.";
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD:
+    "El email o la contraseña no coinciden. Revisalos y probá de nuevo.",
+  INVALID_PASSWORD:
+    "El email o la contraseña no coinciden. Revisalos y probá de nuevo.",
+  USER_NOT_FOUND:
+    "El email o la contraseña no coinciden. Revisalos y probá de nuevo.",
+  CREDENTIAL_ACCOUNT_NOT_FOUND:
+    "Esa cuenta se creó con Google. Entrá con «Continuar con Google».",
+  USER_ALREADY_EXISTS:
+    "Ya hay una cuenta con ese email. Iniciá sesión o usá otro email.",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
+    "Ya hay una cuenta con ese email. Iniciá sesión o usá otro email.",
+  INVALID_EMAIL: "Ingresá un email válido, por ejemplo nombre@universidad.edu.",
+  PASSWORD_TOO_SHORT: "La contraseña debe tener al menos 8 caracteres.",
+  PASSWORD_TOO_LONG: "La contraseña es demasiado larga. Probá con una más corta.",
+  INVALID_ORIGIN: ORIGIN_ERROR,
+  MISSING_OR_NULL_ORIGIN: ORIGIN_ERROR,
+  CROSS_SITE_NAVIGATION_LOGIN_BLOCKED: ORIGIN_ERROR,
+  INVALID_CALLBACK_URL: "La dirección de regreso no es válida. Recargá la página y probá de nuevo.",
+  FAILED_TO_CREATE_USER: "No pude crear tu cuenta. Probá de nuevo en un momento.",
+  FAILED_TO_CREATE_SESSION: "No pude abrir tu sesión. Probá de nuevo en un momento.",
+  PROVIDER_NOT_FOUND:
+    "Google no está disponible en este momento. Podés entrar con email y contraseña.",
+};
+
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  access_denied:
+    "Cancelaste el ingreso con Google. Podés volver a intentarlo cuando quieras.",
+  state_mismatch:
+    "El ingreso con Google se interrumpió o venció. Tocá «Continuar con Google» de nuevo.",
+  state_not_found:
+    "El ingreso con Google se interrumpió o venció. Tocá «Continuar con Google» de nuevo.",
+  state_invalid:
+    "El ingreso con Google se interrumpió o venció. Tocá «Continuar con Google» de nuevo.",
+  please_restart_the_process:
+    "El ingreso con Google se interrumpió o venció. Tocá «Continuar con Google» de nuevo.",
+  invalid_code:
+    "Google no confirmó el ingreso. Tocá «Continuar con Google» de nuevo.",
+  no_code:
+    "Google no confirmó el ingreso. Tocá «Continuar con Google» de nuevo.",
+  account_not_linked:
+    "Ya tenés una cuenta con ese email. Entrá con tu email y contraseña.",
+  email_not_found:
+    "Google no compartió tu email, así que no pude crear la cuenta.",
+  email_not_verified:
+    "Tu email de Google no está verificado. Verificalo o entrá con email y contraseña.",
+  signup_disabled: "No se pueden crear cuentas nuevas con Google en este momento.",
+  unable_to_create_user: "No pude crear tu cuenta con Google. Probá de nuevo en un momento.",
+  unable_to_create_session: "No pude abrir tu sesión con Google. Probá de nuevo en un momento.",
+};
+
+function describeAuthError(
+  error: AuthClientError | null | undefined,
+  fallback: string
+): string {
+  if (!error) return fallback;
+  if (error.code && AUTH_ERROR_MESSAGES[error.code]) {
+    return AUTH_ERROR_MESSAGES[error.code];
+  }
+  if (error.status === 429) {
+    return "Hiciste muchos intentos seguidos. Esperá un minuto y probá de nuevo.";
+  }
+  if (error.status === 0 || error.status === undefined) {
+    return "No me pude conectar con el servidor. Revisá tu conexión y probá de nuevo.";
+  }
+  if (error.status >= 500) {
+    return "El servidor tuvo un problema. Probá de nuevo en un momento.";
+  }
+  return fallback;
+}
+
+function describeOAuthError(code: string): string {
+  const normalized = code.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return (
+    OAUTH_ERROR_MESSAGES[normalized] ||
+    "No pude completar el ingreso con Google. Probá de nuevo o entrá con email y contraseña."
+  );
+}
 
 const RETRATO_MASK =
   "linear-gradient(to bottom, #000 0%, #000 45%, transparent 90%), linear-gradient(to right, transparent 0%, #000 10%, #000 90%, transparent 100%)";
@@ -46,18 +136,22 @@ export function AuthScreen({
   mode,
   googleEnabled,
   nextPath = "/",
+  oauthError,
 }: {
   mode: AuthMode;
   googleEnabled: boolean;
   nextPath?: string;
+  oauthError?: string;
 }) {
   const router = useRouter();
-  const redirectTo = nextPath.startsWith("/") ? nextPath : "/";
+  const redirectTo = safeRedirectPath(nextPath);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    oauthError ? describeOAuthError(oauthError) : null
+  );
   const [errorPulse, setErrorPulse] = useState(0);
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
@@ -67,6 +161,29 @@ export function AuthScreen({
   const [shakingField, setShakingField] = useState<AuthField | null>(null);
 
   const isRegister = mode === "register";
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("error")) return;
+    url.searchParams.delete("error");
+    url.searchParams.delete("error_description");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`
+    );
+  }, []);
+
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (!event.persisted) return;
+      setBusy(false);
+      setGoogleBusy(false);
+      setError(null);
+    }
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
 
   function showError(message: string) {
     setError(message);
@@ -164,7 +281,12 @@ export function AuthScreen({
           password: password.trim(),
         });
         if (registerError) {
-          showError(registerError.message || "No pude crear tu cuenta.");
+          showError(
+            describeAuthError(
+              registerError,
+              "No pude crear tu cuenta. Probá de nuevo en un momento."
+            )
+          );
           return;
         }
       } else {
@@ -173,18 +295,19 @@ export function AuthScreen({
           password: password.trim(),
         });
         if (loginError) {
-          showError(loginError.message || "No pude iniciar sesión.");
+          showError(
+            describeAuthError(
+              loginError,
+              "No pude iniciar sesión. Probá de nuevo en un momento."
+            )
+          );
           return;
         }
       }
       router.push(redirectTo);
       router.refresh();
-    } catch (authError) {
-      showError(
-        authError instanceof Error
-          ? authError.message
-          : "No pude completar la autenticación."
-      );
+    } catch {
+      showError(describeAuthError({}, "No pude completar la autenticación."));
     } finally {
       setBusy(false);
     }
@@ -201,20 +324,32 @@ export function AuthScreen({
 
     setGoogleBusy(true);
     try {
-      const { error: googleError } = await authClient.signIn.social({
+      const { data, error: googleError } = await authClient.signIn.social({
         provider: "google",
         callbackURL: redirectTo,
+        errorCallbackURL:
+          redirectTo === "/"
+            ? "/login"
+            : `/login?next=${encodeURIComponent(redirectTo)}`,
       });
       if (googleError) {
-        showError(googleError.message || "No pude iniciar con Google.");
+        showError(
+          describeAuthError(
+            googleError,
+            "No pude iniciar con Google. Probá de nuevo o entrá con email y contraseña."
+          )
+        );
+        setGoogleBusy(false);
+        return;
       }
-    } catch (authError) {
+      if (!data?.url) setGoogleBusy(false);
+    } catch {
       showError(
-        authError instanceof Error
-          ? authError.message
-          : "No pude iniciar con Google."
+        describeAuthError(
+          {},
+          "No pude iniciar con Google. Probá de nuevo o entrá con email y contraseña."
+        )
       );
-    } finally {
       setGoogleBusy(false);
     }
   }
