@@ -1,10 +1,13 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TabMeta } from "@/components/workspace/WorkspaceContext";
-import { getMateria } from "@/lib/db";
+import { getMateriaCached } from "@/lib/page-data";
 import { listApuntes } from "@/lib/workspace-store";
 import { ApuntesLibrary, type ApuntesOrden, type ApuntesTipo } from "./ApuntesLibrary";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Apuntes" };
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -17,7 +20,7 @@ function first(value?: string | string[]): string | undefined {
 
 export default async function ApuntesPage({ params, searchParams }: PageProps) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const materia = await getMateria(id);
+  const materia = await getMateriaCached(id);
   if (!materia) notFound();
   const apuntes = await listApuntes(id);
   const tipoParam = first(query.tipo);

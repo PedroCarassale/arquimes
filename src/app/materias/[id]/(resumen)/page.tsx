@@ -5,9 +5,10 @@ import { buttonClasses } from "@/components/ui/Button";
 import { Icon, apunteIconName, fileIconName } from "@/components/ui/Icon";
 import { TabLink } from "@/components/workspace/TabLink";
 import { TabMeta } from "@/components/workspace/WorkspaceContext";
-import { getExamenes, getMateria, listEventos } from "@/lib/db";
+import { getExamenes, listEventos } from "@/lib/db";
 import { extractoPlano } from "@/lib/editor-markdown";
 import { fechaCorta, hoyYmd, sumarDias } from "@/lib/fechas";
+import { getMateriaCached } from "@/lib/page-data";
 import { rutas } from "@/lib/routes";
 import type { ApunteItem, EventoResumen, Nota } from "@/lib/types";
 import { listApuntes, listArtefactos, listNotas } from "@/lib/workspace-store";
@@ -42,7 +43,7 @@ export default async function MateriaInicioPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const hoy = hoyYmd();
   const [materia, notas, apuntes, eventos, examenes, artefactos] = await Promise.all([
-    getMateria(id),
+    getMateriaCached(id),
     listNotas(id),
     listApuntes(id),
     listEventos({ materiaId: id, desde: hoy, hasta: sumarDias(hoy, 365) }),

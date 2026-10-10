@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { EmptyState } from "@/components/ui";
 import { NuevaNotaButtons } from "@/components/workspace/NuevaNotaButtons";
 import { TabMeta } from "@/components/workspace/WorkspaceContext";
@@ -7,6 +8,8 @@ import { listNotas } from "@/lib/workspace-store";
 import { ClasesList, type GrupoClases } from "./ClasesList";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Clases" };
 
 export default async function ClasesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

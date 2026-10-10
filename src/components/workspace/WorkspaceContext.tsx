@@ -13,6 +13,7 @@ import {
 import { usePathname } from "next/navigation";
 import type { WorkspaceFocus } from "@/lib/types";
 import { tabKey } from "@/lib/tabs";
+import { useWorkspaceDocumentTitle, useWorkspaceTitleScope } from "@/components/document-title";
 import type { IconName } from "@/components/ui/Icon";
 import { tabsStore } from "./tabs-store";
 
@@ -188,6 +189,7 @@ export function WorkspaceProvider({
   }, []);
 
   const bumpRefresh = useCallback(() => setRefreshToken((n) => n + 1), []);
+  useWorkspaceTitleScope();
 
   const value = useMemo<WorkspaceValue>(
     () => ({
@@ -256,12 +258,13 @@ export function useChatLayout(): ChatLayout {
 }
 
 function useTabTitle(title: string, icon?: string) {
-  const { materiaId } = useWorkspace();
+  const { materiaId, materiaName } = useWorkspace();
   const pathname = usePathname();
   const key = tabKey(pathname);
   useEffect(() => {
     tabsStore.setTitle(materiaId, key, title, icon);
   }, [materiaId, key, title, icon]);
+  useWorkspaceDocumentTitle(materiaId, materiaName, key, title);
 }
 
 export function FocusRegister({ kind, id, titulo, icon }: FocusInfo & { icon?: IconName }) {

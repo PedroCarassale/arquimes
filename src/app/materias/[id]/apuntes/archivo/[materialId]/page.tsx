@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MaterialViewer } from "@/components/MaterialViewer";
 import { fileIconName } from "@/components/ui/Icon";
 import { FocusRegister } from "@/components/workspace/WorkspaceContext";
-import { getMaterial, withLectura } from "@/lib/db";
+import { withLectura } from "@/lib/db";
+import { getMaterialCached } from "@/lib/page-data";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +12,16 @@ interface PageProps {
   params: Promise<{ id: string; materialId: string }>;
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id, materialId } = await params;
+  const material = await getMaterialCached(materialId);
+  if (!material || material.materiaId !== id) return {};
+  return { title: material.name.trim() || "Archivo" };
+}
+
 export default async function ArchivoPage({ params }: PageProps) {
   const { id, materialId } = await params;
-  const material = await getMaterial(materialId);
+  const material = await getMaterialCached(materialId);
   if (!material || material.materiaId !== id) notFound();
   const [conLectura] = await withLectura([material]);
   const esExamen = material.kind === "examen";

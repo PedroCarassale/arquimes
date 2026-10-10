@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AppShell } from "@/components/AppShell";
 import { ProfileScreen } from "@/components/ProfileScreen";
@@ -5,6 +6,8 @@ import { auth } from "@/lib/auth";
 import { requirePageSession } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Perfil" };
 
 type UserAccount = {
   providerId?: string;

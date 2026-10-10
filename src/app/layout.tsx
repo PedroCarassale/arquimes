@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { IBM_Plex_Mono } from "next/font/google";
 import { Cormorant_Garamond } from "next/font/google";
+import { DocumentTitleKeeper } from "@/components/document-title";
 import { Toaster } from "@/components/ui/Toast";
+import { APP_TITLE, ROOT_TITLE_TEMPLATE } from "@/lib/document-title";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,7 +25,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Arquimedes",
+  title: { default: APP_TITLE, template: ROOT_TITLE_TEMPLATE },
   description: "Organizá toda tu vida de estudio en la facu.",
 };
 
@@ -43,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full bg-background text-foreground antialiased">
         {children}
         <Toaster />
+        <DocumentTitleKeeper />
       </body>
     </html>
   );

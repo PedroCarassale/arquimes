@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/AppShell";
 import { loadCalendarEventos } from "@/components/calendar/calendar-data";
 import { CalendarView } from "@/components/calendar/CalendarView";
@@ -8,6 +9,8 @@ import { getMaterias } from "@/lib/db";
 import { rutas } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Calendario" };
 
 export default async function CalendarioGlobalPage({
   searchParams,
